@@ -26,8 +26,35 @@ export class Halo3CarnageReportService {
         const teamCount = multi.mptm.teams.filter(t => t.exists).length;
 
         await this.prisma.$transaction(async (tx) => {
+            // If we have a carnage report submission with an earlier finish time, the host probs dropped.
+            // Delete & reinsert with newer data.
+            const existingReport = await tx.carnage_report.findFirst({
+                where: {
+                    game_id: multi.mpgd.game_id,
+                    map_id: multi.mpgd.map_id,
+                    start_time: multi.mpgd.start_time,
+                    finish_time: { lt: multi.mpgd.finish_time }
+                },
+                select: {
+                    id: true
+                }
+            })
+
+            let existingCarnageReportId = existingReport
+                ? existingReport.id
+                : undefined;
+
+            if (existingCarnageReportId) {
+                await tx.carnage_report.delete({
+                    where: {
+                        id: existingCarnageReportId
+                    }
+                })
+            }
+
             const {id: carnageReportId} = await tx.carnage_report.create({
                 data: {
+                    id: existingCarnageReportId,
                     ...multi.mpgd,
                     scenario_path: multi.mpgd.scenario_path.path,
                     carnage_report_game_variant: { 

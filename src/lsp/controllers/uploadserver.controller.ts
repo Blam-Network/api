@@ -8,26 +8,33 @@ import {
   UseInterceptors,
   HttpCode,
   Get,
+  Next,
 } from '@nestjs/common';
-import ILogger, { ILoggerSymbol } from '../../../ILogger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiConsumes, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { inflate } from 'pako';
-import { Response } from 'express';
-import { readPlayers } from '../blf/MultiplayerPlayers';
+import { NextFunction, Response } from 'express';
 import { UpdateServiceRecordCommand } from 'src/application/commands/UpdateServiceRecordCommand';
 import UserID from 'src/domain/value-objects/UserId';
+import * as BLF from '@blamnetwork/blf_lsp'
+import { readPlayers } from 'src/infrastructure/presentation/blf/MultiplayerPlayers';
+import ILogger, { ILoggerSymbol } from 'src/ILogger';
+import { PrismaService } from 'src/db/prisma.service';
+import { Halo3UploadService } from '../halo3/Halo3UploadService';
+import { CompressionService } from '../services/compression.service';
+import { UploadService } from '../services/upload.service';
 
 @ApiTags('Upload Server')
 @Controller('/upload_server')
 export class UploadServerController {
   constructor(
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
-    private readonly queryBus: QueryBus,
-    private readonly commandBus: CommandBus,
+    private readonly uploadService: UploadService,
+    private readonly halo3UploadService: Halo3UploadService,
+    private readonly compressionService: CompressionService,
   ) {}
 
   @HttpCode(200)
@@ -37,59 +44,16 @@ export class UploadServerController {
     @UploadedFile() upload: Express.Multer.File,
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (
-      !upload.mimetype.startsWith('application/x-halo3-') &&
-      !upload.mimetype.startsWith('application/x-atlas-') &&
-      !upload.mimetype.startsWith('application/x-bungie-')
-    ) 
-      throw new BadRequestException(`Unrecognized file! ` + upload.mimetype);
+    this.uploadService.handleDebug(upload);
+    this.uploadService.storeUploadedFile(upload)
 
-    const filetype = upload.mimetype
-      .replace('application/x-halo3-', '')
-      .replace('application/x-atlas-', '')
-      .replace('application/x-bungie-', '');
+    // TITLES:
+    this.halo3UploadService.handleUpload(upload);
 
-    if (filetype === 'multi') {
-      const blf = inflate(upload.buffer.subarray(12));
-
-      const players = readPlayers(blf.slice(0x4e4, 0x4e4 + 0x11e0));
-
-      for (let i = 0; i < players.length; i++) {
-        const player = players[i];
-        // guests
-        if (player.playerName.endsWith(')')) continue;
-        this.commandBus.execute(
-          await new UpdateServiceRecordCommand(new UserID(player.xuid), {
-            ...player,
-          }),
-        );
-      }
-    }
-
-    try {
-      await writeFile(
-        join(
-          process.cwd(),
-          'uploads',
-          filetype,
-          new Date().getTime().toString() + '_' + upload.originalname,
-        ),
-        inflate(upload.buffer.subarray(12)),
-      );
-    } catch (e) {
-      await writeFile(
-        join(
-          process.cwd(),
-          'uploads',
-          filetype,
-          new Date().getTime().toString() + '_' + upload.originalname,
-        ),
-        upload.buffer,
-      );
-    }
 
     res.status(200).send('');
   }
+
   @Post('/upload.ashx')
   @UseInterceptors(FileInterceptor('upload'))
   async uploadDump(

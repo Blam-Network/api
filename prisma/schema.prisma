@@ -11,14 +11,14 @@ datasource db {
 
 model blind_screenshot {
   id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  unique_id             BigInt?
+  unique_id             Decimal? @db.Decimal(20, 0)
   name                  String   @db.VarChar(16)
   description           String   @db.VarChar(128)
   author                String   @db.VarChar(16)
   file_type             Int
   author_is_xuid_online Boolean
-  author_id             BigInt
-  size_in_bytes         BigInt
+  author_id             Decimal @db.Decimal(20, 0)
+  size_in_bytes         Decimal @db.Decimal(20, 0)
   date                  DateTime @db.Timestamp(6)
   length_seconds        Int
   campaign_id           Int
@@ -26,7 +26,7 @@ model blind_screenshot {
   game_engine_type      Int
   campaign_difficulty   Int
   hopper_id             Int      @db.SmallInt
-  game_id               BigInt
+  game_id               Decimal @db.Decimal(20, 0)
   game_tick             Int
   film_tick             Int
   jpeg_length           Int
@@ -41,12 +41,12 @@ model blind_screenshot {
 model carnage_report {
   id                                 String                              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   team_game                          Boolean
-  game_id                            BigInt
+  game_id                            Decimal @db.Decimal(20, 0)
   map_id                             Int
   scenario_path                      String
   map_variant_name                   String                              @db.VarChar(32)
-  game_variant_unique_id             BigInt
-  map_variant_unique_id              BigInt
+  game_variant_unique_id             Decimal @db.Decimal(20, 0)
+  map_variant_unique_id              Decimal @db.Decimal(20, 0)
   started                            Boolean
   start_time                         DateTime                            @db.Timestamp(6)
   finished                           Boolean
@@ -73,7 +73,7 @@ model carnage_report {
 model carnage_report_event_carry {
   id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   carnage_report_id     String?                @db.Uuid
-  time                  BigInt
+  time                  Decimal @db.Decimal(20, 0)
   carry_player_index    Int                    @db.SmallInt
   position              Float[]
   weapon_index          Int
@@ -87,7 +87,7 @@ model carnage_report_event_carry {
 model carnage_report_event_kill {
   id                                                                                                           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   carnage_report_id                                                                                            String?                @db.Uuid
-  time                                                                                                         BigInt
+  time                                                                                                         Decimal @db.Decimal(20, 0)
   killer_player_index                                                                                          Int                    @db.SmallInt
   dead_player_index                                                                                            Int                    @db.SmallInt
   killer_position                                                                                              Float[]
@@ -103,7 +103,7 @@ model carnage_report_event_kill {
 model carnage_report_event_score {
   id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   carnage_report_id     String?                @db.Uuid
-  time                  BigInt
+  time                  Decimal @db.Decimal(20, 0)
   score_player_index    Int                    @db.SmallInt
   position              Float[]
   weapon_index          Int
@@ -117,14 +117,14 @@ model carnage_report_event_score {
 model carnage_report_game_variant {
   id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   game_engine           Int            @db.SmallInt
-  unique_id             BigInt
+  unique_id             Decimal @db.Decimal(20, 0)
   name                  String         @db.VarChar(16)
   description           String         @db.VarChar(128)
   author                String         @db.VarChar(16)
   file_type             Int
   author_is_xuid_online Boolean
-  author_id             BigInt
-  size_in_bytes         BigInt
+  author_id             Decimal @db.Decimal(20, 0)
+  size_in_bytes         Decimal @db.Decimal(20, 0)
   date                  DateTime       @db.Timestamp(6)
   carnage_report        carnage_report @relation(fields: [id], references: [id], onDelete: Cascade, map: "fk_carnage_report")
 
@@ -147,7 +147,7 @@ model carnage_report_machine {
   machine_bandwidth_events_4                      Int?
   session_exists                                  Boolean?
   session_has_hard_drive                          Boolean?
-  session_party_nonce                             BigInt?
+  session_party_nonce                             Decimal? @db.Decimal(20, 0)
   session_secure_address                          Bytes?
   session_network_version_number                  Int?
   session_peer_estimated_downstream_bandwidth_bps Int?
@@ -171,11 +171,11 @@ model carnage_report_matchmaking_options {
   hopper_ranked                Boolean
   hopper_team_based            Boolean
   xlast_index                  Int
-  draw_probability             BigInt
+  draw_probability             Decimal @db.Decimal(20, 0)
   beta                         Float
   tau                          Float
-  experience_base_increment    BigInt
-  experience_penalty_decrement BigInt
+  experience_base_increment    Decimal @db.Decimal(20, 0)
+  experience_penalty_decrement Decimal @db.Decimal(20, 0)
   carnage_report               carnage_report @relation(fields: [id], references: [id], onDelete: Cascade)
 
   @@schema("halo3")
@@ -183,7 +183,7 @@ model carnage_report_matchmaking_options {
 
 model carnage_report_player {
   carnage_report_id                                                                                                               String                                    @db.Uuid
-  player_identifier                                                                                                               BigInt
+  player_identifier                                                                                                               Decimal @db.Decimal(20, 0)
   player_index                                                                                                                    Int                                       @db.SmallInt
   machine_index                                                                                                                   Int?                                      @db.SmallInt
   player_name                                                                                                                     String                                    @db.VarChar(16)
@@ -207,7 +207,7 @@ model carnage_report_player {
   elite_model_area_2                                                                                                              Int
   elite_model_area_3                                                                                                              Int
   service_tag                                                                                                                     String                                    @db.VarChar(4)
-  player_xuid                                                                                                                     BigInt
+  player_xuid                                                                                                                     Decimal @db.Decimal(20, 0)
   is_silver_or_gold_live                                                                                                          Boolean
   is_online_enabled                                                                                                               Boolean
   is_controller_attached                                                                                                          Boolean
@@ -220,33 +220,33 @@ model carnage_report_player {
   is_friend_created_content_allowed                                                                                               Boolean
   is_griefer                                                                                                                      Int                                       @db.SmallInt
   campaign_difficulty_completed                                                                                                   Int
-  bungienet_user_flags                                                                                                            BigInt
+  bungienet_user_flags                                                                                                            Decimal @db.Decimal(20, 0)
   gamer_region                                                                                                                    Int
   gamer_zone                                                                                                                      Int
-  cheat_flags                                                                                                                     BigInt
-  ban_flags                                                                                                                       BigInt
+  cheat_flags                                                                                                                     Decimal @db.Decimal(20, 0)
+  ban_flags                                                                                                                       Decimal @db.Decimal(20, 0)
   repeated_play_coefficient                                                                                                       Int
   experience_growth_banned                                                                                                        Boolean
-  matchmade_ranked_games_played                                                                                                   BigInt
-  matchmade_ranked_games_completed                                                                                                BigInt
-  matchmade_ranked_games_won                                                                                                      BigInt
-  matchmade_unranked_games_played                                                                                                 BigInt
-  matchmade_unranked_games_completed                                                                                              BigInt
-  hopper_experience_base                                                                                                          BigInt
-  custom_games_completed                                                                                                          BigInt
-  hopper_experience_penalty                                                                                                       BigInt
+  matchmade_ranked_games_played                                                                                                   Decimal @db.Decimal(20, 0)
+  matchmade_ranked_games_completed                                                                                                Decimal @db.Decimal(20, 0)
+  matchmade_ranked_games_won                                                                                                      Decimal @db.Decimal(20, 0)
+  matchmade_unranked_games_played                                                                                                 Decimal @db.Decimal(20, 0)
+  matchmade_unranked_games_completed                                                                                              Decimal @db.Decimal(20, 0)
+  hopper_experience_base                                                                                                          Decimal @db.Decimal(20, 0)
+  custom_games_completed                                                                                                          Decimal @db.Decimal(20, 0)
+  hopper_experience_penalty                                                                                                       Decimal @db.Decimal(20, 0)
   first_played                                                                                                                    DateTime                                  @db.Timestamp(6)
   last_played                                                                                                                     DateTime                                  @db.Timestamp(6)
   global_statistics_valid                                                                                                         Int                                       @db.SmallInt
-  global_statistics_highest_skill                                                                                                 BigInt
-  global_statistics_experience_base                                                                                               BigInt
-  global_statistics_experience_penalty                                                                                            BigInt
+  global_statistics_highest_skill                                                                                                 Decimal @db.Decimal(20, 0)
+  global_statistics_experience_base                                                                                               Decimal @db.Decimal(20, 0)
+  global_statistics_experience_penalty                                                                                            Decimal @db.Decimal(20, 0)
   hopper_statistics_valid                                                                                                         Int                                       @db.SmallInt
   hopper_statistics_identifier                                                                                                    Int
-  hopper_statistics_hopper_skill                                                                                                  BigInt
-  hopper_statistics_games_won                                                                                                     BigInt
-  hopper_statistics_games_played                                                                                                  BigInt
-  hopper_statistics_games_completed                                                                                               BigInt
+  hopper_statistics_hopper_skill                                                                                                  Decimal @db.Decimal(20, 0)
+  hopper_statistics_games_won                                                                                                     Decimal @db.Decimal(20, 0)
+  hopper_statistics_games_played                                                                                                  Decimal @db.Decimal(20, 0)
+  hopper_statistics_games_completed                                                                                               Decimal @db.Decimal(20, 0)
   hopper_statistics_mu                                                                                                            Float?
   hopper_statistics_sigma                                                                                                         Float?
   player_team                                                                                                                     Int
@@ -687,7 +687,7 @@ model matchmaking_session_search_property {
 }
 
 model player_data {
-  player_xuid               BigInt   @id
+  player_xuid               Decimal @db.Decimal(20, 0)   @id
   hopper_access             Int?     @default(0)
   highest_skill             Int?     @default(0)
   road_to_recon_completed   Boolean? @default(false)
@@ -700,7 +700,7 @@ model player_data {
 }
 
 model service_record {
-  player_xuid                        BigInt   @id
+  player_xuid                        Decimal @db.Decimal(20, 0)   @id
   player_name                        String   @db.VarChar(16)
   appearance_flags                   Int      @db.SmallInt
   primary_color                      Int      @db.SmallInt
@@ -731,18 +731,18 @@ model service_record {
   unknown_insignia2                  Int
   first_played                       DateTime @db.Timestamp(6)
   last_played                        DateTime @db.Timestamp(6)
-  bungienet_user_flags               BigInt
+  bungienet_user_flags               Decimal @db.Decimal(20, 0)
   is_silver_or_gold_live             Boolean
   is_online_enabled                  Boolean
   gamer_region                       Int
-  cheat_flags                        BigInt
-  ban_flags                          BigInt
-  matchmade_ranked_games_played      BigInt
-  matchmade_ranked_games_completed   BigInt
-  matchmade_ranked_games_won         BigInt
-  matchmade_unranked_games_played    BigInt
-  matchmade_unranked_games_completed BigInt
-  custom_games_completed             BigInt
+  cheat_flags                        Decimal @db.Decimal(20, 0)
+  ban_flags                          Decimal @db.Decimal(20, 0)
+  matchmade_ranked_games_played      Decimal @db.Decimal(20, 0)
+  matchmade_ranked_games_completed   Decimal @db.Decimal(20, 0)
+  matchmade_ranked_games_won         Decimal @db.Decimal(20, 0)
+  matchmade_unranked_games_played    Decimal @db.Decimal(20, 0)
+  matchmade_unranked_games_completed Decimal @db.Decimal(20, 0)
+  custom_games_completed             Decimal @db.Decimal(20, 0)
 
   @@index([player_name], map: "idx_service_record_player_name")
   @@schema("halo3")
@@ -750,14 +750,14 @@ model service_record {
 
 model odst_blind_screenshot {
   id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  unique_id                 BigInt?
+  unique_id                 Decimal? @db.Decimal(20, 0)
   name                      String   @db.VarChar(16)
   description               String   @db.VarChar(128)
   author                    String   @db.VarChar(16)
   file_type                 Int
   author_is_xuid_online     Boolean
-  author_id                 BigInt
-  size_in_bytes             BigInt
+  author_id                 Decimal @db.Decimal(20, 0)
+  size_in_bytes             Decimal @db.Decimal(20, 0)
   date                      DateTime @db.Timestamp(6)
   length_seconds            Int
   campaign_id               Int
@@ -766,7 +766,7 @@ model odst_blind_screenshot {
   campaign_difficulty       Int
   campaign_insertion_point  Int      @db.SmallInt
   campaign_survival_enabled Boolean
-  game_id                   BigInt
+  game_id                   Decimal @db.Decimal(20, 0)
   game_tick                 Int
   film_tick                 Int
   jpeg_length               Int

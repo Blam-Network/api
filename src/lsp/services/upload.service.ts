@@ -1,0 +1,43 @@
+import ILogger, { ILoggerSymbol } from "src/ILogger";
+import { CompressionService } from "./compression.service";
+import { mkdir, writeFile } from "fs/promises";
+import { join } from "path";
+import { Inject, Injectable } from "@nestjs/common";
+
+const ENABLE_DEBUG_MIME = true;
+const DEBUG_MIME = 'application/x-halo3-multi'
+
+@Injectable()
+export class UploadService {
+    constructor(
+        @Inject(ILoggerSymbol) private readonly logger: ILogger,
+        private readonly compressionService: CompressionService,
+    ) {}
+
+    public handleDebug = (upload: Express.Multer.File) => {
+        if (ENABLE_DEBUG_MIME && DEBUG_MIME && upload.mimetype === 'application/octet-stream') {
+            upload.mimetype = DEBUG_MIME;
+        }
+    }
+
+    public storeUploadedFile = async (upload: Express.Multer.File) => {
+        const buffer = this.compressionService.inflateIfCompressed(upload);
+        const uploadFolder = join(
+            process.cwd(),
+            'uploads',
+            upload.mimetype.replace('application/', ''),
+        )
+        const uploadName = new Date().getTime().toString() + '_' + upload.originalname;
+        this.logger.debug(`[UPLOAD] upload_server/stats.ashx got '${upload.mimetype}' file, saving as '${uploadName}'`)
+
+        await mkdir(uploadFolder, { recursive: true });
+    
+        await writeFile(
+            join(
+                uploadFolder,
+                uploadName,
+            ),
+            buffer,
+        );
+    }
+}

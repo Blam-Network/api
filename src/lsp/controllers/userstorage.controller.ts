@@ -7,25 +7,16 @@ import {
   Res,
   StreamableFile,
 } from '@nestjs/common';
-import ILogger, { ILoggerSymbol } from '../../../ILogger';
+import ILogger, { ILoggerSymbol } from '../../ILogger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { createReadStream } from 'fs';
 import { join } from 'path';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { stat } from 'fs/promises';
 import { Response } from 'express';
-import ServiceRecord from '../blf/ServiceRecord';
-import PlayerData from '../blf/PlayerData';
-import UserBans from '../blf/UserBans';
-import FileQueue from '../blf/FileQueue';
-import { getBuffer } from '../blf/UserFile';
-import { GetUserQuery } from 'src/application/queries/GetUserQuery';
-import UserID from 'src/domain/value-objects/UserId';
-import User from 'src/domain/aggregates/User';
-import { CreateUserCommand } from 'src/application/commands/CreateUserCommand';
-import OmahaPlayerData from '../blf/OmahaPlayerData';
-import { BLF, s_blf_chunk_player_data, s_blf_chunk_service_record } from '@blamnetwork/blf_lsp';
 import { PrismaService } from 'src/db/prisma.service';
+import { parseXuid } from 'src/xbox/xuid';
+import * as BLF from '@blamnetwork/blf_lsp';
 
 @ApiTags('User Storage')
 @Controller('/storage/user')
@@ -52,7 +43,19 @@ export class UserStorageController {
     @Param('xuid') xuid: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return await this.getUser(xuid, res, true);
+    const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_file(
+      {
+        bungie_user_role: 0,
+        hopper_access: 0,
+        hopper_directory: 'default_hoppers',
+        unknown1: 0,
+        unknown2: new Array(0x20).fill(0),
+        unknown3: 0,
+      },
+      undefined
+    );
+
+    return new StreamableFile(blfFile, { disposition: "filename=user.bin" });
   }
 
   @Get('/:titleId/:unk1/:unk2/:unk3/:xuid/recent_players.bin')
@@ -69,12 +72,41 @@ export class UserStorageController {
   async getUser(
     @Param('xuid') xuid: string,
     @Res({ passthrough: true }) res: Response,
-    reach = false,
   ) {
-    const serviceRecord = await this.prisma.service_record.findUnique({ where: { player_xuid: BigInt("0x" + xuid) }});
-    const playerData = await this.prisma.player_data.findUnique({where: {player_xuid: BigInt("0x" + xuid)}});
+    const player_xuid = parseXuid(xuid);
+    const serviceRecord = await this.prisma.service_record.findUnique({ where: { player_xuid }, select: {
+      player_name: true,
+      appearance_flags: true,
+      primary_color: true,
+      secondary_color: true,
+      tertiary_color: true,
+      emblem_background_color: true,
+      emblem_primary_color: true,
+      emblem_secondary_color: true,
+      elite_body: true,
+      elite_helmet: true,
+      elite_left_shoulder: true,
+      elite_right_shoulder: true,
+      emblem_flags: true,
+      is_elite: true,
+      total_exp: true,
+      foreground_emblem: true,
+      background_emblem: true,
+      spartan_body: true,
+      service_tag: true,
+      spartan_helmet: true,
+      spartan_left_shoulder: true,
+      spartan_right_shoulder: true,
+      campaign_progress: true,
+      unknown_insignia: true,
+      unknown_insignia2: true,
+      rank: true,
+      grade: true,
+      highest_skill: true,
+    }});
+    const playerData = await this.prisma.player_data.findUnique({ where: { player_xuid } });
 
-    let fupd: s_blf_chunk_player_data;
+    let fupd: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_player_data | undefined;
 
     if (playerData) {
       let bungie_user_role = 0;
@@ -88,10 +120,10 @@ export class UserStorageController {
         hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
       }
     }
-
-    const blfFile = BLF.halo3.build_user_file(
-      serviceRecord, 
-      fupd
+ 
+    const blfFile = BLF.halo3_12070_08_09_05_2031_halo3_ship.build_user_file(
+      fupd,
+      serviceRecord
     );
 
     return new StreamableFile(blfFile, { disposition: "filename=user.bin" });

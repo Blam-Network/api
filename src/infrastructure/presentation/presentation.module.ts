@@ -6,13 +6,13 @@ import { MachineStorageController } from './controllers/machinestorage.controlle
 import { PimpsController } from './controllers/pimps.controller';
 import { SunriseController } from './controllers/sunrise.controller';
 import { TitleStorageController } from './controllers/titlestorage.controller';
-import { UploadServerController } from './controllers/uploadserver.controller';
-import { UserStorageController } from './controllers/userstorage.controller';
+import { UserStorageController } from '../../lsp/controllers/userstorage.controller';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { CqrsModule } from '@nestjs/cqrs';
 import { GameApiOmahaController } from './controllers/gameapi_omaha.controller';
 import { ReachPresenceApiController } from './controllers/reach_presence_api.controller.ts';
+import { UploadServerController } from 'src/lsp/controllers/uploadserver.controller';
 
 @Module({
   imports: [
@@ -29,7 +29,7 @@ import { ReachPresenceApiController } from './controllers/reach_presence_api.con
     JSONTitleStorageController,
     UserStorageController,
     MachineStorageController,
-    UploadServerController,
+    // UploadServerController,
     SunriseController,
     PimpsController,
   ],

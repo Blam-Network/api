@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import { Inject, Injectable } from "@nestjs/common";
 
-const ENABLE_DEBUG_MIME = true;
+const ENABLE_DEBUG_MIME = false;
 const DEBUG_MIME = 'application/x-halo3-multi'
 
 @Injectable()

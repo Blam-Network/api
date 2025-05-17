@@ -7,9 +7,9 @@ import { CompressionService } from "../services/compression.service";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 
 // We turn this on for debugging but turn it off for security in prod.
-const ALLOW_UNCOMPRESSED_CARNAGE_REPORTS = true;
+const ALLOW_UNCOMPRESSED_CARNAGE_REPORTS = false;
 // Debug - allows resubmitting the same file
-const ALWAYS_REINSERT_REPORTS = true;
+const ALWAYS_REINSERT_REPORTS = false;
 
 const TEAM_NAMES = [
     'Red',
@@ -58,7 +58,7 @@ export class Halo3CarnageReportService {
             // Delete & reinsert with newer data.
             const existingReport = await tx.carnage_report.findFirst({
                 where: {
-                    game_id: multi.mpgd.game_id,
+                    game_id: multi.mpgd.game_id.toString(),
                     map_id: multi.mpgd.map_id,
                     start_time: multi.mpgd.start_time,
                     finish_time: { lt: ALWAYS_REINSERT_REPORTS ? undefined : multi.mpgd.finish_time }
@@ -83,20 +83,34 @@ export class Halo3CarnageReportService {
             const {id: carnageReportId} = await tx.carnage_report.create({
                 data: {
                     id: existingCarnageReportId,
-                    ...multi.mpgd,
+                    finish_time: multi.mpgd.finish_time,
+                    finished: multi.mpgd.finished,
+                    game_id: multi.mpgd.game_id.toString(),
+                    game_variant_unique_id: multi.mpgd.game_variant_unique_id.toString(),
+                    in_group_session: multi.mpma.in_group_session,
+                    in_squad_session: multi.mpma.in_squad_session,
+                    map_id: multi.mpgd.map_id,
+                    map_variant_name: multi.mpgd.map_variant_name,
+                    map_variant_unique_id: multi.mpgd.map_variant_unique_id.toString(),
+                    migrated_solo: multi.mpgd.migrated_solo,
+                    migrated_to_group: multi.mpgd.migrated_to_group,
                     scenario_path: multi.mpgd.scenario_path.path,
+                    simulation_aborted: multi.mpgd.simulation_aborted,
+                    start_time: multi.mpgd.start_time,
+                    started: multi.mpgd.started,
+                    team_game: multi.mpgd.team_game,
                     carnage_report_game_variant: { 
                         create: {
                             game_engine: multi.mpvr.game_variant.m_game_engine,
                             author: multi.mpvr.game_variant.m_base_variant.m_metadata.author,
-                            author_id: multi.mpvr.game_variant.m_base_variant.m_metadata.author_id,
+                            author_id: multi.mpvr.game_variant.m_base_variant.m_metadata.author_id.toString(),
                             author_is_xuid_online: multi.mpvr.game_variant.m_base_variant.m_metadata.author_is_xuid_online,
                             date: multi.mpvr.game_variant.m_base_variant.m_metadata.date,
                             description: multi.mpvr.game_variant.m_base_variant.m_metadata.description,
                             file_type: multi.mpvr.game_variant.m_base_variant.m_metadata.file_type,
                             name: multi.mpvr.game_variant.m_base_variant.m_metadata.name,
-                            size_in_bytes: multi.mpvr.game_variant.m_base_variant.m_metadata.size_in_bytes,
-                            unique_id: multi.mpvr.game_variant.m_base_variant.m_metadata.unique_id,
+                            size_in_bytes: multi.mpvr.game_variant.m_base_variant.m_metadata.size_in_bytes.toString(),
+                            unique_id: multi.mpvr.game_variant.m_base_variant.m_metadata.unique_id.toString(),
                         }
                     },
                     carnage_report_team: {
@@ -129,7 +143,7 @@ export class Halo3CarnageReportService {
                                     machine_bandwidth_events_4: m.machine_data.bandwidth_events[4],
                                     session_exists: m.session_info.exists,
                                     session_has_hard_drive: m.session_info.has_hard_drive,
-                                    session_party_nonce: m.session_info.party_nonce,
+                                    session_party_nonce: m.session_info.party_nonce.toString(),
                                     session_secure_address: Uint8Array.from(m.session_info.secure_address.data),
                                     session_network_version_number: m.session_info.network_version_number,
                                     session_peer_estimated_downstream_bandwidth_bps: m.session_info.peer_estimated_downstream_bandwidth_bps,
@@ -167,7 +181,7 @@ export class Halo3CarnageReportService {
                                         machine_index: p.machine_index >= 0 
                                             ? p.machine_index 
                                             : undefined,
-                                        player_identifier: p.player_identifier,
+                                        player_identifier: p.player_identifier.toString(),
                                         player_name: p.player_configuration_from_host.player_name,
                                         appearance_flags: p.player_configuration_from_client.appearance.appearance_flags,
                                         primary_color: p.player_configuration_from_client.appearance.primary_color,
@@ -189,7 +203,7 @@ export class Halo3CarnageReportService {
                                         elite_model_area_2: p.player_configuration_from_client.appearance.elite_model_area_2,
                                         elite_model_area_3: p.player_configuration_from_client.appearance.elite_model_area_3,
                                         service_tag: p.player_configuration_from_client.appearance.service_tag,
-                                        player_xuid: p.player_configuration_from_client.player_xuid,
+                                        player_xuid: p.player_configuration_from_client.player_xuid.toString(),
                                         is_silver_or_gold_live: p.player_configuration_from_client.is_silver_or_gold_live,
                                         is_online_enabled: p.player_configuration_from_client.is_online_enabled,
                                         is_controller_attached: p.player_configuration_from_client.is_controller_attached,

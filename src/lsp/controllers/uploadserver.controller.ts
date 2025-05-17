@@ -50,7 +50,6 @@ export class UploadServerController {
     // TITLES:
     this.halo3UploadService.handleUpload(upload);
 
-
     res.status(200).send('');
   }
 

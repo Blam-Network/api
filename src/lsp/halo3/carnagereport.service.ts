@@ -4,28 +4,46 @@ import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blamnetwork/blf_lsp';
 import { carnage_report_game_variant, carnage_report_team, Prisma } from '@prisma/client';
 import { CompressionService } from "../services/compression.service";
+import { DiscordWebhookService } from "../services/discordwebhook.service";
 
 // We turn this on for debugging but turn it off for security in prod.
-const ALLOW_UNCOMPRESSED_CARNAGE_REPORTS = false;
+const ALLOW_UNCOMPRESSED_CARNAGE_REPORTS = true;
+// Debug - allows resubmitting the same file
+const ALWAYS_REINSERT_REPORTS = true;
+
+const TEAM_NAMES = [
+    'Red',
+    'Blue',
+    'Green',
+    'Orange',
+    'Purple',
+    'Gold',
+    'Brown',
+    'Pink',
+    'Unknown'
+]
 
 export class Halo3CarnageReportService {
     constructor(
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly prisma: PrismaService,
-        private readonly compressionService: CompressionService
+        private readonly compressionService: CompressionService,
+        private readonly discordWebhookService: DiscordWebhookService,
     ) {}
 
     private isValidCarnageReport = (multi: BLF.halo3_12070_08_09_05_2031_halo3_ship.multi) => {
-        if (multi.athr.build_string !== '12070.08.09.05.2031.halo3_ship')
+        if (multi.athr.build_string !== '12070.08.09.05.2031.halo3_s') {
+            this.logger.warn(`[UPLOAD] Received carnage report from unsupported build '${multi.athr.build_string}', skipping.`)
             return false;
+        }
 
         return true;
     }
 
     public handleHalo3MultiUpload = async (upload: Express.Multer.File) => {
         const buffer = ALLOW_UNCOMPRESSED_CARNAGE_REPORTS 
-            ? this.compressionService.inflate(upload)
-            : this.compressionService.inflateIfCompressed(upload);
+            ? this.compressionService.inflateIfCompressed(upload)
+            : this.compressionService.inflate(upload);
 
         const multi = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_webstats(buffer);
 
@@ -43,7 +61,7 @@ export class Halo3CarnageReportService {
                     game_id: multi.mpgd.game_id,
                     map_id: multi.mpgd.map_id,
                     start_time: multi.mpgd.start_time,
-                    finish_time: { lt: multi.mpgd.finish_time }
+                    finish_time: { lt: ALWAYS_REINSERT_REPORTS ? undefined : multi.mpgd.finish_time }
                 },
                 select: {
                     id: true
@@ -407,8 +425,55 @@ export class Halo3CarnageReportService {
                         team_index: i,
                         ...t
                     }))
-            })        
-        });
+            })
+            
+            this.logger.debug(`[UPLOAD] Received Halo3 Carnage Report: ${multi.mpvr.game_variant.m_base_variant.m_metadata.name} on ${multi.mpgd.map_variant_name} (${carnageReportId})`)
+            
+            let winner: string = undefined;
+            let winningScore: number = Number.NEGATIVE_INFINITY;
+            if (multi.mpgd.team_game) {
+                multi.mptm.teams.forEach((t, i) => {
+                    if (!t.exists) return;
+                    if (t.score > winningScore) {
+                        winningScore = t.score;
+                        winner = `${TEAM_NAMES[i]} Team`;
+                    }
+                    else if (winningScore === t.score) {
+                        // It's a tie.
+                        winner = undefined;
+                    }
+                })
+            } else {
+                multi.mppl.players.forEach(p => {
+                    if (!p.player_exists) return;
+                    if (p.score > winningScore) {
+                        winningScore = p.score;
+                        winner = p.player_configuration_from_host.player_name;
+                    }
+                    else if (winningScore === p.score) {
+                        winner = undefined;
+                    }
+                })
+            }
+
+            if (multi.mpgd.finished) {
+                this.discordWebhookService.sendHalo3CarnageReport({
+                    carnageReportId,
+                    startTime: multi.mpgd.start_time,
+                    finishTime: multi.mpgd.finish_time,
+                    gametype: multi.mpvr.game_variant.m_base_variant.m_metadata.name,
+                    hopperName: multi.mpmo.hopper_identifier >= 0
+                        ? multi.mpmo.hopper_name
+                        : undefined,
+                    map: multi.mpgd.map_variant_name,
+                    mapId: multi.mpgd.map_id,
+                    playerCount,
+                    teamGame: multi.mpgd.team_game,
+                    winningScore,
+                    winner
+                })
+            }
+        }, { timeout: 15_000 });
     }
 
 }

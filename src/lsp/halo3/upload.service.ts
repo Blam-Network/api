@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import { Halo3CarnageReportService } from "./Halo3CarnageReportService";
+import { Halo3CarnageReportService } from "./carnagereport.service";
 
 const HALO3_UPLOAD_MIME_TYPES = {
     MULTI: 'application/x-halo3-multi'

@@ -3,11 +3,12 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { CqrsModule } from '@nestjs/cqrs';
 import { UploadServerController } from 'src/lsp/controllers/uploadserver.controller';
-import { Halo3UploadService } from './halo3/Halo3UploadService';
+import { Halo3UploadService } from './halo3/upload.service';
 import { AppLoggerMiddleware } from 'src/infrastructure/presentation/AppLoggerMiddleware';
-import { Halo3CarnageReportService } from './halo3/Halo3CarnageReportService';
+import { Halo3CarnageReportService } from './halo3/carnagereport.service';
 import { CompressionService } from './services/compression.service';
 import { UploadService } from './services/upload.service';
+import { DiscordWebhookService } from './services/discordwebhook.service';
 
 @Module({
   controllers: [
@@ -18,6 +19,7 @@ import { UploadService } from './services/upload.service';
     Halo3UploadService,
     Halo3CarnageReportService,
     CompressionService,
+    DiscordWebhookService,
   ],
 })
 export class LSPModule implements NestModule {

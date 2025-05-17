@@ -23,7 +23,7 @@ import * as BLF from '@blamnetwork/blf_lsp'
 import { readPlayers } from 'src/infrastructure/presentation/blf/MultiplayerPlayers';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { PrismaService } from 'src/db/prisma.service';
-import { Halo3UploadService } from '../halo3/Halo3UploadService';
+import { Halo3UploadService } from '../halo3/upload.service';
 import { CompressionService } from '../services/compression.service';
 import { UploadService } from '../services/upload.service';
 

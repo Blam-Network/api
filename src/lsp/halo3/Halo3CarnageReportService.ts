@@ -15,12 +15,22 @@ export class Halo3CarnageReportService {
         private readonly compressionService: CompressionService
     ) {}
 
+    private isValidCarnageReport = (multi: BLF.halo3_12070_08_09_05_2031_halo3_ship.multi) => {
+        if (multi.athr.build_string !== '12070.08.09.05.2031.halo3_ship')
+            return false;
+
+        return true;
+    }
+
     public handleHalo3MultiUpload = async (upload: Express.Multer.File) => {
         const buffer = ALLOW_UNCOMPRESSED_CARNAGE_REPORTS 
             ? this.compressionService.inflate(upload)
             : this.compressionService.inflateIfCompressed(upload);
 
         const multi = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_webstats(buffer);
+
+        if (!this.isValidCarnageReport(multi))
+            return;
 
         const playerCount = multi.mppl.players.filter(p => p.player_exists).length;
         const teamCount = multi.mptm.teams.filter(t => t.exists).length;

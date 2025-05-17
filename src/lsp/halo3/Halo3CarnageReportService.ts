@@ -22,8 +22,8 @@ export class Halo3CarnageReportService {
 
         const multi = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_webstats(buffer);
 
-        let gameVariantMetadata = multi.mpvr.game_variant.m_base_variant.m_metadata;
         const playerCount = multi.mppl.players.filter(p => p.player_exists).length;
+        const teamCount = multi.mptm.teams.filter(t => t.exists).length;
 
         await this.prisma.$transaction(async (tx) => {
             const {id: carnageReportId} = await tx.carnage_report.create({
@@ -33,26 +33,26 @@ export class Halo3CarnageReportService {
                     carnage_report_game_variant: { 
                         create: {
                             game_engine: multi.mpvr.game_variant.m_game_engine,
-                            author: gameVariantMetadata.author,
-                            author_id: gameVariantMetadata.author_id,
-                            author_is_xuid_online: gameVariantMetadata.author_is_xuid_online,
-                            date: gameVariantMetadata.date,
-                            description: gameVariantMetadata.description,
-                            file_type: gameVariantMetadata.file_type,
-                            name: gameVariantMetadata.name,
-                            size_in_bytes: gameVariantMetadata.size_in_bytes,
-                            unique_id: gameVariantMetadata.unique_id,
+                            author: multi.mpvr.game_variant.m_base_variant.m_metadata.author,
+                            author_id: multi.mpvr.game_variant.m_base_variant.m_metadata.author_id,
+                            author_is_xuid_online: multi.mpvr.game_variant.m_base_variant.m_metadata.author_is_xuid_online,
+                            date: multi.mpvr.game_variant.m_base_variant.m_metadata.date,
+                            description: multi.mpvr.game_variant.m_base_variant.m_metadata.description,
+                            file_type: multi.mpvr.game_variant.m_base_variant.m_metadata.file_type,
+                            name: multi.mpvr.game_variant.m_base_variant.m_metadata.name,
+                            size_in_bytes: multi.mpvr.game_variant.m_base_variant.m_metadata.size_in_bytes,
+                            unique_id: multi.mpvr.game_variant.m_base_variant.m_metadata.unique_id,
                         }
                     },
                     carnage_report_team: {
                         createMany: {
                             data: multi.mptm.teams
-                            .filter(t => t.exists)
-                            .map((t, i) => ({
-                                team_index: i,
-                                score: t.score,
-                                standing: t.standing
-                            }))
+                                .filter(t => t.exists)
+                                .map((t, i) => ({
+                                    team_index: i,
+                                    score: t.score,
+                                    standing: t.standing
+                                }))
                         }
                     },
                     carnage_report_machine: {
@@ -89,9 +89,9 @@ export class Halo3CarnageReportService {
                         }
                     },
                     carnage_report_matchmaking_options: {
-                        create: {
-                            ...multi.mpmo,
-                        }
+                        create: multi.mpmo.hopper_identifier >= 0 
+                            ? multi.mpmo
+                            : undefined
                     },
                 },
                 select: {
@@ -244,7 +244,7 @@ export class Halo3CarnageReportService {
                                     ]
                                 }))
                         }
-                    }
+                    },
                 }
             });
             await tx.carnage_report_player_achievements.createMany({
@@ -326,6 +326,51 @@ export class Halo3CarnageReportService {
             await tx.carnage_report_player_damage_statistics.createMany({
                 data: damageStatistics
             })
+            const interactions = [];
+            multi._par.mps2.players
+                .filter((p, i) => i < playerCount)
+                .map(right => right.filter((p, i) => i < playerCount))
+                .forEach((right, leftIndex) => {
+                    right.forEach((data, rightIndex) => {
+                        interactions.push({
+                            carnage_report_id: carnageReportId,
+                            left_player_index: leftIndex,
+                            right_player_index: rightIndex,
+                            killed: data.kills,
+                            killed_by: data.deaths
+                        })
+                    })
+                });
+            await tx.carnage_report_player_interaction.createMany({
+                data: interactions
+            })
+            await tx.carnage_report_player_medals.createMany({
+                data: multi._par.mps1.players
+                    .filter((p, i) => i < playerCount)
+                    .map((p, i) => ({
+                        carnage_report_id: carnageReportId,
+                        player_index: i,
+                        ...p.medals
+                    }))
+            })
+            await tx.carnage_report_player_statistics.createMany({
+                data: multi._par.mps1.players
+                    .filter((p, i) => i < playerCount)
+                    .map((p, i) => ({
+                        carnage_report_id: carnageReportId,
+                        player_index: i,
+                        ...p.statistics
+                    }))
+            })
+            await tx.carnage_report_team_statistics.createMany({
+                data: multi._par.mps3.teams
+                    .filter((t, i) => i < teamCount)
+                    .map((t, i) => ({
+                        carnage_report_id: carnageReportId,
+                        team_index: i,
+                        ...t
+                    }))
+            })        
         });
     }
 

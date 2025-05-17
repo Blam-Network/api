@@ -1,31 +1,28 @@
 import { Inject, Injectable } from "@nestjs/common"
 import axios from "axios"
 import { formatDuration, interval, intervalToDuration } from "date-fns"
-import * as moment from "moment"
+import { existsSync } from "fs"
+import { readFile, stat } from "fs/promises"
+import { join } from "path"
 import ILogger, { ILoggerSymbol } from "src/ILogger"
+import { z } from "zod"
 
-enum WebhookType {
-    HALO3_STATS,
-    HALO3_SCREENSHOTS
-}
+const WebhookTypeSchema = z.enum([
+    'HALO3_CARNAGE_REPORTS',
+    'HALO3_SCREENSHOTS',
+    'CRASH'
+]);
 
-type WebhookConfiguration = {
-    name: string,
-    url: string,
-    types: WebhookType[]
-}
+const WebhookType = WebhookTypeSchema.Enum;
 
-// TODO: Zodify this
-const WEBHOOK_CONFIG: WebhookConfiguration[] = [
-    {
-        name: 'BlamNetwork Dev',
-        url: 'https://discord.com/api/webhooks/1323102144332824586/zIZ-ylj9NAUEo3tn4IjJGELIlnddetFElp0DTAbZ06CMFt2YUi-92B30fjl56sLSiBdV',
-        types: [
-            WebhookType.HALO3_SCREENSHOTS,
-            WebhookType.HALO3_STATS
-        ]
-    }
-]
+const WebhookConfigSchema = z.object({
+    name: z.string().optional(),
+    types: WebhookTypeSchema.array(),
+    url: z.string().url()
+}).array()
+
+type WebhookConfig = z.infer<typeof WebhookConfigSchema>;
+type WebhookType = z.infer<typeof WebhookTypeSchema>;
 
 type Halo3CarnageReportMessage = {
     carnageReportId: string,
@@ -47,12 +44,39 @@ export class DiscordWebhookService {
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
     ) {}
 
-    private sendWebhookMessage = (type: WebhookType, message: Object) => {
-        Promise.allSettled(
-            WEBHOOK_CONFIG
+    private configModifiedAt: number = undefined;
+    private config: WebhookConfig = undefined;
+
+    private loadWebhookConfig = async () => {
+        const configPath = join(process.cwd(), 'config', 'webhooks.json');
+        if (!existsSync(configPath)) {
+            this.logger.warn("[DISCORD] No webhooks config file was found, webhooks will not be sent.")
+        }
+        const stats = await stat(configPath);
+        if (stats.mtimeMs !== this.configModifiedAt) {
+            if (this.configModifiedAt !== undefined) {
+                this.logger.log(`[DISCORD] Webhook config modified, reloading.`)
+            }
+            try {
+                const configFile = await readFile(configPath, {encoding: 'utf8'});
+                this.config = WebhookConfigSchema.parse(JSON.parse(configFile));
+                
+            } catch (e) {
+                this.logger.error(`[DISCORD] Failed to load webhook config.`)
+                this.logger.error(e)
+                this.config = [];
+            }
+            this.configModifiedAt = stats.mtimeMs;
+        }
+    }
+
+    private sendWebhookMessage = async (type: WebhookType, message: Object) => {
+        await this.loadWebhookConfig();
+        return Promise.allSettled(
+            this.config
                 .filter(wh => wh.types.includes(type))
                 .map(({url, name}) => {
-                    console.debug(`[DISCORD] Sending webhook to ${name}`)
+                    this.logger.debug(`[DISCORD] Sending webhook to ${name}`)
                     return axios.post(url, message)
                         .catch(e => {
                             this.logger.warn(`[DISCORD] Failed to send webhook to ${name}`)
@@ -96,6 +120,6 @@ export class DiscordWebhookService {
             }]
         }
 
-        await this.sendWebhookMessage(WebhookType.HALO3_STATS, message);
+        await this.sendWebhookMessage(WebhookType.HALO3_CARNAGE_REPORTS, message);
     }
 }

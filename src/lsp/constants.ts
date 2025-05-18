@@ -15,3 +15,5 @@ export const LSP_PORT_RANGE = Array.from(new Set([
 
 // Used for Swagger docs.
 export const EXAMPLE_XUID = '000901FC3FB8FE71'
+
+export const TITLE_STORAGE_FOLDER = 'title_storage';

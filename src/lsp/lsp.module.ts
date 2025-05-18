@@ -16,6 +16,9 @@ import { TitleStorageController } from './controllers/titlestorage.controller';
 import { UserStorageController } from './controllers/userstorage.controller';
 import { Halo3UserService } from './halo3/user.service';
 import { HaloReachUserService } from './haloreach/user.service';
+import { MachineStorageController } from './controllers/machinestorage.controller';
+import { Halo3MachineService } from './halo3/machine.service';
+import { HaloReachMachineService } from './haloreach/machine.service';
 
 @Module({
     imports: [
@@ -28,6 +31,7 @@ import { HaloReachUserService } from './haloreach/user.service';
         TitleStorageController,
         UploadServerController,
         UserStorageController,
+        MachineStorageController,
     ],
     providers: [
         UploadService,
@@ -35,6 +39,8 @@ import { HaloReachUserService } from './haloreach/user.service';
         Halo3CarnageReportService,
         Halo3UserService,
         HaloReachUserService,
+        Halo3MachineService,
+        HaloReachMachineService,
         CompressionService,
         DiscordWebhookService,
         { provide: ILoggerSymbol, useClass: ConsoleLogger },

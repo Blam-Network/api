@@ -2,7 +2,6 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppLoggerMiddleware } from './AppLoggerMiddleware';
 import { GameApiController } from './controllers/gameapi.controller';
 import { JSONTitleStorageController } from './controllers/jsontitlestorage.controller';
-import { MachineStorageController } from './controllers/machinestorage.controller';
 import { PimpsController } from './controllers/pimps.controller';
 import { SunriseController } from './controllers/sunrise.controller';
 import { ServeStaticModule } from '@nestjs/serve-static';
@@ -23,7 +22,6 @@ import { ReachPresenceApiController } from './controllers/reach_presence_api.con
     ReachPresenceApiController,
     GameApiController,
     JSONTitleStorageController,
-    MachineStorageController,
     SunriseController,
     PimpsController,
   ],

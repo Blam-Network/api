@@ -8,11 +8,12 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import { createReadStream } from 'fs';
-import { join } from 'path';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { basename, join } from 'path';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { stat } from 'fs/promises';
 import { Response } from 'express';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
+import { TITLE_STORAGE_FOLDER } from '../constants';
 
 @ApiTags('Title Storage')
 @Controller('/storage/title')
@@ -28,28 +29,35 @@ export class TitleStorageController {
     externalDocs: {
       description: "Blam-Title-Storage (GitHub)",
       url: 'https://github.com/Blam-Network/Blam-Title-Storage'
-    }
+    },
+    parameters: [
+      {
+        name: 'path',
+        example: '/tracked/12070/default_hoppers/en/motd_popup_image.jpg',
+        in: 'path'
+      }
+    ]
+  })
+  @ApiParam({
+    name: 'path',
+    example: '/tracked/12070/default_hoppers/en/motd_popup_image.jpg',
+    style: 'simple',
+    allowReserved: true,
   })
   @Get('/:path')
   async getStaticFile(
     @Param('path') path: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return await this.sendLocalFile(
-      path,
-      res,
-    );
-  }
-
-  private async sendLocalFile(path: string, res: Response) {
-    path = join(process.cwd(), path);
-
-    const stats = await stat(path);
+    const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, path);
+    const fileName = basename(filePath);
+    const stats = await stat(filePath);
 
     if (!stats.isFile()) throw new NotFoundException();
 
     res.set('Content-Length', stats.size.toString());
     res.set('Cache-Control', 'no-cache');
-    return new StreamableFile(createReadStream(path));
+
+    return new StreamableFile(createReadStream(filePath), {disposition: `filename=${fileName}`});
   }
 }

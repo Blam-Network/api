@@ -18,8 +18,10 @@ export const createLSPServer = async () => {
     const config = new DocumentBuilder()
         .setTitle('Blam Network LSP')
         .setDescription('LSP Server for Halo 3, Halo 3: ODST and Halo: Reach')
-        // .setVersion('1.0')
+        .setVersion('alpha')
+        .setExternalDoc('GitHub', 'https://github.com/Blam-Network/web_private')
         .build();
+        
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api', app, document);
 

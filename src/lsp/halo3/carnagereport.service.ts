@@ -1,8 +1,7 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blamnetwork/blf_lsp';
-import { carnage_report_game_variant, carnage_report_team, Prisma } from '@prisma/client';
 import { CompressionService } from "../services/compression.service";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 
@@ -487,6 +486,70 @@ export class Halo3CarnageReportService {
                     winner
                 })
             }
+
+            await tx.service_record.deleteMany({
+                where: {
+                    player_xuid: {
+                        in: multi.mppl.players
+                            .filter(player => player.player_exists)
+                            .map(player => player.player_configuration_from_client.player_xuid.toString())
+                    }
+                }
+            })
+
+            await tx.service_record.createMany({
+                data: multi.mppl.players
+                    .filter(player => player.player_exists)
+                    .map(player => {
+                        const config = player.player_configuration_from_client;
+                        return {
+                            player_xuid: config.player_xuid.toString(),
+                            player_name: config.player_name,
+                            appearance_flags: config.appearance.appearance_flags,
+                            primary_color: config.appearance.primary_color,
+                            secondary_color: config.appearance.secondary_color,
+                            tertiary_color: config.appearance.tertiary_color,
+                            is_elite: config.appearance.player_model_choice,
+                            foreground_emblem: config.appearance.foreground_emblem,
+                            background_emblem: config.appearance.background_emblem,
+                            emblem_flags: config.appearance.emblem_flags,
+                            emblem_primary_color: config.appearance.emblem_primary_color,
+                            emblem_secondary_color: config.appearance.emblem_secondary_color,
+                            emblem_background_color: config.appearance.emblem_background_color,
+                            spartan_helmet: config.appearance.spartan_model_area_0,
+                            spartan_left_shoulder: config.appearance.spartan_model_area_1,
+                            spartan_right_shoulder: config.appearance.spartan_model_area_2,
+                            spartan_body: config.appearance.spartan_model_area_3,
+                            elite_helmet: config.appearance.elite_model_area_0,
+                            elite_left_shoulder: config.appearance.elite_model_area_1,
+                            elite_right_shoulder: config.appearance.elite_model_area_2,
+                            elite_body: config.appearance.elite_model_area_3,
+                            service_tag: config.appearance.service_tag,
+                            campaign_progress: config.campaign_difficulty_completed,
+                            highest_skill: config.queried_player_statistics.queried_player_global_statistics.highest_skill,
+                            total_exp: player.player_configuration_from_host.stats_global_experience,
+                            unknown_insignia: 0,
+                            rank: player.player_configuration_from_host.stats_global_rank,
+                            grade: player.player_configuration_from_host.stats_global_grade,
+                            unknown_insignia2: 0,
+                            first_played: config.queried_player_statistics.queried_player_displayed_statistics.first_played,
+                            last_played: config.queried_player_statistics.queried_player_displayed_statistics.last_played,
+                            bungienet_user_flags: config.bungienet_user_flags,
+                            is_silver_or_gold_live: config.is_silver_or_gold_live,
+                            is_online_enabled: config.is_online_enabled,
+                            gamer_region: config.gamer_region,
+                            cheat_flags: config.cheat_flags,
+                            ban_flags: config.ban_flags,
+                            matchmade_ranked_games_played: config.queried_player_statistics.queried_player_displayed_statistics.matchmade_ranked_games_played,
+                            matchmade_ranked_games_won: config.queried_player_statistics.queried_player_displayed_statistics.matchmade_ranked_games_won,
+                            matchmade_ranked_games_completed: config.queried_player_statistics.queried_player_displayed_statistics.matchmade_ranked_games_completed,
+                            matchmade_unranked_games_played: config.queried_player_statistics.queried_player_displayed_statistics.matchmade_unranked_games_played,
+                            matchmade_unranked_games_completed: config.queried_player_statistics.queried_player_displayed_statistics.matchmade_unranked_games_completed,
+                            custom_games_completed: config.queried_player_statistics.queried_player_displayed_statistics.custom_games_completed,
+                        };
+                    }
+                )
+            });
         }, { timeout: 15_000 });
     }
 

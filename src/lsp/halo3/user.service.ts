@@ -1,8 +1,9 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blamnetwork/blf_lsp';
 import { parseXuid } from "src/xbox/xuid";
+import { z } from "zod";
 
 @Injectable()
 export class Halo3UserService {
@@ -74,6 +75,27 @@ export class Halo3UserService {
     public getRecentPlayersFile = (_xuid: string) => {
         return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_recent_players_file({
             players: []
+        })
+    }
+
+    public updateHighestSkill = (xuid: string, highestSkill: number) => {
+        const highestSkillParsed = z.number().max(50).min(0).safeParse(highestSkill);
+        if (!highestSkillParsed.success) {
+            throw new BadRequestException("Invalid highest skill.")
+        }
+        const xuidParsed = parseXuid(xuid);
+
+        this.logger.log(`[USER] Updating highest skill for user ${xuid} to ${highestSkill}`)
+        
+        this.prisma.player_data.upsert({
+            where: { player_xuid: xuidParsed },
+            create: {
+                player_xuid: xuidParsed,
+                highest_skill: highestSkillParsed.data,
+            },
+            update: {
+                highest_skill: highestSkillParsed.data,
+            }
         })
     }
 }

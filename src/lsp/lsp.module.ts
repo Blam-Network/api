@@ -19,6 +19,7 @@ import { HaloReachUserService } from './haloreach/user.service';
 import { MachineStorageController } from './controllers/machinestorage.controller';
 import { Halo3MachineService } from './halo3/machine.service';
 import { HaloReachMachineService } from './haloreach/machine.service';
+import { GameApiController } from './controllers/gameapi.controller';
 
 @Module({
     imports: [
@@ -32,6 +33,7 @@ import { HaloReachMachineService } from './haloreach/machine.service';
         UploadServerController,
         UserStorageController,
         MachineStorageController,
+        GameApiController,
     ],
     providers: [
         UploadService,

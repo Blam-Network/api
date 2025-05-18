@@ -1,36 +1,12 @@
 import {
-  BadRequestException,
   Controller,
   Get,
-  Headers,
   Inject,
-  NotFoundException,
   ParseIntPipe,
-  Post,
   Query,
-  Res,
-  StreamableFile,
-  UploadedFile,
-  UseInterceptors,
   DefaultValuePipe,
 } from '@nestjs/common';
-import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { GetFileshareQuery } from 'src/application/queries/GetFileshareQuery';
-import UserID from 'src/domain/value-objects/UserId';
-import { ApiHeader, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
-import FileShare from 'src/domain/aggregates/FileShare';
-import { CreateFileShareCommand } from 'src/application/commands/CreateFileShareCommand';
-import { UploadFileCommand } from 'src/application/commands/UploadFileCommand';
-import SlotNumber from 'src/domain/value-objects/SlotNumber';
-import FileShareSlot from 'src/domain/entities/FileShareSlot';
-import { DeleteFileCommand } from 'src/application/commands/DeleteFileCommand';
-import { UploadScreenshotCommand } from 'src/application/commands/UploadScreenshotCommand';
-import { UpdateServiceRecordCommand } from 'src/application/commands/UpdateServiceRecordCommand';
-import { Request, Response } from 'express';
-import { Req } from '@nestjs/common/decorators';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { Halo3UserService } from '../halo3/user.service';
 import { EXAMPLE_XUID } from '../constants';
@@ -52,6 +28,10 @@ export class GameApiController {
     private readonly halo3UserService: Halo3UserService,
   ) {}
 
+  @ApiOperation({
+    summary: 'Get Halo 3 / ODST File Share',
+    description: 'Returns a file share catalog for the given user ID.'
+  })
   @Get('/FilesGetCatalog.ashx')
   @ApiQuery({ name: 'title', type: 'number', example: 1 })
   @ApiQuery({ name: 'shareId', example: EXAMPLE_XUID })
@@ -73,6 +53,10 @@ export class GameApiController {
     `);
   }
 
+  @ApiOperation({
+    summary: 'Update Halo 3 User Highest Skill',
+    description: 'Stores the provided highest skill for the provided Halo 3 user ID'
+  })
   @Get('/UserUpdatePlayerStats.ashx')
   @ApiQuery({ name: 'title', type: 'number' })
   @ApiQuery({ name: 'userId' })

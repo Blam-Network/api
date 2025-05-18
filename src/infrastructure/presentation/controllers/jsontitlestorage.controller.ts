@@ -12,7 +12,7 @@ import ILogger, { ILoggerSymbol } from '../../../ILogger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { createReadStream } from 'fs';
 import { join } from 'path';
-import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { stat } from 'fs/promises';
 import { Response } from 'express';
 

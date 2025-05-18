@@ -9,6 +9,7 @@ import {
   HttpCode,
   Get,
   Next,
+  UploadedFiles,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ApiConsumes, ApiProperty, ApiTags } from '@nestjs/swagger';
@@ -45,7 +46,7 @@ export class UploadServerController {
     @Res({ passthrough: true }) res: Response,
   ) {
     this.uploadService.handleDebug(upload);
-    this.uploadService.storeUploadedFile(upload)
+    this.uploadService.storeUploadedFile(upload);
 
     // TITLES:
     this.halo3UploadService.handleUpload(upload);
@@ -56,13 +57,16 @@ export class UploadServerController {
   @Post('/upload.ashx')
   @UseInterceptors(FileInterceptor('upload'))
   async uploadDump(
-    @UploadedFile() upload: Express.Multer.File,
+    @UploadedFiles() uploads: Express.Multer.File[],
     @Res({ passthrough: true }) res: Response,
   ) {
-    await writeFile(
-      join(process.cwd(), 'uploads/crashes', upload.originalname),
-      upload.buffer,
-    );
+    uploads.forEach(upload => {
+      this.uploadService.handleDebug(upload);
+      this.uploadService.storeUploadedFile(upload);
+
+      // TITLES:
+      this.halo3UploadService.handleUpload(upload);
+    })
 
     res.status(200).send('');
   }

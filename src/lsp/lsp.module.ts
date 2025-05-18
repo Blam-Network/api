@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ConsoleLogger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -9,21 +9,34 @@ import { Halo3CarnageReportService } from './halo3/carnagereport.service';
 import { CompressionService } from './services/compression.service';
 import { UploadService } from './services/upload.service';
 import { DiscordWebhookService } from './services/discordwebhook.service';
+import { DatabaseModule } from 'src/db/database.module';
+import { ILoggerSymbol } from 'src/ILogger';
+import { ShutdownObserver } from 'src/ShutdownObserver';
+import { TitleStorageController } from './controllers/titlestorage.controller';
 
 @Module({
-  controllers: [
-    UploadServerController,
-  ],
-  providers: [
-    UploadService,
-    Halo3UploadService,
-    Halo3CarnageReportService,
-    CompressionService,
-    DiscordWebhookService,
-  ],
+    imports: [
+        {
+            global: true,
+            module: DatabaseModule,
+        },
+    ],
+    controllers: [
+        TitleStorageController,
+        UploadServerController,
+    ],
+    providers: [
+        UploadService,
+        Halo3UploadService,
+        Halo3CarnageReportService,
+        CompressionService,
+        DiscordWebhookService,
+        { provide: ILoggerSymbol, useClass: ConsoleLogger },
+        ShutdownObserver,
+    ],
 })
 export class LSPModule implements NestModule {
-  configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(AppLoggerMiddleware).forRoutes('*');
-  }
+    configure(consumer: MiddlewareConsumer): void {
+        consumer.apply(AppLoggerMiddleware).forRoutes('*');
+    }
 }

@@ -28,7 +28,7 @@ export class UploadService {
             upload.mimetype.replace('application/', ''),
         )
         const uploadName = new Date().getTime().toString() + '_' + upload.originalname;
-        this.logger.debug(`[UPLOAD] upload_server/stats.ashx got '${upload.mimetype}' file, saving as '${uploadName}'`)
+        this.logger.debug(`[UPLOAD] Recieved '${upload.mimetype}' file, saving as '${uploadName}'`)
 
         await mkdir(uploadFolder, { recursive: true });
     

@@ -19,7 +19,6 @@ import { LSPModule } from './lsp/lsp.module';
       global: true,
       module: DatabaseModule,
     },
-    LSPModule,
   ],
   controllers: [],
   providers: [{ provide: ILoggerSymbol, useClass: ConsoleLogger }, ShutdownObserver],

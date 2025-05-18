@@ -36,8 +36,8 @@ async function createBlamNetwork() {
 
   if (process.env.USE_HTTPS=== 'true') {
     const httpsOptions = {
-      key: readFileSync(process.env.SSL_PRIVATE_KEY_PATH),
-      cert: readFileSync(process.env.SSL_CERTIFICATE_PATH),
+      key: readFileSync(process.env.SSL_PRIVATE_KEY_PATH!),
+      cert: readFileSync(process.env.SSL_CERTIFICATE_PATH!),
     };
     const httpsServer = https.createServer(httpsOptions, server).listen(443);
     shutdownObserver.addHttpServer(httpsServer);

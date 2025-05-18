@@ -46,6 +46,8 @@ export class Halo3CarnageReportService {
 
         const multi = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_webstats(buffer);
 
+        if (!multi)
+            return;
         if (!this.isValidCarnageReport(multi))
             return;
 
@@ -267,10 +269,10 @@ export class Halo3CarnageReportService {
                                 .filter(e => e.type_ === BLF.halo3_12070_08_09_05_2031_halo3_ship.e_game_results_data_type._carry)
                                 .map(e => ({
                                     time: e.time,
-                                    carry_type: e.carry_data.carry_type,
-                                    position: [e.carry_data.position.x, e.carry_data.position.y, e.carry_data.position.z],
+                                    carry_type: e.carry_data!.carry_type,
+                                    position: [e.carry_data!.position.x, e.carry_data!.position.y, e.carry_data!.position.z],
                                     carry_player_index: e.player_references[0],
-                                    weapon_index: e.carry_data.weapon_index,
+                                    weapon_index: e.carry_data!.weapon_index,
                                 }))
                         }
                     },
@@ -281,18 +283,18 @@ export class Halo3CarnageReportService {
                                 .map(e => ({
                                     time: e.time,
                                     killer_position: [
-                                        e.kill_data.killer_position.x, 
-                                        e.kill_data.killer_position.y, 
-                                        e.kill_data.killer_position.z
+                                        e.kill_data!.killer_position.x, 
+                                        e.kill_data!.killer_position.y, 
+                                        e.kill_data!.killer_position.z
                                     ],
                                     dead_position: [
-                                        e.kill_data.dead_position.x, 
-                                        e.kill_data.dead_position.y, 
-                                        e.kill_data.dead_position.z
+                                        e.kill_data!.dead_position.x, 
+                                        e.kill_data!.dead_position.y, 
+                                        e.kill_data!.dead_position.z
                                     ],
                                     killer_player_index: e.player_references[0],
                                     dead_player_index: e.player_references[1],
-                                    kill_type: e.kill_data.kill_type,
+                                    kill_type: e.kill_data!.kill_type,
                                 }))
                         }
                     },
@@ -303,12 +305,12 @@ export class Halo3CarnageReportService {
                                 .map(e => ({
                                     time: e.time,
                                     score_player_index: e.player_references[0],
-                                    weapon_index: e.score_data.weapon_index,
-                                    score_type: e.score_data.score_type,
+                                    weapon_index: e.score_data!.weapon_index,
+                                    score_type: e.score_data!.score_type,
                                     position: [
-                                        e.score_data.position.x,
-                                        e.score_data.position.y,
-                                        e.score_data.position.z,
+                                        e.score_data!.position.x,
+                                        e.score_data!.position.y,
+                                        e.score_data!.position.z,
                                     ]
                                 }))
                         }
@@ -372,7 +374,18 @@ export class Halo3CarnageReportService {
                         we_re_in_for_some_chop: stats.achievements.we_re_in_for_some_chop
                     }))
             })
-            const damageStatistics = [];
+
+            const damageStatistics:  {
+                carnage_report_id: string,
+                player_index: number,
+                damage_source: string,
+                kills: number,
+                betrayals: number,
+                deaths: number,
+                suicides: number,
+                headshots: number,
+            }[] = [];
+
             multi._par.mps1.players
                 .filter((_, i) => i < playerCount)
                 .forEach((playerStats, i) => {
@@ -394,7 +407,15 @@ export class Halo3CarnageReportService {
             await tx.carnage_report_player_damage_statistics.createMany({
                 data: damageStatistics
             })
-            const interactions = [];
+
+            const interactions: {
+                carnage_report_id: string,
+                left_player_index: number,
+                right_player_index: number,
+                killed: number,
+                killed_by: number
+            }[] = [];
+
             multi._par.mps2.players
                 .filter((p, i) => i < playerCount)
                 .map(right => right.filter((p, i) => i < playerCount))
@@ -442,7 +463,7 @@ export class Halo3CarnageReportService {
             
             this.logger.debug(`[UPLOAD] Received Halo3 Carnage Report: ${multi.mpvr.game_variant.m_base_variant.m_metadata.name} on ${multi.mpgd.map_variant_name} (${carnageReportId})`)
             
-            let winner: string = undefined;
+            let winner: string | undefined = undefined;
             let winningScore: number = Number.NEGATIVE_INFINITY;
             if (multi.mpgd.team_game) {
                 multi.mptm.teams.forEach((t, i) => {

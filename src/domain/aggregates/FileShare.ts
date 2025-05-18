@@ -43,13 +43,13 @@ export default class FileShare implements FileShareProps {
   getSlot(getSlotNumber: SlotNumber): FileShareSlot {
     return this.slots.find(
       (slot) => slot.slotNumber.value == getSlotNumber.value,
-    );
+    )!;
   }
 
   getFileData(getSlotNumber: SlotNumber): Buffer {
     return this.slots.find(
       (slot) => slot.slotNumber.value == getSlotNumber.value,
-    ).data;
+    )!.data;
   }
 
   public static create(props: Omit<FileShareProps, 'id'>): FileShare {

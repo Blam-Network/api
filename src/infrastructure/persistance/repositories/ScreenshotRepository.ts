@@ -39,11 +39,11 @@ export default class ScreenshotRepository implements IScreenshotRepository {
   public async find(id: Uuid) {
     const screenshot = await this.screenshotModel.findOne({ id: id.value });
 
-    return this.screenshotDomainMapper.mapToDomainModel(screenshot);
+    return this.screenshotDomainMapper.mapToDomainModel(screenshot!);
   }
 
   public async getRecent() {
-    const screenshots = await this.screenshotModel.find(undefined, undefined, {
+    const screenshots = await this.screenshotModel.find({}, undefined, {
       limit: 50,
     });
 
@@ -53,7 +53,7 @@ export default class ScreenshotRepository implements IScreenshotRepository {
   }
 
   public async list(pageSize: number, pageNumber: number) {
-    const screenshots = await this.screenshotModel.find(undefined, undefined, {
+    const screenshots = await this.screenshotModel.find({}, undefined, {
       limit: pageSize,
       skip: pageSize * (pageNumber - 1),
       sort: { createdAt: -1 },

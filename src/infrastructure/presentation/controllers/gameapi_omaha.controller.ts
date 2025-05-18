@@ -36,7 +36,7 @@ import { Req } from '@nestjs/common/decorators';
 import { createReadStream } from 'fs';
 import { getBuffer } from '../blf/RewardsFile';
 import RewardsPersistance from '../blf/RewardsPersistance';
-import DailyChallenges from '../blf/DailyChallenges';
+// import DailyChallenges from '../blf/DailyChallenges';
 import ReachServiceRecord from '../blf/ReachServiceRecord';
 
 const mapFileshareToResponse = (
@@ -142,7 +142,7 @@ export class GameApiOmahaController {
         new UserID(shareID),
         parseInt(titleID),
         new UserID(userID),
-        locale ? new Locale(locale) : null,
+        locale ? new Locale(locale) : undefined,
       ),
     );
 
@@ -282,9 +282,9 @@ export class GameApiOmahaController {
     // );
 
     const rpdl = new RewardsPersistance();
-    const dcha = new DailyChallenges();
+    // const dcha = new DailyChallenges();
 
-    return new StreamableFile(getBuffer(rpdl, dcha));
+    return new StreamableFile(getBuffer(rpdl));
   }
 
   @Get('/UserGetServiceRecord.ashx')

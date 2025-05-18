@@ -5,7 +5,7 @@ export default abstract class AbstractEnvSettings<T> {
   protected getFullConfig(): any {
     return {
       presentation: {
-        port: parseInt(process.env.API_PORT),
+        port: parseInt(process.env.API_PORT!),
       },
       persistance: {
         mongoURI: process.env.MONGO_URI,

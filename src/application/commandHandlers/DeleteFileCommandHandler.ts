@@ -16,7 +16,7 @@ export class DeleteFileCommandHandler
 
   async execute(command: DeleteFileCommand) {
     const fileShare = await this.repository.findByOwner(command.shareID);
-    fileShare.deleteFile(command.slot);
-    return await this.repository.save(fileShare);
+    fileShare!.deleteFile(command.slot);
+    return await this.repository.save(fileShare!);
   }
 }

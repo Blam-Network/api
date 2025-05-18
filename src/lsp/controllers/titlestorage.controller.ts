@@ -14,13 +14,25 @@ import { stat } from 'fs/promises';
 import { Response } from 'express';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { TITLE_STORAGE_FOLDER } from '../constants';
+import { Halo3PopulationService } from '../halo3/population.service';
 
 @ApiTags('Title Storage')
 @Controller('/storage/title')
 export class TitleStorageController {
   constructor(
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
+    private readonly halo3PopulationService: Halo3PopulationService,
   ) {}
+
+  @ApiOperation({
+    summary: 'Halo 3 Population',
+    description: "Returns a BLF file containing Matchmaking Hopper Statistics for Halo 3.",
+  })
+  @Get('/tracked/:build_number/:hopper_directory/dynamic_hopper_statistics.bin')
+  async getHalo3Population() {
+    const blfFile = await this.halo3PopulationService.getHopperStatistics();
+    return new StreamableFile(blfFile, { disposition: "filename=dynamic_hopper_statistics.bin" });
+  }
 
   @ApiOperation({
     summary: 'Static Title Storage',

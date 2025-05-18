@@ -18,7 +18,7 @@ export class UploadFileCommandHandler
 
   async execute(command: UploadFileCommand) {
     const fileShare = await this.repository.findByOwner(command.shareID);
-    fileShare.uploadFile(
+    fileShare!.uploadFile(
       FileShareSlot.create({
         slotNumber: command.slot,
         header: command.header,
@@ -26,6 +26,6 @@ export class UploadFileCommandHandler
         data: command.file,
       }),
     );
-    return await this.repository.save(fileShare);
+    return await this.repository.save(fileShare!);
   }
 }

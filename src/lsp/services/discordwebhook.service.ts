@@ -29,7 +29,7 @@ type Halo3CarnageReportMessage = {
     gametype: string,
     map: string,
     mapId: number,
-    hopperName: string,
+    hopperName?: string,
     playerCount: number,
     startTime: Date,
     finishTime: Date,
@@ -44,8 +44,8 @@ export class DiscordWebhookService {
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
     ) {}
 
-    private configModifiedAt: number = undefined;
-    private config: WebhookConfig = undefined;
+    private configModifiedAt: number | undefined = undefined;
+    private config: WebhookConfig | undefined = undefined;
 
     private loadWebhookConfig = async () => {
         const configPath = join(process.cwd(), 'config', 'webhooks.json');
@@ -72,6 +72,7 @@ export class DiscordWebhookService {
 
     private sendWebhookMessage = async (type: WebhookType, message: Object) => {
         await this.loadWebhookConfig();
+        if (!this.config) return;
         return Promise.allSettled(
             this.config
                 .filter(wh => wh.types.includes(type))

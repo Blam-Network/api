@@ -15,10 +15,10 @@ export class Ban {
   banMessageIndex: number;
 
   @Prop()
-  startTime: Date;
+  startTime?: Date;
 
   @Prop()
-  endTime: Date;
+  endTime?: Date;
 }
 
 export const BanSchema = SchemaFactory.createForClass(Ban);

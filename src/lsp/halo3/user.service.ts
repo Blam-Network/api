@@ -51,7 +51,7 @@ export class Halo3UserService {
         let name = serviceRecord ? serviceRecord.player_name : '<unknown>';
         this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
 
-        let fupd: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_player_data | undefined;
+        let fupd: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_player_data | undefined = undefined;
 
         if (playerData) {
             let bungie_user_role = 0;
@@ -60,14 +60,15 @@ export class Halo3UserService {
             if (playerData.is_bungie) bungie_user_role | 1 << 2;
             if (playerData.has_recon || playerData.road_to_recon_completed) bungie_user_role | 1 << 3;
             fupd = {
-                ...playerData,
+                hopper_access: playerData.hopper_access ?? 0,
+                highest_skill: playerData.hopper_access ?? 0,
                 bungie_user_role,
                 hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
             }
         }
 
         return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_user_file(
-            fupd ?? undefined,
+            fupd,
             serviceRecord ?? undefined,
         );
     }

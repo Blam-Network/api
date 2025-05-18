@@ -15,6 +15,6 @@ export class GetPlayerXuidQueryHandler
   ) {}
 
   async execute(query: GetPlayerXuidQuery) {
-    return (await this.repository.findByGamertag(query.gamertag)).xuid;
+    return (await this.repository.findByGamertag(query.gamertag))!.xuid;
   }
 }

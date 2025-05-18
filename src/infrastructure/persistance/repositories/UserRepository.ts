@@ -19,7 +19,7 @@ export default class UserRepository implements IUserRepository {
 
   public async findByXuid(xuid: UserID) {
     const user = await this.userModel.findOne({ xuid: xuid.value });
-    if (!user) return;
+    if (!user) return null;
 
     return this.userDomainMapper.mapToDomainModel(user);
   }
@@ -28,7 +28,7 @@ export default class UserRepository implements IUserRepository {
     const user = await this.userModel.findOne({
       'serviceRecord.playerName': { '$regex': new RegExp(gamertag, 'i') },
     });
-    if (!user) return;
+    if (!user) return null;
 
     return this.userDomainMapper.mapToDomainModel(user);
   }

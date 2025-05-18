@@ -20,6 +20,7 @@ import { MachineStorageController } from './controllers/machinestorage.controlle
 import { Halo3MachineService } from './halo3/machine.service';
 import { HaloReachMachineService } from './haloreach/machine.service';
 import { GameApiController } from './controllers/gameapi.controller';
+import { Halo3PopulationService } from './halo3/population.service';
 
 @Module({
     imports: [
@@ -43,6 +44,7 @@ import { GameApiController } from './controllers/gameapi.controller';
         HaloReachUserService,
         Halo3MachineService,
         HaloReachMachineService,
+        Halo3PopulationService,
         CompressionService,
         DiscordWebhookService,
         { provide: ILoggerSymbol, useClass: ConsoleLogger },

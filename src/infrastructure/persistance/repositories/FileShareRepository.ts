@@ -35,7 +35,7 @@ export default class FileShareRepository implements IFileShareRepository {
 
   public async findByOwner(id: UserID) {
     const fileShare = await this.fileShareModel.findOne({ ownerId: id.value });
-    if (!fileShare) return;
+    if (!fileShare) return null;
     return this.fileShareDomainMapper.mapToDomainModel(fileShare);
   }
 }

@@ -1,16 +1,16 @@
 import BlfFooter from "./BlfFooter";
 import BlfHeader from "./BlfHeader";
-import DailyChallenges from "./DailyChallenges";
+// import DailyChallenges from "./DailyChallenges";
 import RewardsPersistance from "./RewardsPersistance";
 
 export function getBuffer(
     rpdl: RewardsPersistance,
-    dcha: DailyChallenges,
+    // dcha: DailyChallenges,
   ) {
     const buffer = Buffer.concat([
       new BlfHeader().toBuffer(),
       rpdl.toBuffer(),
-      dcha.toBuffer(),
+      // dcha.toBuffer(),
     ]);
   
     const eof = new BlfFooter(buffer.length);

@@ -10,7 +10,7 @@ export class FileShare {
   id: string;
   @Prop({ required: true })
   ownerId: string;
-  message: string;
+  message?: string;
   @Prop({ required: true })
   quotaBytes: number;
   @Prop({ required: true, default: 9 })

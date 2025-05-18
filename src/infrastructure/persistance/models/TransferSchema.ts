@@ -21,7 +21,7 @@ export class Transfer {
   fileType: number;
 
   @Prop()
-  mapId: number;
+  mapId?: number;
 
   @Prop({ required: true })
   sizeBytes: number;

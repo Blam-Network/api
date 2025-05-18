@@ -10,7 +10,6 @@ export const LSP_PORT_RANGE = Array.from(new Set([
     ...getPortRange(1000, 1002),
     // Halo Reach
     ...getPortRange(1000, 1035),
-    1
 ]));
 
 // Used for Swagger docs.

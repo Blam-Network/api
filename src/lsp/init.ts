@@ -7,6 +7,7 @@ import * as express from 'express';
 import { ShutdownObserver } from 'src/ShutdownObserver';
 import { LSPModule } from 'src/lsp/lsp.module';
 import { LSP_PORT_RANGE } from './constants';
+import ILogger, { ILoggerSymbol } from 'src/ILogger';
 
 export const createLSPServer = async () => {
     const server = express();
@@ -37,4 +38,7 @@ export const createLSPServer = async () => {
 
         shutdownObserver.addHttpServer(httpServer);
     })
+
+    const logger = app.get<ILogger>(ILoggerSymbol)
+    logger.log(`[LSP] Listening on ports: ${LSP_PORT_RANGE.toString()}`)
 }

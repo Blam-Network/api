@@ -20,7 +20,7 @@ import { inflate } from 'pako';
 import { NextFunction, Response } from 'express';
 import { UpdateServiceRecordCommand } from 'src/application/commands/UpdateServiceRecordCommand';
 import UserID from 'src/domain/value-objects/UserId';
-import * as BLF from '@blamnetwork/blf_lsp'
+import * as BLF from '@blam-network/blf_lsp'
 import { readPlayers } from 'src/infrastructure/presentation/blf/MultiplayerPlayers';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { PrismaService } from 'src/db/prisma.service';

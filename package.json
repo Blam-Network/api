@@ -25,7 +25,7 @@
     "seed": "node ./dist/src/infrastructure/persistance/scripts/seed.js"
   },
   "dependencies": {
-    "@blamnetwork/blf_lsp": "/Users/codiestella/code/blf_private/blf_lsp-npm",
+    "@blam-network/blf_lsp": "1.0.0-test-release-19",
     "@faker-js/faker": "^8.4.1",
     "@nestjs/common": "^11.1.0",
     "@nestjs/core": "^11.1.0",

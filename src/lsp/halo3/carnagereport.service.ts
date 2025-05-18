@@ -1,7 +1,7 @@
 import { Inject } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import * as BLF from '@blamnetwork/blf_lsp';
+import * as BLF from '@blam-network/blf_lsp';
 import { CompressionService } from "../services/compression.service";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 
@@ -9,6 +9,8 @@ import { DiscordWebhookService } from "../services/discordwebhook.service";
 const ALLOW_UNCOMPRESSED_CARNAGE_REPORTS = false;
 // Debug - allows resubmitting the same file
 const ALWAYS_REINSERT_REPORTS = false;
+
+const VALID_GAMERTAG_REGEX = /[a-zA-Z0-9 ,\(\)]{1,15}/;
 
 const TEAM_NAMES = [
     'Red',
@@ -33,6 +35,14 @@ export class Halo3CarnageReportService {
     private isValidCarnageReport = (multi: BLF.halo3_12070_08_09_05_2031_halo3_ship.multi) => {
         if (multi.athr.build_string !== '12070.08.09.05.2031.halo3_s') {
             this.logger.warn(`[UPLOAD] Received carnage report from unsupported build '${multi.athr.build_string}', skipping.`)
+            return false;
+        }
+
+        if (!multi.mppl.players
+            .filter(player => player.player_exists)
+            .every(player => VALID_GAMERTAG_REGEX.test(player.player_configuration_from_client.player_name))
+        ) {
+            this.logger.warn(`[UPLOAD] Received carnage report with an invalid gamertag, skipping.`)
             return false;
         }
 

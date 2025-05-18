@@ -1,7 +1,7 @@
 import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import * as BLF from '@blamnetwork/blf_lsp';
+import * as BLF from '@blam-network/blf_lsp';
 import { parseXuid } from "src/xbox/xuid";
 import { z } from "zod";
 

@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import * as BLF from '@blamnetwork/blf_lsp';
+import * as BLF from '@blam-network/blf_lsp';
 
 @Injectable()
 export class HaloReachUserService {

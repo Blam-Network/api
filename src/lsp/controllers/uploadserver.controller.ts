@@ -12,7 +12,7 @@ import {
   UploadedFiles,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { ApiConsumes, ApiProperty, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
@@ -38,6 +38,22 @@ export class UploadServerController {
     private readonly compressionService: CompressionService,
   ) {}
 
+  @ApiOperation({
+    summary: 'Upload File',
+    description: "Use to upload typically a single file to the LSP. These are usually BLF files and include a mime-type describing their contents, like 'x-halo3-multi'.",
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        upload: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
   @HttpCode(200)
   @Post('/stats.ashx')
   @UseInterceptors(FileInterceptor('upload'))
@@ -54,6 +70,25 @@ export class UploadServerController {
     res.status(200).send('');
   }
 
+  @ApiOperation({
+    summary: 'Upload Files',
+    description: "Use to upload typically multiple crash files, these may have mime types like 'x-halo3-upload'.",
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        upload: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          }
+        },
+      },
+    },
+  })
   @Post('/upload.ashx')
   @UseInterceptors(FileInterceptor('upload'))
   async uploadDump(
@@ -67,36 +102,6 @@ export class UploadServerController {
       // TITLES:
       this.halo3UploadService.handleUpload(upload);
     })
-
-    res.status(200).send('');
-  }
-
-  @Get('/sharedfiles/newupload.ashx')
-  async newSharedFileUpload() {
-    const serverId = 1;
-    return serverId;
-  }
-
-  @Get('/sharedfiles/getuploadprogress.ashx')
-  async getUploadProgress() {
-    return 0;
-  }
-
-  @Post('/sharedfiles/upload.ashx')
-  @UseInterceptors(FileInterceptor('upload'))
-  async uploadFile(
-    @UploadedFile() upload: Express.Multer.File,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    await writeFile(
-      join(
-        process.cwd(),
-        'uploads',
-        'pimps_films',
-        new Date().getTime().toString() + '_' + upload.originalname,
-      ),
-      upload.buffer,
-    );
 
     res.status(200).send('');
   }

@@ -13,6 +13,9 @@ import { DatabaseModule } from 'src/db/database.module';
 import { ILoggerSymbol } from 'src/ILogger';
 import { ShutdownObserver } from 'src/ShutdownObserver';
 import { TitleStorageController } from './controllers/titlestorage.controller';
+import { UserStorageController } from './controllers/userstorage.controller';
+import { Halo3UserService } from './halo3/user.service';
+import { HaloReachUserService } from './haloreach/user.service';
 
 @Module({
     imports: [
@@ -24,11 +27,14 @@ import { TitleStorageController } from './controllers/titlestorage.controller';
     controllers: [
         TitleStorageController,
         UploadServerController,
+        UserStorageController,
     ],
     providers: [
         UploadService,
         Halo3UploadService,
         Halo3CarnageReportService,
+        Halo3UserService,
+        HaloReachUserService,
         CompressionService,
         DiscordWebhookService,
         { provide: ILoggerSymbol, useClass: ConsoleLogger },

@@ -6,21 +6,7 @@ import * as http from 'http';
 import * as express from 'express';
 import { ShutdownObserver } from 'src/ShutdownObserver';
 import { LSPModule } from 'src/lsp/lsp.module';
-
-const getPortRange = (start: number, end: number) => Array.from({ length: (end - start) + 1 }, (_, index) => start + index);
-
-// These port ranges are configurable in some Halo versions via the network_cofiguration file.
-// We support the defaults + a few extra.
-const LSP_PORT_RANGE = Array.from(new Set([
-    // Legacy Sunrise
-    8000,
-    8080,
-    // Halo 3
-    ...getPortRange(1000, 1002),
-    // Halo Reach
-    ...getPortRange(1000, 1035),
-    1
-]));
+import { LSP_PORT_RANGE } from './constants';
 
 export const createLSPServer = async () => {
     const server = express();
@@ -31,7 +17,7 @@ export const createLSPServer = async () => {
 
     const config = new DocumentBuilder()
         .setTitle('Blam Network LSP')
-        .setDescription('Halo Web Services')
+        .setDescription('LSP Server for Halo 3, Halo 3: ODST and Halo: Reach')
         // .setVersion('1.0')
         .build();
     const document = SwaggerModule.createDocument(app, config);

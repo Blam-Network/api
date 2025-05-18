@@ -5,7 +5,6 @@ import { JSONTitleStorageController } from './controllers/jsontitlestorage.contr
 import { MachineStorageController } from './controllers/machinestorage.controller';
 import { PimpsController } from './controllers/pimps.controller';
 import { SunriseController } from './controllers/sunrise.controller';
-import { UserStorageController } from '../../lsp/controllers/userstorage.controller';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -24,7 +23,6 @@ import { ReachPresenceApiController } from './controllers/reach_presence_api.con
     ReachPresenceApiController,
     GameApiController,
     JSONTitleStorageController,
-    UserStorageController,
     MachineStorageController,
     SunriseController,
     PimpsController,

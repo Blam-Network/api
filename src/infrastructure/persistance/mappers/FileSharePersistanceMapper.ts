@@ -8,7 +8,7 @@ export default class FileSharePersistanceMapper {
     return {
       id: fileShare.id.value,
       ownerId: fileShare.ownerId.value,
-      message: fileShare.message!,
+      message: fileShare.message,
       quotaBytes: fileShare.quotaBytes,
       quotaSlots: fileShare.quotaSlots,
       visibleSlots: fileShare.visibleSlots,

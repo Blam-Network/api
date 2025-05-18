@@ -17,3 +17,4 @@ export const LSP_PORT_RANGE = Array.from(new Set([
 export const EXAMPLE_XUID = '000901FC3FB8FE71'
 
 export const TITLE_STORAGE_FOLDER = 'title_storage';
+export const RESOURCES_FOLDER = 'res';

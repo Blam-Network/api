@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Header,
   Inject,
   NotFoundException,
   Param,
@@ -32,6 +33,17 @@ export class TitleStorageController {
   async getHalo3Population() {
     const blfFile = await this.halo3PopulationService.getHopperStatistics();
     return new StreamableFile(blfFile, { disposition: "filename=dynamic_hopper_statistics.bin" });
+  }
+
+  @ApiOperation({
+    summary: 'Halo 3 Nightmap',
+    description: "Returns the world map population image shown on Halo 3's Matchmaking menu.",
+  })
+  @Header('Content-Type', 'image/jpg')
+  @Get('/tracked/:build_number/:hopper_directory/dynamic_matchmaking_nightmap.jpg')
+  async getHalo3Nightmap() {
+    const nightmap = await this.halo3PopulationService.getNightmap();
+    return new StreamableFile(nightmap, { disposition: "filename=dynamic_matchmaking_nightmap.jpg" });
   }
 
   @ApiOperation({

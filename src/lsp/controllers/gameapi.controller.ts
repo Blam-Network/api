@@ -5,12 +5,19 @@ import {
   ParseIntPipe,
   Query,
   DefaultValuePipe,
+  Post,
+  UseInterceptors,
+  UploadedFile,
+  Headers,
+  Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { Halo3UserService } from '../halo3/user.service';
 import { EXAMPLE_XUID } from '../constants';
 import dedent from "dedent";
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadService } from '../services/upload.service';
 
 const TITLE_IDS = {
   LEGACY: 0,
@@ -26,6 +33,7 @@ export class GameApiController {
   constructor(
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
     private readonly halo3UserService: Halo3UserService,
+    private readonly uploadService: UploadService,
   ) {}
 
   @ApiOperation({
@@ -78,5 +86,37 @@ export class GameApiController {
         this.logger.error(`[GAMEAPI] Tried to update player stats for unknown title ${titleID}.`)
         return;
     }
+  }
+
+  @ApiOperation({
+    summary: 'Update Machine Network Statistics',
+    description: 'Stores a user network statistics chunk for the provided machine. This is subsequently returned in the machine.bin file from machine storage.',
+    externalDocs: { description: 'blf_lib - s_blf_chunk_user_network_statistics', url: 'https://github.com/Blam-Network/blf/blob/main/blf_lib/src/blf/chunks/halo3/v12070_08_09_05_2031_halo3_ship/s_blf_chunk_user_network_statistics.rs' }
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        upload: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @Post('/MachineUpdateNetworkStats.ashx')
+  @ApiHeader({ name: 'title' })
+  @ApiHeader({ name: 'machineId' })
+  @UseInterceptors(FileInterceptor('upload'))
+  async machineUpdateNetworkStats(
+    @Headers('title') titleID,
+    @Headers('machineId') machineID,
+    @UploadedFile() upload: Express.Multer.File,
+  ) {
+    this.logger.log(`[MACHINE] Got machine network stats for machine ${machineID}, title ${titleID}`)
+    this.logger.log(`[MACHINE] Mime type = ${upload.mimetype}`)
+    await this.uploadService.handleDebug(upload);
+    await this.uploadService.storeUploadedFile(upload);
   }
 }

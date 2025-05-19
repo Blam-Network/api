@@ -29,7 +29,7 @@ async function createBlamNetwork() {
 
   await app.init();
   
-  const httpServer = http.createServer(server).listen(80);
+  const httpServer = http.createServer(server).listen(80, process.env.HOSTNAME);
 
   const shutdownObserver = app.get(ShutdownObserver);
   shutdownObserver.addHttpServer(httpServer);
@@ -39,7 +39,7 @@ async function createBlamNetwork() {
       key: readFileSync(process.env.SSL_PRIVATE_KEY_PATH!),
       cert: readFileSync(process.env.SSL_CERTIFICATE_PATH!),
     };
-    const httpsServer = https.createServer(httpsOptions, server).listen(443);
+    const httpsServer = https.createServer(httpsOptions, server).listen(443, process.env.HOSTNAME);
     shutdownObserver.addHttpServer(httpsServer);
   }
 }

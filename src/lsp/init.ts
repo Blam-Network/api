@@ -34,7 +34,7 @@ export const createLSPServer = async () => {
 
     LSP_PORT_RANGE.forEach(port => {
         const httpServer = http.createServer(server)
-            .listen(port);
+            .listen(port, process.env.HOSTNAME);
 
         shutdownObserver.addHttpServer(httpServer);
     })

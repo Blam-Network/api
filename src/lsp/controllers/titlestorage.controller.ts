@@ -37,7 +37,7 @@ export class TitleStorageController {
 
   @ApiOperation({
     summary: 'Halo 3 Nightmap',
-    description: "Returns the world map population image shown on Halo 3's Matchmaking menu.",
+    description: "Returns the world map population image shown on Halo 3's Matchmaking menu..",
   })
   @Header('Content-Type', 'image/jpg')
   @Get('/tracked/:build_number/:hopper_directory/dynamic_matchmaking_nightmap.jpg')
@@ -68,12 +68,12 @@ export class TitleStorageController {
     style: 'simple',
     allowReserved: true,
   })
-  @Get('/:path')
+  @Get('/*path')
   async getStaticFile(
     @Param('path') path: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, path);
+    const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, ...path);
     const fileName = basename(filePath);
     const stats = await stat(filePath);
 

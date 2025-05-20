@@ -72,7 +72,7 @@ export class Halo3UserService {
                 }
             }
         })
-        await Promise.all([serviceRecordPromise, playerDataPromise]);
+        await Promise.allSettled([serviceRecordPromise, playerDataPromise]);
 
         // Typescript is dumb
         // @ts-ignore

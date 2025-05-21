@@ -1,0 +1,14 @@
+-- AlterTable
+ALTER TABLE "halo3"."file_share_slot" ALTER COLUMN "name" DROP NOT NULL,
+ALTER COLUMN "description" DROP NOT NULL,
+ALTER COLUMN "author" DROP NOT NULL,
+ALTER COLUMN "author_is_xuid_online" DROP NOT NULL,
+ALTER COLUMN "author_id" DROP NOT NULL,
+ALTER COLUMN "date" DROP NOT NULL,
+ALTER COLUMN "length_seconds" DROP NOT NULL,
+ALTER COLUMN "campaign_id" DROP NOT NULL,
+ALTER COLUMN "map_id" DROP NOT NULL,
+ALTER COLUMN "game_engine_type" DROP NOT NULL,
+ALTER COLUMN "campaign_difficulty" DROP NOT NULL,
+ALTER COLUMN "hopper_id" DROP NOT NULL,
+ALTER COLUMN "game_id" DROP NOT NULL;

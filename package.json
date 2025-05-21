@@ -25,7 +25,7 @@
     "seed": "node ./dist/src/infrastructure/persistance/scripts/seed.js"
   },
   "dependencies": {
-    "@blam-network/blf_lsp": "1.0.0-test-release-19",
+    "@blam-network/blf_lsp": "/Users/codiestella/code/blf_private/blf_lsp-npm",
     "@faker-js/faker": "^8.4.1",
     "@nestjs/common": "^11.1.0",
     "@nestjs/core": "^11.1.0",
@@ -38,6 +38,7 @@
     "@prisma/client": "^6.7.0",
     "@sequelize/core": "^7.0.0-alpha.10",
     "@types/uuid": "^8.3.4",
+    "@types/xxhashjs": "^0.2.4",
     "axios": "^1.9.0",
     "date-fns": "^4.1.0",
     "dedent": "^1.6.0",
@@ -54,6 +55,7 @@
     "sharp": "^0.34.1",
     "tiny-types": "^1.18.4",
     "uuid": "^8.3.2",
+    "xxhashjs": "^0.2.2",
     "zod": "^3.24.3"
   },
   "devDependencies": {

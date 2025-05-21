@@ -778,3 +778,41 @@ model odst_blind_screenshot {
   @@map("blind_screenshot")
   @@schema("odst")
 }
+
+model file_share_slot {
+  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  share_id              Decimal         @db.Decimal(20, 0)
+  slot                  Int             @db.SmallInt
+
+  compressed_size       Int
+
+  unique_id             Decimal         @db.Decimal(20, 0)
+  name                  String?          @db.VarChar(16)
+  description           String?          @db.VarChar(128)
+  author                String?          @db.VarChar(16)
+  file_type             Int
+  author_is_xuid_online Boolean?
+  author_id             Decimal?         @db.Decimal(20, 0)
+  size_in_bytes         Decimal         @db.Decimal(20, 0)
+  date                  DateTime?        @db.Timestamp(6)
+  length_seconds        Int?
+  campaign_id           Int?            
+  map_id                Int?            
+  game_engine_type      Int?            
+  campaign_difficulty   Int?            
+  hopper_id             Int?             @db.SmallInt
+  game_id               Decimal?         @db.Decimal(20, 0)
+
+  @@unique([share_id, slot], map: "unique_share_id_slot")
+  @@schema("halo3")
+}
+
+model file_share {
+  share_id              Decimal          @id @db.Decimal(20, 0)
+  quota_slots           Int?             @db.SmallInt
+  quota_bytes           Int?             
+  Message               String?
+  lastHash              Int              @default(0)
+
+  @@schema("halo3")
+}

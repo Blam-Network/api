@@ -1,0 +1,3 @@
+export const HALO3_BUILD_NUMBER = 11855;
+export const HALO3_TU1_BUILD_NUMBER = 11902;
+export const HALO3_TU2_BUILD_NUMBER = 12070;

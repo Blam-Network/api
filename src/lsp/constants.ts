@@ -17,3 +17,4 @@ export const EXAMPLE_XUID = '000901FC3FB8FE71'
 
 export const TITLE_STORAGE_FOLDER = 'title_storage';
 export const RESOURCES_FOLDER = 'res';
+export const FILESHARE_FOLDER = 'fileshare';

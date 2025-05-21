@@ -10,14 +10,21 @@ import {
   UploadedFile,
   Headers,
   Res,
+  NotImplementedException,
+  StreamableFile,
 } from '@nestjs/common';
-import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiProduces, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { Halo3UserService } from '../halo3/user.service';
 import { EXAMPLE_XUID } from '../constants';
 import dedent from "dedent";
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from '../services/upload.service';
+import { Response } from 'express';
+import { ParseXUIDPipe } from '../../xbox/parse-xuid.pipe';
+import { Halo3FileShareService } from '../halo3/fileshare.service';
+import { hexStringXuidSchema, parseXuid } from 'src/xbox/xuid';
+import { z } from 'zod';
 
 const TITLE_IDS = {
   LEGACY: 0,
@@ -27,6 +34,23 @@ const TITLE_IDS = {
   HALO_ONLINE: 4,
 }
 
+const parseBungieHeader = (schema: z.ZodTypeAny) => {
+  return z.preprocess((val: unknown) => {
+    if (typeof val !== 'string') return val;
+
+    let str = val; // now str is string type
+
+    if (str.startsWith('"')) {
+      str = str.substring(1);
+    }
+    if (str.endsWith('"')) {
+      str = str.substring(0, str.length - 1);
+    }
+
+    return str;
+  }, schema);
+};
+
 @ApiTags('Game API')
 @Controller('/gameapi')
 export class GameApiController {
@@ -34,32 +58,8 @@ export class GameApiController {
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
     private readonly halo3UserService: Halo3UserService,
     private readonly uploadService: UploadService,
-  ) {}
-
-  @ApiOperation({
-    summary: 'Get Halo 3 / ODST File Share',
-    description: 'Returns a file share catalog for the given user ID.'
-  })
-  @Get('/FilesGetCatalog.ashx')
-  @ApiQuery({ name: 'title', type: 'number', example: 1 })
-  @ApiQuery({ name: 'shareId', example: EXAMPLE_XUID })
-  @ApiQuery({ name: 'userId', example: EXAMPLE_XUID })
-  @ApiQuery({ name: 'locale', example: 'en' })
-  async getFileshare(
-    @Query('title', new DefaultValuePipe(0), ParseIntPipe) titleID,
-    @Query('shareId') shareID,
-    @Query('userId') userID,
-    @Query('locale', new DefaultValuePipe('en')) locale,
-  ) {
-    return dedent(`
-      QuotaBytes: 0
-      QuotaSlots: 0
-      SlotCount: 0
-      VisibleSlots: 0
-      SubscriptionHash: 0
-      Message: Pardon our dust! File Share is currently Unavailable.\r\n
-    `);
-  }
+    private readonly halo3FileShareService: Halo3FileShareService,
+  ) { }
 
   @ApiOperation({
     summary: 'Update Halo 3 User Highest Skill',
@@ -70,7 +70,7 @@ export class GameApiController {
   @ApiQuery({ name: 'userId' })
   @ApiQuery({ name: 'highestSkill', type: 'number' })
   async userUpdatePlayerStats(
-    @Query('title', new DefaultValuePipe(0), ParseIntPipe) titleID,
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) titleID,
     @Query('userId') userID,
     @Query('highestSkill') highestSkill,
   ) {
@@ -118,5 +118,252 @@ export class GameApiController {
     this.logger.log(`[MACHINE] Mime type = ${upload.mimetype}`)
     await this.uploadService.handleDebug(upload);
     await this.uploadService.storeUploadedFile(upload);
+  }
+
+  @ApiOperation({
+    summary: 'Get Halo 3 / ODST File Share',
+    description: 'Returns a file share catalog for the given user ID.'
+  })
+  @ApiTags('File Share')
+  @Get('/FilesGetCatalog.ashx')
+  @ApiQuery({ name: 'title', type: 'number', example: 1 })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'locale', example: 'en' })
+  async getFileshare(
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) titleID,
+    @Query('userId', ParseXUIDPipe) userID: number,
+    @Query('shareId', ParseXUIDPipe) shareID: number,
+    @Query('locale', new DefaultValuePipe('en')) locale,
+  ) {    
+    switch (titleID) {
+      case TITLE_IDS.HALO3:
+      case TITLE_IDS.HALO3_MYTHIC:
+      case TITLE_IDS.LEGACY:
+        return this.halo3FileShareService.viewFileShare(userID, shareID, locale);
+      case TITLE_IDS.HALO_ONLINE:
+      case TITLE_IDS.HALO3_ODST:
+      default:
+        return ''
+    }
+  }
+
+  @Get('/FilesNewUpload.ashx')
+  @ApiOperation({
+    summary: 'Start Halo 3 / ODST File Upload',
+    description: 'Begins a file share upload for Halo 3 / ODST. Returns the ID of the file.'
+  })
+  @ApiTags('File Share')
+  @ApiQuery({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'slot', example: 1 })
+  @ApiQuery({ name: 'uniqueId' })
+  @ApiQuery({ name: 'fileType' })
+  @ApiQuery({ name: 'uncompressedSize' })
+  @ApiQuery({ name: 'compressedSize' })
+  async startFileUpload(
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) titleID,
+    @Query('userId', ParseXUIDPipe) userID: number,
+    @Query('shareId', ParseXUIDPipe) shareID: number,
+    @Query('slot', ParseIntPipe) slot: number,
+    @Query('uniqueId', ParseIntPipe) uniqueID: number,
+    @Query('fileType', ParseIntPipe) fileType: number,
+    @Query('uncompressedSize', ParseIntPipe) uncompressedSize: number,
+    @Query('compressedSize', ParseIntPipe) compressedSize: number,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // This function returns a server ID, but we don't really use it so it's not important.
+    switch (titleID) {
+      case TITLE_IDS.HALO3:
+      case TITLE_IDS.HALO3_MYTHIC:
+        return await this.halo3FileShareService.initiateNewUpload(
+          userID,
+          shareID,
+          slot,
+          uniqueID,
+          fileType,
+          uncompressedSize,
+          compressedSize
+        )
+      default:
+      case TITLE_IDS.HALO3_ODST:
+      case TITLE_IDS.LEGACY:
+      case TITLE_IDS.HALO_ONLINE:
+        throw new NotImplementedException('Not implemented for provided title.');
+    }
+  }
+
+  @Get('/UserGetBnetSubscription.ashx')
+  @ApiOperation({
+    summary: 'User Get Bungie.NET Subscription Info',
+    description: "Returns information about the user's Bungie PRO subscription, if they have one.\
+      Includes information like whether the Bungie PRO button appears in a file share or start menu, what text displays, alert messages for file share etc.",
+  })
+  @ApiTags('File Share')
+  @ApiQuery({ name: 'title', type: 'number', example: TITLE_IDS.HALO3_MYTHIC })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'locale', example: 'en' })
+  async getBnetSubscription(
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) title: number,
+    @Query('userId', ParseXUIDPipe) userId: number,
+    @Query('locale') locale: string,
+  ) {
+    switch (title) {
+      case TITLE_IDS.HALO3:
+      case TITLE_IDS.HALO3_MYTHIC:
+        return await this.halo3FileShareService.getSubscription(userId, locale);
+      case TITLE_IDS.HALO3_ODST:
+      case TITLE_IDS.HALO_ONLINE:
+      case TITLE_IDS.LEGACY:
+      default:
+        return;
+    }
+  }
+
+  @Post('/FilesUpload.ashx')
+  @ApiOperation({
+    summary: 'Upload Halo 3 / ODST File',
+    description: 'Uploads a file to a Halo 3 / ODST file share.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        upload: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiTags('File Share')
+  @ApiHeader({ name: 'title' })
+  @ApiHeader({ name: 'userid', example: EXAMPLE_XUID })
+  @ApiHeader({ name: 'shareid', example: EXAMPLE_XUID })
+  @ApiHeader({ name: 'slot' })
+  @ApiHeader({ name: 'serverid' })
+  @UseInterceptors(FileInterceptor('upload'))
+  async uploadFile(
+    @UploadedFile() upload: Express.Multer.File,
+    @Headers() headers: Record<string, string>,
+  ) {
+    const { title, userid: uploaderXuid, shareid: shareXuid, slot } = z.object({
+      title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
+      userid: parseBungieHeader(hexStringXuidSchema),
+      shareid: parseBungieHeader(hexStringXuidSchema),
+      slot: parseBungieHeader(z.coerce.number()),
+      serverid: parseBungieHeader(z.coerce.number()),
+    }).parse(headers);
+
+    switch (title) {
+      case TITLE_IDS.HALO3:
+      case TITLE_IDS.HALO3_MYTHIC:
+        await this.halo3FileShareService.handleFileUpload(upload, uploaderXuid, shareXuid, slot)
+      case TITLE_IDS.HALO3_ODST:
+      case TITLE_IDS.HALO_ONLINE:
+      case TITLE_IDS.LEGACY:
+      default:
+        return;
+    }
+  }
+
+  @Get('/FilesStageForDownload.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    summary: 'Initiate Halo 3 / ODST File Download',
+    description: 'Start downloading a file from a Halo 3 / ODST fileshare. Returns the download URL and file size.',
+  })
+  @ApiQuery({ name: 'titleId' })
+  @ApiQuery({ name: 'userId', example: EXAMPLE_XUID, type: 'string' })
+  @ApiQuery({ name: 'shareId', example: EXAMPLE_XUID, type: 'string' })
+  @ApiQuery({ name: 'slot' })
+  @ApiQuery({ name: 'serverId' })
+  @ApiQuery({ name: 'startPosition' })
+  @ApiQuery({ name: 'fromAutoQueue' })
+  @ApiQuery({ name: 'view' })
+  async stageFileDownload(
+    @Query('title', ParseIntPipe, new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
+    @Query('userId', ParseXUIDPipe) userID: number,
+    @Query('shareId', ParseXUIDPipe) shareID: number,
+    @Query('slot', ParseIntPipe) slot: number,
+    @Query('serverId') serverId: string,
+    @Query('startPosition', ParseIntPipe) startPosition: number,
+    @Query('fromAutoQueue', ParseIntPipe) fromAutoQueue: number,
+    @Query('view') view: number,
+    @Query('preview', ParseIntPipe) preview: number,
+  ) {
+    switch (title) {
+      case TITLE_IDS.HALO3:
+      case TITLE_IDS.HALO3_MYTHIC:
+        return await this.halo3FileShareService.stageDownload(
+          userID, 
+          shareID, 
+          slot, 
+          serverId, 
+          startPosition, 
+          fromAutoQueue, 
+          view, 
+          preview
+        );
+      case TITLE_IDS.HALO3_ODST:
+      case TITLE_IDS.HALO_ONLINE:
+      case TITLE_IDS.LEGACY:
+      default:
+        return;
+    }
+  }
+
+  @Get('/FilesDownload.ashx')
+  @ApiOperation({
+    summary: "Download Halo 3 / ODST File",
+    description: "Not an official endpoint but used by Halo. Download a file from a Halo 3 or ODST file share. This endpoint isn't hardcoded, but we return it from FilesStageDownload.ashx."
+  })
+  @ApiTags('File Share')
+  @ApiHeader({ name: 'title' })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'slot' })
+  @ApiQuery({ name: 'serverId' })
+  @ApiQuery({ name: 'startPosition' })
+  async downloadFile(
+    @Headers() headers,
+    @Query('userId', ParseXUIDPipe) userid: number,
+    @Query('shareId', ParseXUIDPipe) shareID: number,
+    @Query('slot', ParseIntPipe) slot: number,
+    @Query('serverId') serverId: string,
+    @Query('startPosition', ParseIntPipe) startPosition: number,
+    @Res() res: Response,
+  ) {
+    const { title } = z.object({
+      title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
+    }).parse(headers);
+
+    switch (title) {
+      case TITLE_IDS.HALO3:
+      case TITLE_IDS.HALO3_MYTHIC:
+        const { stream, size } = await this.halo3FileShareService.getDownloadStream(
+          userid,
+          shareID,
+          slot,
+          serverId,
+          startPosition
+        )
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Length', size);
+        res.writeHead(200)
+        stream.pipe(res);
+        stream.on('error', (err) => {
+          this.logger.error(`[FileShare] Stream error: ${String(err)}`);
+          res.status(500).end('Internal server error');
+        });
+        return;
+      case TITLE_IDS.HALO3_ODST:
+      case TITLE_IDS.HALO_ONLINE:
+      case TITLE_IDS.LEGACY:
+      default:
+        return;
+    }
   }
 }

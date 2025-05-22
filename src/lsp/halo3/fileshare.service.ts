@@ -10,7 +10,7 @@ import dedent from "dedent";
 import { Prisma } from "src/generated/prisma";
 import { z } from "zod";
 import { URLSearchParams } from "url";
-import {h32} from 'xxhashjs';
+import { h32 } from 'xxhashjs';
 import { createReadStream } from "fs";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
@@ -18,9 +18,7 @@ const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently 
 const MEGABYTE = 1000 * 1000;
 const UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA = 25 * MEGABYTE;
 const UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA = 6;
-const BUNGIE_FAVOURITES_XUID = 0xFFFFFFFFFFFFFF01;
 const DOWNLOAD_ENDPOINT = '/gameapi/FilesDownload.ashx';
-
 
 export const FileShareSlotFileTypeSchema = z.enum([
     'GameVariantCtf',
@@ -455,6 +453,31 @@ export class Halo3FileShareService {
         }
     }
 
+    public getUploadProgress = async (
+        uploaderXuid: number,
+        shareXuid: number,
+        slot: number,
+        serverId: string,
+    ) => {
+        if (!IS_FILESHARE_ENABLED) {
+            throw new ServiceUnavailableException();
+        }
+
+        const filePath = join(
+            process.cwd(),
+            FILESHARE_FOLDER,
+            shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+            slot.toString(),
+        );
+
+        try {
+            await access(filePath);
+            return (await stat(filePath)).size;
+        } catch (e) {
+            throw new NotFoundException('File not found.')
+        }
+    }
+
     public getSubscription = async (userXuid: number, locale: string) => {
         const subscriptionHash = await this.getShareSubscriptionHash(userXuid);
 
@@ -580,7 +603,7 @@ export class Halo3FileShareService {
         await writeFile(join(
             destinationFolder,
             slot.toString(),
-        ), file.buffer);
+        ), file.buffer, { mode: 'append' });
         await this.prisma.file_share_slot.create({
             data: {
                 share_id: shareXuid,

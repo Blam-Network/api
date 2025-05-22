@@ -77,14 +77,14 @@ export class GameApiController {
     switch (titleID) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
-        return this.halo3UserService.updateHighestSkill(userID, highestSkill);
+        return await this.halo3UserService.updateHighestSkill(userID, highestSkill);
       case TITLE_IDS.LEGACY:
       case TITLE_IDS.HALO3_ODST:
       case TITLE_IDS.HALO_ONLINE:
         this.logger.warn(`[GAMEAPI] Updating player stats is not supported for title ${titleID}.`)
       default:
         this.logger.error(`[GAMEAPI] Tried to update player stats for unknown title ${titleID}.`)
-        return;
+        throw new NotImplementedException();
     }
   }
 
@@ -144,7 +144,7 @@ export class GameApiController {
       case TITLE_IDS.HALO_ONLINE:
       case TITLE_IDS.HALO3_ODST:
       default:
-        return ''
+        throw new NotImplementedException();
     }
   }
 
@@ -217,7 +217,7 @@ export class GameApiController {
       case TITLE_IDS.HALO_ONLINE:
       case TITLE_IDS.LEGACY:
       default:
-        return;
+        throw new NotImplementedException();
     }
   }
 
@@ -260,12 +260,12 @@ export class GameApiController {
     switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
-        await this.halo3FileShareService.handleFileUpload(upload, uploaderXuid, shareXuid, slot)
+        return await this.halo3FileShareService.handleFileUpload(upload, uploaderXuid, shareXuid, slot)
       case TITLE_IDS.HALO3_ODST:
       case TITLE_IDS.HALO_ONLINE:
       case TITLE_IDS.LEGACY:
       default:
-        return;
+        throw new NotImplementedException();
     }
   }
 
@@ -311,7 +311,7 @@ export class GameApiController {
       case TITLE_IDS.HALO_ONLINE:
       case TITLE_IDS.LEGACY:
       default:
-        return;
+        throw new NotImplementedException();
     }
   }
 
@@ -363,37 +363,62 @@ export class GameApiController {
       case TITLE_IDS.HALO_ONLINE:
       case TITLE_IDS.LEGACY:
       default:
-        return;
+        throw new NotImplementedException();
     }
   }
 
-    @Get('/FilesDelete.ashx')
-    @ApiOperation({
-      summary: "Delete Halo 3 / ODST File",
-      description: "Delete a file from a Halo 3 or ODST file share."
-    })
-    @ApiTags('File Share')
-    @ApiQuery({ name: 'title' })
-    @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
-    @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
-    @ApiQuery({ name: 'slot' })
-    @ApiQuery({ name: 'serverId' })
-    async deleteFile(
-      @Query('title', ParseIntPipe, new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
-      @Query('userId', ParseXUIDPipe) userid: number,
-      @Query('shareId', ParseXUIDPipe) shareID: number,
-      @Query('slot', ParseIntPipe) slot: number,
-      @Query('serverId') serverId: string,
-    ) {
-      switch (title) {
-        case TITLE_IDS.HALO3:
-        case TITLE_IDS.HALO3_MYTHIC:
-          return await this.halo3FileShareService.deleteFile(userid, shareID, slot, serverId);
-        case TITLE_IDS.HALO3_ODST:
-        case TITLE_IDS.HALO_ONLINE:
-        case TITLE_IDS.LEGACY:
-        default:
-          return;
-      }
+  @Get('/FilesDelete.ashx')
+  @ApiOperation({
+    summary: "Delete Halo 3 / ODST File",
+    description: "Delete a file from a Halo 3 or ODST file share."
+  })
+  @ApiTags('File Share')
+  @ApiQuery({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'slot', example: 1 })
+  @ApiQuery({ name: 'serverId' })
+  async deleteFile(
+    @Query('title', ParseIntPipe, new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
+    @Query('userId', ParseXUIDPipe) userid: number,
+    @Query('shareId', ParseXUIDPipe) shareID: number,
+    @Query('slot', ParseIntPipe) slot: number,
+    @Query('serverId') serverId: string,
+  ) {
+    switch (title) {
+      case TITLE_IDS.HALO3:
+      case TITLE_IDS.HALO3_MYTHIC:
+        return await this.halo3FileShareService.deleteFile(userid, shareID, slot, serverId);
+      case TITLE_IDS.HALO3_ODST:
+      case TITLE_IDS.HALO_ONLINE:
+      case TITLE_IDS.LEGACY:
+      default:
+        throw new NotImplementedException();
     }
+  }
+
+  @Get('/FilesGetUploadProgress.ashx')
+  @ApiQuery({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'slot', example: 1 })
+  @ApiQuery({ name: 'serverId' })
+  async getUploadProgress(
+    @Query('title', ParseIntPipe, new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
+    @Query('userId', ParseXUIDPipe) userID: number,
+    @Query('shareId', ParseXUIDPipe) shareID: number,
+    @Query('slot', ParseIntPipe) slot: number,
+    @Query('serverId') serverId: string,
+  ) {
+    switch (title) {
+      case TITLE_IDS.HALO3:
+      case TITLE_IDS.HALO3_MYTHIC:
+        return await this.halo3FileShareService.getUploadProgress(userID, shareID, slot, serverId);
+      case TITLE_IDS.HALO3_ODST:
+      case TITLE_IDS.HALO_ONLINE:
+      case TITLE_IDS.LEGACY:
+      default:
+        throw new NotImplementedException();
+    }
+  }
 }

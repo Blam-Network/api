@@ -91,7 +91,7 @@ export class Halo3UserService {
         })
     }
 
-    public updateHighestSkill = (xuid: string, highestSkill: number) => {
+    public updateHighestSkill = async (xuid: string, highestSkill: number) => {
         const highestSkillParsed = z.number().max(50).min(0).safeParse(highestSkill);
         if (!highestSkillParsed.success) {
             throw new BadRequestException("Invalid highest skill.")
@@ -100,7 +100,7 @@ export class Halo3UserService {
 
         this.logger.log(`[USER] Updating highest skill for user ${xuid} to ${highestSkill}`)
         
-        this.prisma.player_data.upsert({
+        await this.prisma.player_data.upsert({
             where: { player_xuid: xuidParsed },
             create: {
                 player_xuid: xuidParsed,

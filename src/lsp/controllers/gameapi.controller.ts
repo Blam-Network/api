@@ -107,15 +107,19 @@ export class GameApiController {
     },
   })
   @Post('/MachineUpdateNetworkStats.ashx')
-  @ApiHeader({ name: 'title' })
+  @ApiHeader({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiHeader({ name: 'machineId' })
   @UseInterceptors(FileInterceptor('upload'))
   async machineUpdateNetworkStats(
-    @Headers('title') titleID,
-    @Headers('machineId') machineID,
+    @Headers() headers: Record<string, string>,
     @UploadedFile() upload: Express.Multer.File,
   ) {
-    this.logger.log(`[MACHINE] Got machine network stats for machine ${machineID}, title ${titleID}`)
+    const { title, machineId } = z.object({
+      title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
+      machineId: parseBungieHeader(hexStringXuidSchema),
+    }).parse(headers);
+
+    this.logger.log(`[MACHINE] Got machine network stats for machine ${machineId}, title ${title}`)
     this.logger.log(`[MACHINE] Mime type = ${upload.mimetype}`)
     await this.uploadService.handleDebug(upload);
     await this.uploadService.storeUploadedFile(upload);
@@ -523,4 +527,28 @@ export class GameApiController {
   ) {
     throw new NotImplementedException();
   }
+
+    @Post('/FilesUploadBlind.ashx')
+    @ApiOperation({
+      summary: 'Upload Halo 3 / ODST Screenshot',
+      description: "This endpoint is used to upload screenshots, when a screenshot is taken in game and the user is connected to the server, the screenshot is automatically uploaded.",
+      deprecated: true, // Not Yet Implemented
+    })
+    @ApiTags('File Share')
+    @ApiHeader({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
+    @ApiHeader({ name: 'userid', example: EXAMPLE_XUID })
+    @ApiHeader({ name: 'gameid' })
+    @UseInterceptors(FileInterceptor('upload'))
+    async uploadFileBlind(
+      @Headers() headers,
+      @UploadedFile() upload: Express.Multer.File,
+    ) {
+      const { title, userid: uploaderXuid, gameid } = z.object({
+        title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
+        userid: parseBungieHeader(hexStringXuidSchema),
+        gameid: parseBungieHeader(z.coerce.number()),
+      }).parse(headers);
+
+      throw new NotImplementedException();
+    }
 }

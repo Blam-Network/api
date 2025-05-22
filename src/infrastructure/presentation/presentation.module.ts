@@ -1,6 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppLoggerMiddleware } from './AppLoggerMiddleware';
-import { GameApiController } from './controllers/gameapi.controller';
 import { JSONTitleStorageController } from './controllers/jsontitlestorage.controller';
 import { PimpsController } from './controllers/pimps.controller';
 import { SunriseController } from './controllers/sunrise.controller';
@@ -20,7 +19,6 @@ import { ReachPresenceApiController } from './controllers/reach_presence_api.con
   controllers: [
     GameApiOmahaController,
     ReachPresenceApiController,
-    GameApiController,
     JSONTitleStorageController,
     SunriseController,
     PimpsController,

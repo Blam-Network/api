@@ -68,23 +68,23 @@ export class GameApiController {
   })
   @Get('/UserUpdatePlayerStats.ashx')
   @ApiQuery({ name: 'title', type: 'number' })
-  @ApiQuery({ name: 'userId' })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'highestSkill', type: 'number' })
   async userUpdatePlayerStats(
-    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) titleID,
-    @Query('userId') userID,
-    @Query('highestSkill') highestSkill,
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) title,
+    @Query('userId', ParseXUIDPipe) userId: number,
+    @Query('highestSkill', ParseIntPipe) highestSkill: number,
   ) {
-    switch (titleID) {
+    switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
-        return await this.halo3UserService.updateHighestSkill(userID, highestSkill);
+        return await this.halo3UserService.updateHighestSkill(userId, highestSkill);
       case TITLE_IDS.LEGACY:
       case TITLE_IDS.HALO3_ODST:
       case TITLE_IDS.HALO_ONLINE:
-        this.logger.warn(`[GAMEAPI] Updating player stats is not supported for title ${titleID}.`)
+        this.logger.warn(`[GAMEAPI] Updating player stats is not supported for title ${title}.`)
       default:
-        this.logger.error(`[GAMEAPI] Tried to update player stats for unknown title ${titleID}.`)
+        this.logger.error(`[GAMEAPI] Tried to update player stats for unknown title ${title}.`)
         throw new NotImplementedException();
     }
   }
@@ -325,7 +325,7 @@ export class GameApiController {
     }
   }
 
-  @Get('/FilesDownload.ashx')
+  @Get('/FilesStartDownload.ashx')
   @ApiOperation({
     summary: "Download Halo 3 / ODST File",
     description: "Not an official endpoint but used by Halo. Download a file from a Halo 3 or ODST file share. This endpoint isn't hardcoded, but we return it from FilesStageDownload.ashx."
@@ -338,6 +338,58 @@ export class GameApiController {
   @ApiQuery({ name: 'serverId' })
   @ApiQuery({ name: 'startPosition' })
   async downloadFile(
+    @Headers() headers,
+    @Query('userId', ParseXUIDPipe) userid: number,
+    @Query('shareId', ParseXUIDPipe) shareID: number,
+    @Query('slot', ParseIntPipe) slot: number,
+    @Query('serverId') serverId: string,
+    @Query('startPosition', ParseIntPipe) startPosition: number,
+    @Res() res: Response,
+  ) {
+    const { title } = z.object({
+      title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
+    }).parse(headers);
+
+    switch (title) {
+      case TITLE_IDS.HALO3:
+      case TITLE_IDS.HALO3_MYTHIC:
+      case TITLE_IDS.HALO3_ODST:
+      case TITLE_IDS.HALO_ONLINE:
+      case TITLE_IDS.LEGACY:
+        const { stream, size } = await this.halo3FileShareService.getDownloadStream(
+          userid,
+          shareID,
+          slot,
+          serverId,
+          startPosition
+        )
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Length', size);
+        res.writeHead(200)
+        stream.pipe(res);
+        stream.on('error', (err) => {
+          this.logger.error(`[FileShare] Stream error: ${String(err)}`);
+          res.status(500).end('Internal server error');
+        });
+        return;
+      default:
+        throw new NotImplementedException();
+    }
+  }
+
+  @Get('/FilesResumeDownload.ashx')
+  @ApiOperation({
+    summary: "Resume Halo 3 / ODST File Download",
+    description: "Resume downloading a file from a Halo 3 or ODST file share. Same parameters as FilesStartDownload.ashx."
+  })
+  @ApiTags('File Share')
+  @ApiHeader({ name: 'title' })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'slot' })
+  @ApiQuery({ name: 'serverId' })
+  @ApiQuery({ name: 'startPosition' })
+  async resumeFileDownload(
     @Headers() headers,
     @Query('userId', ParseXUIDPipe) userid: number,
     @Query('shareId', ParseXUIDPipe) shareID: number,
@@ -435,5 +487,40 @@ export class GameApiController {
       default:
         throw new NotImplementedException();
     }
+  }
+
+
+  @Get('/UserBeginConsume.ashx')
+  @ApiOperation({
+    summary: 'Bungie Pro - Complete Consume',
+    description: "We're not sure what this endpoint does yet and it has never been called. It might be involved in letting Bungie.NET know when a user has bought Bungie PRO via the Xbox Marketplace.",
+    deprecated: true,
+  })
+  @ApiQuery({ name: 'title', type: 'number' })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'consumableId' })
+  async userBeginConsume(
+    @Query('title', new ParseIntPipe({optional: true}), new DefaultValuePipe(0)) title: number,
+    @Query('userId', ParseXUIDPipe) userID: number,
+    @Query('consumableId') consumableId,
+  ) {
+    throw new NotImplementedException();
+  }
+
+  @Get('/UserCompleteConsume.ashx')
+  @ApiOperation({
+    summary: 'Bungie Pro - Complete Consume',
+    description: "We're not sure what this endpoint does yet and it has never been called. It might be involved in letting Bungie.NET know when a user has bought Bungie PRO via the Xbox Marketplace.",
+    deprecated: true,
+  })
+  @ApiQuery({ name: 'title', type: 'number' })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'consumableId' })
+  async userCompleteConsume(
+    @Query('title', new ParseIntPipe({optional: true}), new DefaultValuePipe(0)) title: number,
+    @Query('userId', ParseXUIDPipe) userID: number,
+    @Query('consumableId') consumableId,
+  ) {
+    throw new NotImplementedException();
   }
 }

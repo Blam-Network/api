@@ -18,7 +18,7 @@ const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently 
 const MEGABYTE = 1024 * 1024;
 const UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA = 25 * MEGABYTE;
 const UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA = 6;
-const DOWNLOAD_ENDPOINT = '/gameapi/FilesDownload.ashx';
+const DOWNLOAD_ENDPOINT = '/gameapi/FilesStartDownload.ashx';
 
 const OFFER_IDS = {
     HALO3_BUNGIE_PRO: 0x4D5307E60CCF002n,

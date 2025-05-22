@@ -206,16 +206,16 @@ export class GameApiController {
   @ApiQuery({ name: 'title', type: 'number', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'locale', example: 'en' })
-  @ApiQuery({ name: 'gameRegion', example: '0', description: 'ODST only' })
-  @ApiQuery({ name: 'profileRegion', example: '100', description: 'ODST only' })
-  @ApiQuery({ name: 'isDebug', example: 'false', description: 'ODST only' })
+  @ApiQuery({ name: 'gameRegion', example: '0', description: 'ODST only', required: false })
+  @ApiQuery({ name: 'profileRegion', example: '100', description: 'ODST only', required: false })
+  @ApiQuery({ name: 'isDebug', example: 'false', description: 'ODST only', required: false })
   async getBnetSubscription(
     @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) title: number,
     @Query('userId', ParseXUIDPipe) userId: number,
     @Query('locale') locale: string,
-    @Query('gameRegion', ParseIntPipe) gameRegion?: number,
-    @Query('profileRegion', ParseIntPipe) profileRegion?: number,
-    @Query('isDebug', ParseBoolPipe) isDebug?: boolean,
+    @Query('gameRegion', new ParseIntPipe({optional: true})) gameRegion?: number,
+    @Query('profileRegion', new ParseIntPipe({optional: true})) profileRegion?: number,
+    @Query('isDebug', new ParseBoolPipe({optional: true})) isDebug?: boolean,
   ) {
     switch (title) {
       case TITLE_IDS.HALO3:
@@ -263,7 +263,7 @@ export class GameApiController {
       userid: parseBungieHeader(hexStringXuidSchema),
       shareid: parseBungieHeader(hexStringXuidSchema),
       slot: parseBungieHeader(z.coerce.number()),
-      serverid: parseBungieHeader(z.string()),
+      serverid: parseBungieHeader(z.string().uuid()),
     }).parse(headers);
 
     switch (title) {

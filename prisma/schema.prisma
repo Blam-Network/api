@@ -810,11 +810,12 @@ model file_share_slot {
 }
 
 model file_share {
-  share_id              Decimal          @id @db.Decimal(20, 0)
-  quota_slots           Int?             @db.SmallInt
-  quota_bytes           Int?             
-  message               String?
-  lastHash              Int              @default(0)
+  share_id                  Decimal          @id @db.Decimal(20, 0)
+  quota_slots               Int?             @db.SmallInt
+  quota_bytes               Int?             
+  message                   String?
+  lastHash                  Int              @default(0)
+  unsubscribe_stage         Int?              @db.SmallInt
 
   @@schema("halo3")
 }

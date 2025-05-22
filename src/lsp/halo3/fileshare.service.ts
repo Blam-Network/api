@@ -15,7 +15,7 @@ import { createReadStream } from "fs";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 
-const MEGABYTE = 1000 * 1000;
+const MEGABYTE = 1024 * 1024;
 const UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA = 25 * MEGABYTE;
 const UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA = 6;
 const DOWNLOAD_ENDPOINT = '/gameapi/FilesDownload.ashx';
@@ -160,9 +160,9 @@ export class Halo3FileShareService {
     ) { }
 
     // If the fileshare subscription hash doesn't match the subscription hash, we refetch the subscription.
-    private getShareSubscriptionHash = async (shareXuid: number, saveLastHash: boolean = false): Promise<{
+    private getShareSubscriptionHash = async (response: 'subscription' | 'fileshare', shareXuid: number): Promise<{
         currentHash: number,
-        lastHash: number,
+        isUnsubscribing: boolean,
     }> => {
         const fileShare = await this.prisma.file_share.findUnique({
             where: {
@@ -172,7 +172,7 @@ export class Halo3FileShareService {
 
         if (!fileShare) return {
             currentHash: 0,
-            lastHash: 0,
+            isUnsubscribing: false,
         };
 
         let currentHash = 0;
@@ -189,24 +189,63 @@ export class Halo3FileShareService {
                 message: fileShare?.message
             }))
     
+            // returns a u32, we want i32
             currentHash = hasher.digest().toNumber();
+            if (currentHash & 0x80000000) 
+                currentHash = -(currentHash & 0x7FFFFFFF)
         }
 
-        if (saveLastHash) {
-            await this.prisma.file_share.update({
-                where: {
-                    share_id: shareXuid,
-                },
-                data: {
-                    lastHash: currentHash,
-                }
-            });
+        const hasUnsubbed = currentHash === 0 && fileShare.lastHash !== 0;
+        let isUnsubscribing = false;
+        // There's a limitaiton with halo where if you want to live update fileshare settings,
+        // you need to use a subscription hash to do so. However, the subscription hash can only
+        // be set if the Bungie PRO button is show, which is undesirable.
+        // To circumvent this, we have some complex logic:
+        // 1. file share is called, user has ubsubbed
+        //      we return a bogus subscription hash to cause the game to refetch later...
+        // 2. subscription is called, we need to prepare by returning subscription hash 0,
+        //      but we need to enable the Bungie Pro button to do so which is undesirable...
+        // 3. Because we returned a bogus hash earlier, the file share is req'd again.
+        //      We return another bogus hash to cause another fetch of the subscription file.
+        // 4. Subscription file is refetched, this time we return no hash, we still have 0 in memory.
+        // 5. File hash is req'd again, we can finally return the zero'd subasciption hash.
+        let unsubStage: number | null = null;
+        if (response === 'fileshare' && hasUnsubbed && fileShare.unsubscribe_stage == null)
+            unsubStage = 1;
+        else if (response === 'subscription' && fileShare.unsubscribe_stage == 1)
+            unsubStage = 2;
+        else if (response === 'fileshare' && fileShare.unsubscribe_stage == 2)
+            unsubStage = 3;
+        else if (response === 'subscription' && fileShare.unsubscribe_stage == 3)
+            unsubStage = 4;
+        else if (response === 'fileshare' && fileShare.unsubscribe_stage == 4)
+            unsubStage = null;
+
+        if (unsubStage !== null) {
+            isUnsubscribing = true;
         }
+
+        if (unsubStage == 1)
+            currentHash = 1;
+        else if (unsubStage == 3)
+            currentHash = 2;
+
+        console.log(`getting subscription hash for ${response}, returning ${currentHash}, unsubscribing = ${isUnsubscribing}`)
+        
+        await this.prisma.file_share.update({
+            where: {
+                share_id: shareXuid,
+            },
+            data: {
+                lastHash: currentHash,
+                unsubscribe_stage: unsubStage,
+            }
+        });
 
         return {
             currentHash,
-            lastHash: fileShare.lastHash,
-        }
+            isUnsubscribing
+        };
     }
 
     private fileCatalogResponse = (options: FileShare) => {
@@ -504,7 +543,7 @@ export class Halo3FileShareService {
             }
         }
 
-        let subscriptionHash = await this.getShareSubscriptionHash(shareXuid, true);
+        let subscriptionHash = await this.getShareSubscriptionHash('fileshare', shareXuid);
 
         return this.fileCatalogResponse({
             quotaBytes: fileShare.quota_bytes || UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
@@ -624,7 +663,7 @@ export class Halo3FileShareService {
             }
         }
 
-        let subscriptionHash = await this.getShareSubscriptionHash(shareXuid, true);
+        let subscriptionHash = await this.getShareSubscriptionHash('fileshare', shareXuid);
 
         return this.fileCatalogResponseODST({
             quotaBytes: fileShare.quota_bytes || UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
@@ -736,11 +775,11 @@ export class Halo3FileShareService {
     }
 
     public getSubscription = async (userXuid: number, locale: string) => {
-        const subscriptionHash = await this.getShareSubscriptionHash(userXuid);
-
-        if (!subscriptionHash.currentHash || subscriptionHash.lastHash) {
+        const subscriptionHash = await this.getShareSubscriptionHash('subscription', userXuid);
+        
+        if (subscriptionHash.currentHash || subscriptionHash.isUnsubscribing) {
             return this.fileshareSubscriptionResponse({
-                status: subscriptionHash.currentHash > 0 ? 'Subscribed' : 'Expired',
+                status: !subscriptionHash.isUnsubscribing ? 'Subscribed' : 'Expired',
                 subscriptionHash: subscriptionHash.currentHash,
                 nextOfferId: 0x4D5307E60CCF002n,
                 hqButton: 'Bungie Pro',
@@ -751,7 +790,7 @@ export class Halo3FileShareService {
                 justSubscribedMessage: "Welcome to Bungie PRO!",
                 currentlySubscribedMessage: 'You already have an active Bungie Pro subscription.',
                 overQuotaMessage: 'You have exceeded your file-share quote. Please make more space before uploading new files.',
-                subscriptionEndTimestamp: subscriptionHash.currentHash > 0 ? BigInt(Number.MAX_SAFE_INTEGER) : 0n,
+                subscriptionEndTimestamp: !subscriptionHash.isUnsubscribing ? BigInt(Number.MAX_SAFE_INTEGER) : 0n,
             })
         }
         
@@ -767,11 +806,11 @@ export class Halo3FileShareService {
         profileRegion?: number,
         isDebug?: boolean,
     ) => {
-        const subscriptionHash = await this.getShareSubscriptionHash(userXuid);
+        const subscriptionHash = await this.getShareSubscriptionHash('subscription', userXuid);
 
-        if (!subscriptionHash.currentHash || subscriptionHash.lastHash) {
+        if (subscriptionHash.currentHash || subscriptionHash.isUnsubscribing) {
             return this.fileshareSubscriptionResponseODST({
-                status: subscriptionHash.currentHash > 0 ? 'Subscribed' : 'Expired',
+                status: !subscriptionHash.isUnsubscribing ? 'Subscribed' : 'Expired',
                 subscriptionHash: subscriptionHash.currentHash,
                 nextOfferId: 0x4D5308770CCF0002n,
                 hqButton: 'Bungie Pro',
@@ -782,7 +821,7 @@ export class Halo3FileShareService {
                 justSubscribedMessage: "Welcome to Bungie PRO!",
                 currentlySubscribedMessage: 'You already have an active Bungie Pro subscription.',
                 overQuotaMessage: 'You have exceeded your file-share quote. Please make more space before uploading new files.',
-                subscriptionEndTimestamp: subscriptionHash.currentHash > 0 ? BigInt(Number.MAX_SAFE_INTEGER) : 0n,
+                subscriptionEndTimestamp: !subscriptionHash.isUnsubscribing ? BigInt(Number.MAX_SAFE_INTEGER) : 0n,
                 portalButton: 'PLAY THE BETA',
                 portalExecuteImageFileName: "Portal Execute Image File Name",
                 portalExecuteLaunchData: 123n,
@@ -889,11 +928,6 @@ export class Halo3FileShareService {
             throw new BadRequestException("Bad Version: The file is unsupported.")
         }
 
-        // if the slot is already full they can't upload without first deleting.
-        if (await this.prisma.file_share_slot.findUnique({ where: { share_id_slot: { share_id: shareXuid, slot } } })) {
-            throw new BadRequestException('File share slot already full!');
-        }
-
         const destinationFolder = join(
             process.cwd(),
             FILESHARE_FOLDER,
@@ -903,7 +937,7 @@ export class Halo3FileShareService {
         await writeFile(join(
             destinationFolder,
             slot.toString(),
-        ), file.buffer, { mode: 'append' });
+        ), file.buffer, { flag: 'a+' });
         await this.prisma.file_share_slot.update({
             where: {
                 id: serverId,
@@ -958,11 +992,6 @@ export class Halo3FileShareService {
             throw new BadRequestException("Bad Version: The file is unsupported.")
         }
 
-        // if the slot is already full they can't upload without first deleting.
-        if (await this.prisma.file_share_slot.findUnique({ where: { share_id_slot: { share_id: shareXuid, slot } } })) {
-            throw new BadRequestException('File share slot already full!');
-        }
-
         const destinationFolder = join(
             process.cwd(),
             FILESHARE_FOLDER,
@@ -972,7 +1001,7 @@ export class Halo3FileShareService {
         await writeFile(join(
             destinationFolder,
             slot.toString(),
-        ), file.buffer, { mode: 'append' });
+        ), file.buffer, { flag: 'a+' });
         await this.prisma.file_share_slot.update({
             where: {
                 id: serverId

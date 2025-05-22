@@ -12,6 +12,7 @@ import {
   Res,
   NotImplementedException,
   StreamableFile,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiProduces, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
@@ -126,7 +127,7 @@ export class GameApiController {
   })
   @ApiTags('File Share')
   @Get('/FilesGetCatalog.ashx')
-  @ApiQuery({ name: 'title', type: 'number', example: 1 })
+  @ApiQuery({ name: 'title', type: 'number', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'locale', example: 'en' })
@@ -143,6 +144,7 @@ export class GameApiController {
         return this.halo3FileShareService.viewFileShare(userID, shareID, locale);
       case TITLE_IDS.HALO_ONLINE:
       case TITLE_IDS.HALO3_ODST:
+        return this.halo3FileShareService.viewFileShareODST(userID, shareID, locale);
       default:
         throw new NotImplementedException();
     }
@@ -177,6 +179,9 @@ export class GameApiController {
     switch (titleID) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
+      case TITLE_IDS.HALO3_ODST:
+      case TITLE_IDS.LEGACY:
+      case TITLE_IDS.HALO_ONLINE:
         return await this.halo3FileShareService.initiateNewUpload(
           userID,
           shareID,
@@ -187,9 +192,6 @@ export class GameApiController {
           compressedSize
         )
       default:
-      case TITLE_IDS.HALO3_ODST:
-      case TITLE_IDS.LEGACY:
-      case TITLE_IDS.HALO_ONLINE:
         throw new NotImplementedException('Not implemented for provided title.');
     }
   }
@@ -204,18 +206,25 @@ export class GameApiController {
   @ApiQuery({ name: 'title', type: 'number', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'locale', example: 'en' })
+  @ApiQuery({ name: 'gameRegion', example: '0', description: 'ODST only' })
+  @ApiQuery({ name: 'profileRegion', example: '100', description: 'ODST only' })
+  @ApiQuery({ name: 'isDebug', example: 'false', description: 'ODST only' })
   async getBnetSubscription(
     @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) title: number,
     @Query('userId', ParseXUIDPipe) userId: number,
     @Query('locale') locale: string,
+    @Query('gameRegion', ParseIntPipe) gameRegion?: number,
+    @Query('profileRegion', ParseIntPipe) profileRegion?: number,
+    @Query('isDebug', ParseBoolPipe) isDebug?: boolean,
   ) {
     switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
+      case TITLE_IDS.LEGACY:
         return await this.halo3FileShareService.getSubscription(userId, locale);
       case TITLE_IDS.HALO3_ODST:
       case TITLE_IDS.HALO_ONLINE:
-      case TITLE_IDS.LEGACY:
+        return await this.halo3FileShareService.getSubscriptionODST(userId, locale, gameRegion, profileRegion, isDebug);
       default:
         throw new NotImplementedException();
     }
@@ -249,21 +258,22 @@ export class GameApiController {
     @UploadedFile() upload: Express.Multer.File,
     @Headers() headers: Record<string, string>,
   ) {
-    const { title, userid: uploaderXuid, shareid: shareXuid, slot } = z.object({
+    const { title, userid: uploaderXuid, shareid: shareXuid, slot, serverid } = z.object({
       title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
       userid: parseBungieHeader(hexStringXuidSchema),
       shareid: parseBungieHeader(hexStringXuidSchema),
       slot: parseBungieHeader(z.coerce.number()),
-      serverid: parseBungieHeader(z.coerce.number()),
+      serverid: parseBungieHeader(z.string()),
     }).parse(headers);
 
     switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
-        return await this.halo3FileShareService.handleFileUpload(upload, uploaderXuid, shareXuid, slot)
+      case TITLE_IDS.LEGACY:
+        return await this.halo3FileShareService.handleFileUpload(upload, uploaderXuid, shareXuid, slot, serverid)
       case TITLE_IDS.HALO3_ODST:
       case TITLE_IDS.HALO_ONLINE:
-      case TITLE_IDS.LEGACY:
+        return await this.halo3FileShareService.handleFileUploadODST(upload, uploaderXuid, shareXuid, slot, serverid)
       default:
         throw new NotImplementedException();
     }
@@ -297,6 +307,9 @@ export class GameApiController {
     switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
+      case TITLE_IDS.HALO3_ODST:
+      case TITLE_IDS.HALO_ONLINE:
+      case TITLE_IDS.LEGACY:
         return await this.halo3FileShareService.stageDownload(
           userID, 
           shareID, 
@@ -307,9 +320,6 @@ export class GameApiController {
           view, 
           preview
         );
-      case TITLE_IDS.HALO3_ODST:
-      case TITLE_IDS.HALO_ONLINE:
-      case TITLE_IDS.LEGACY:
       default:
         throw new NotImplementedException();
     }
@@ -343,6 +353,9 @@ export class GameApiController {
     switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
+      case TITLE_IDS.HALO3_ODST:
+      case TITLE_IDS.HALO_ONLINE:
+      case TITLE_IDS.LEGACY:
         const { stream, size } = await this.halo3FileShareService.getDownloadStream(
           userid,
           shareID,
@@ -359,9 +372,6 @@ export class GameApiController {
           res.status(500).end('Internal server error');
         });
         return;
-      case TITLE_IDS.HALO3_ODST:
-      case TITLE_IDS.HALO_ONLINE:
-      case TITLE_IDS.LEGACY:
       default:
         throw new NotImplementedException();
     }
@@ -388,16 +398,21 @@ export class GameApiController {
     switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
-        return await this.halo3FileShareService.deleteFile(userid, shareID, slot, serverId);
       case TITLE_IDS.HALO3_ODST:
       case TITLE_IDS.HALO_ONLINE:
       case TITLE_IDS.LEGACY:
+        return await this.halo3FileShareService.deleteFile(userid, shareID, slot, serverId);
       default:
         throw new NotImplementedException();
     }
   }
 
   @Get('/FilesGetUploadProgress.ashx')
+  @ApiOperation({
+    summary: "Get Halo 3 / ODST File Upload Progress",
+    description: "Returns bytes uploaded."
+  })
+  @ApiTags('File Share')
   @ApiQuery({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
@@ -413,10 +428,10 @@ export class GameApiController {
     switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
-        return await this.halo3FileShareService.getUploadProgress(userID, shareID, slot, serverId);
       case TITLE_IDS.HALO3_ODST:
       case TITLE_IDS.HALO_ONLINE:
       case TITLE_IDS.LEGACY:
+        return await this.halo3FileShareService.getUploadProgress(userID, shareID, slot, serverId);
       default:
         throw new NotImplementedException();
     }

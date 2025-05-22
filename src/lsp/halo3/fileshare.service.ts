@@ -3,7 +3,7 @@ import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blam-network/blf_lsp'
 import { PrismaService } from "src/db/prisma.service";
 import { HALO3_BUILD_NUMBER, HALO3_TU1_BUILD_NUMBER, HALO3_TU2_BUILD_NUMBER } from "./constants";
-import { access, mkdir, stat, writeFile } from "fs/promises";
+import { access, mkdir, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
 import { FILESHARE_FOLDER } from "../constants";
 import dedent from "dedent";
@@ -430,6 +430,10 @@ export class Halo3FileShareService {
         serverId: string,
         startPosition: number,
     ) => {
+        if (!IS_FILESHARE_ENABLED) {
+            throw new ServiceUnavailableException();
+        }
+
         const filePath = join(
             process.cwd(),
             FILESHARE_FOLDER,
@@ -512,6 +516,35 @@ export class Halo3FileShareService {
         this.logger.log(`[FileShare] User ${uploaderXuid} started uploading into slot ${slot}`);
 
         return fileShareSlot.id;
+    }
+
+    public deleteFile = async (userXuid: number, shareXuid, slot: number, serverId: string) => {
+        if (!IS_FILESHARE_ENABLED) {
+            return new ServiceUnavailableException();
+        }
+
+        if (userXuid !== shareXuid) {
+            this.logger.error(`[FileShare] User ${userXuid} tried to delete file ${slot} from share ${shareXuid}`)
+            throw new UnauthorizedException();
+        }
+
+        await this.prisma.file_share_slot.delete({
+            where: {
+                share_id_slot: {
+                    share_id: shareXuid,
+                    slot
+                }
+            }
+        })
+
+        const filePath = join(
+            process.cwd(),
+            FILESHARE_FOLDER,
+            shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+            slot.toString(),
+        )
+
+        await rm(filePath);
     }
 
     public handleFileUpload = async (file: Express.Multer.File, uploaderXuid: number, shareXuid: number, slot: number) => {

@@ -366,4 +366,34 @@ export class GameApiController {
         return;
     }
   }
+
+    @Get('/FilesDelete.ashx')
+    @ApiOperation({
+      summary: "Delete Halo 3 / ODST File",
+      description: "Delete a file from a Halo 3 or ODST file share."
+    })
+    @ApiTags('File Share')
+    @ApiQuery({ name: 'title' })
+    @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+    @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+    @ApiQuery({ name: 'slot' })
+    @ApiQuery({ name: 'serverId' })
+    async deleteFile(
+      @Query('title', ParseIntPipe, new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
+      @Query('userId', ParseXUIDPipe) userid: number,
+      @Query('shareId', ParseXUIDPipe) shareID: number,
+      @Query('slot', ParseIntPipe) slot: number,
+      @Query('serverId') serverId: string,
+    ) {
+      switch (title) {
+        case TITLE_IDS.HALO3:
+        case TITLE_IDS.HALO3_MYTHIC:
+          return await this.halo3FileShareService.deleteFile(userid, shareID, slot, serverId);
+        case TITLE_IDS.HALO3_ODST:
+        case TITLE_IDS.HALO_ONLINE:
+        case TITLE_IDS.LEGACY:
+        default:
+          return;
+      }
+    }
 }

@@ -4,6 +4,7 @@ import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blam-network/blf_lsp';
 import { parseXuid } from "src/xbox/xuid";
 import { z } from "zod";
+import { clamp_to_byte, i32_to_u32 } from "../datatypes";
 
 @Injectable()
 export class Halo3UserService {
@@ -17,6 +18,7 @@ export class Halo3UserService {
         // If the DB is too slow, or data isn't present, we'll return a file without player data or a service record.
         let srid: undefined | BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_service_record = undefined;
         let fupd: undefined | BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_player_data = undefined;
+        let osri: undefined | BLF.halo3odst_13895_09_04_27_2201_atlas_release.s_blf_chunk_odst_service_record = undefined;
         
         const serviceRecordPromise = this.prisma.$transaction(async (prisma) => {
             const serviceRecord = await prisma.service_record.findUnique({
@@ -44,8 +46,8 @@ export class Halo3UserService {
                     spartan_left_shoulder: true,
                     spartan_right_shoulder: true,
                     campaign_progress: true,
-                    unknown_insignia: true,
-                    unknown_insignia2: true,
+                    games_completed: true,
+                    experience_base: true,
                     rank: true,
                     grade: true,
                     highest_skill: true,
@@ -72,16 +74,61 @@ export class Halo3UserService {
                 }
             }
         })
-        await Promise.allSettled([serviceRecordPromise, playerDataPromise]);
+
+        const odstServiceRecordPromise = this.prisma.$transaction(async (prisma) => {
+            const playerData = await prisma.player_data.findUnique({ where: { player_xuid } });
+
+            if (playerData) {
+                osri = {
+                    extras_portal_debug: playerData.odst_extras_portal_debug ?? false,
+                    vidmaster: clamp_to_byte(i32_to_u32(playerData.odst_vidmaster_flag)) ?? 0,
+                    
+                    // This is stubbed until we implement odst carnage reports
+                    appearance_flags: 0,
+                    background_emblem: 0,
+                    campaign_progress: 0,
+                    elite_body: 0,
+                    elite_helmet: 0,
+                    elite_left_shoulder: 0,
+                    elite_right_shoulder: 0,
+                    emblem_background_color: 0,
+                    emblem_flags: 0,
+                    emblem_primary_color: 0,
+                    emblem_secondary_color: 0,
+                    experience_base: 0,
+                    foreground_emblem: 0,
+                    games_completed: 0,
+                    grade: 0,
+                    highest_skill: 0,
+                    is_elite: 0,
+                    player_name: '',
+                    primary_color: 0,
+                    secondary_color: 0,
+                    tertiary_color: 0,
+                    rank: 0,
+                    spartan_body: 0,
+                    spartan_helmet: 0,
+                    spartan_left_shoulder: 0,
+                    spartan_right_shoulder: 0,
+                    service_tag: '',
+                    total_exp: 0,
+                }
+            }
+        })
+
+        await Promise.allSettled([serviceRecordPromise, playerDataPromise, odstServiceRecordPromise]);
 
         // Typescript is dumb
         // @ts-ignore
         let name = srid ? srid.player_name : '<unknown>';
         this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
 
+        console.log({osri})
+
         return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_user_file(
             fupd,
             srid,
+            osri
         );
     }
 

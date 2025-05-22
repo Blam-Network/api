@@ -20,6 +20,12 @@ const UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA = 25 * MEGABYTE;
 const UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA = 6;
 const DOWNLOAD_ENDPOINT = '/gameapi/FilesDownload.ashx';
 
+const OFFER_IDS = {
+    HALO3_BUNGIE_PRO: 0x4D5307E60CCF002n,
+    HALO3ODST_BUNGIE_PRO: 0x4D5308770CCF0002n,
+    HALO3ODST_REACH_BETA: 0x4D5308770CCF0004n,
+}
+
 export const FileShareSlotFileTypeSchema = z.enum([
     'GameVariantCtf',
     'GameVariantSlayer',
@@ -781,7 +787,7 @@ export class Halo3FileShareService {
             return this.fileshareSubscriptionResponse({
                 status: !subscriptionHash.isUnsubscribing ? 'Subscribed' : 'Expired',
                 subscriptionHash: subscriptionHash.currentHash,
-                nextOfferId: 0x4D5307E60CCF002n,
+                nextOfferId: OFFER_IDS.HALO3_BUNGIE_PRO,
                 hqButton: 'Bungie Pro',
                 hqMessage: 'Expand your file share with Bungie Pro!',
                 fileShareButton: 'Bungie Pro',
@@ -808,11 +814,11 @@ export class Halo3FileShareService {
     ) => {
         const subscriptionHash = await this.getShareSubscriptionHash('subscription', userXuid);
 
-        if (subscriptionHash.currentHash || subscriptionHash.isUnsubscribing) {
+        if (subscriptionHash.currentHash || subscriptionHash.isUnsubscribing || isDebug) {
             return this.fileshareSubscriptionResponseODST({
                 status: !subscriptionHash.isUnsubscribing ? 'Subscribed' : 'Expired',
                 subscriptionHash: subscriptionHash.currentHash,
-                nextOfferId: 0x4D5308770CCF0002n,
+                nextOfferId: OFFER_IDS.HALO3ODST_BUNGIE_PRO,
                 hqButton: 'Bungie Pro',
                 hqMessage: 'Expand your file share with Bungie Pro!',
                 fileShareButton: 'Bungie Pro',
@@ -827,7 +833,7 @@ export class Halo3FileShareService {
                 portalExecuteLaunchData: 123n,
                 portalExecutePackageFileName: 'Portal Execute Package File Name',
                 portalOfferCount: 1,
-                portalOfferId: 0x4D5308770CCF0004n
+                portalOfferId: OFFER_IDS.HALO3ODST_REACH_BETA
             })
         }
         

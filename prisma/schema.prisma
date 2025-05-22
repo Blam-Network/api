@@ -687,7 +687,7 @@ model matchmaking_session_search_property {
 }
 
 model player_data {
-  player_xuid               Decimal @db.Decimal(20, 0)   @id
+  player_xuid               Decimal  @db.Decimal(20, 0)   @id
   hopper_access             Int?     @default(0)
   highest_skill             Int?     @default(0)
   road_to_recon_completed   Boolean? @default(false)
@@ -695,6 +695,8 @@ model player_data {
   is_pro                    Boolean? @default(false)
   has_recon                 Boolean? @default(false)
   hopper_directory_override String?  @db.VarChar(32)
+  odst_vidmaster_flag       Int      @default(0)
+  odst_extras_portal_debug  Boolean? @default(false)
 
   @@schema("halo3")
 }
@@ -725,10 +727,10 @@ model service_record {
   campaign_progress                  Int
   highest_skill                      Int
   total_exp                          Int
-  unknown_insignia                   Int
+  experience_base                    Int
   rank                               Int
   grade                              Int
-  unknown_insignia2                  Int
+  games_completed                       Int
   first_played                       DateTime @db.Timestamp(6)
   last_played                        DateTime @db.Timestamp(6)
   bungienet_user_flags               Decimal @db.Decimal(20, 0)

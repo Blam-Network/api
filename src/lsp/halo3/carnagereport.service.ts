@@ -559,10 +559,12 @@ export class Halo3CarnageReportService {
                             campaign_progress: config.campaign_difficulty_completed,
                             highest_skill: config.queried_player_statistics.queried_player_global_statistics.highest_skill,
                             total_exp: player.player_configuration_from_host.stats_global_experience,
-                            unknown_insignia: 0,
+                            experience_base: player.player_configuration_from_client.queried_player_statistics.queried_player_global_statistics.experience_base,
                             rank: player.player_configuration_from_host.stats_global_rank,
                             grade: player.player_configuration_from_host.stats_global_grade,
-                            unknown_insignia2: 0,
+                            games_completed: player.player_configuration_from_client.queried_player_statistics.queried_player_displayed_statistics.custom_games_completed
+                                + player.player_configuration_from_client.queried_player_statistics.queried_player_displayed_statistics.matchmade_ranked_games_played
+                                + player.player_configuration_from_client.queried_player_statistics.queried_player_displayed_statistics.matchmade_unranked_games_played,
                             first_played: config.queried_player_statistics.queried_player_displayed_statistics.first_played,
                             last_played: config.queried_player_statistics.queried_player_displayed_statistics.last_played,
                             bungienet_user_flags: config.bungienet_user_flags,

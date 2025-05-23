@@ -123,8 +123,6 @@ export class Halo3UserService {
         let name = srid ? srid.player_name : '<unknown>';
         this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
 
-        console.log({osri})
-
         return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_user_file(
             fupd,
             srid,

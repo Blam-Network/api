@@ -546,9 +546,20 @@ export class GameApiController {
       const { title, userid: uploaderXuid, gameid } = z.object({
         title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
         userid: parseBungieHeader(hexStringXuidSchema),
-        gameid: parseBungieHeader(z.coerce.number()),
+        gameid: parseBungieHeader(z.coerce.bigint()),
       }).parse(headers);
 
-      throw new NotImplementedException();
+      switch (title) {
+        case TITLE_IDS.LEGACY:
+        case TITLE_IDS.HALO3:
+        case TITLE_IDS.HALO3_MYTHIC:
+          return await this.halo3FileShareService.handleBlindFileUpload(upload, uploaderXuid, gameid);
+        case TITLE_IDS.HALO3_ODST:
+          return await this.halo3FileShareService.handleBlindFileUploadODST(upload, uploaderXuid, gameid);
+        case TITLE_IDS.HALO_ONLINE:
+          throw new NotImplementedException("Twister you mad lad")
+        default:
+          throw new NotImplementedException();
+      }
     }
 }

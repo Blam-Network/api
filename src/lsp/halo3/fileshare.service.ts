@@ -2,10 +2,10 @@ import { BadRequestException, Inject, Injectable, InternalServerErrorException, 
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blam-network/blf_lsp'
 import { PrismaService } from "src/db/prisma.service";
-import { HALO3_BUILD_NUMBER, HALO3_TU1_BUILD_NUMBER, HALO3_TU2_BUILD_NUMBER } from "./constants";
+import { HALO3_BUILD_NUMBER, HALO3_ODST_BUILD_NUMBER, HALO3_TU1_BUILD_NUMBER, HALO3_TU2_BUILD_NUMBER } from "./constants";
 import { access, mkdir, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
-import { FILESHARE_FOLDER } from "../constants";
+import { FILESHARE_FOLDER, SCREENSHOTS_FOLDER } from "../constants";
 import dedent from "dedent";
 import { Prisma } from "src/generated/prisma";
 import { z } from "zod";
@@ -19,6 +19,12 @@ const MEGABYTE = 1024 * 1024;
 const UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA = 25 * MEGABYTE;
 const UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA = 6;
 const DOWNLOAD_ENDPOINT = '/gameapi/FilesStartDownload.ashx';
+
+const HALO3_SHAREDFILE_MIME = 'application/x-halo3sharedfile'
+const HALO3ODST_SHAREDFILE_MIME = 'application/x-atlassharedfile'
+
+const ENABLE_DEBUG_MIME = true;
+const DEBUG_MIME = HALO3ODST_SHAREDFILE_MIME
 
 const OFFER_IDS = {
     HALO3_BUNGIE_PRO: 0x4D5307E60CCF002n,
@@ -165,6 +171,12 @@ export class Halo3FileShareService {
         private readonly prisma: PrismaService,
     ) { }
 
+    private applyDebugMime = (file: Express.Multer.File) => {
+        if (ENABLE_DEBUG_MIME && file.mimetype === 'application/octet-stream') {
+            file.mimetype = DEBUG_MIME;
+        }
+    }
+
     // If the fileshare subscription hash doesn't match the subscription hash, we refetch the subscription.
     private getShareSubscriptionHash = async (response: 'subscription' | 'fileshare', shareXuid: number): Promise<{
         currentHash: number,
@@ -235,8 +247,6 @@ export class Halo3FileShareService {
             currentHash = 1;
         else if (unsubStage == 3)
             currentHash = 2;
-
-        console.log(`getting subscription hash for ${response}, returning ${currentHash}, unsubscribing = ${isUnsubscribing}`)
         
         await this.prisma.file_share.update({
             where: {
@@ -920,6 +930,12 @@ export class Halo3FileShareService {
             return new ServiceUnavailableException();
         }
 
+        this.applyDebugMime(file);
+
+        if (file.mimetype !== HALO3_SHAREDFILE_MIME) {
+            throw new BadRequestException('Invalid filetype.')
+        }
+
         if (uploaderXuid !== shareXuid) {
             throw new UnauthorizedException("Can't upload to someone elses file share.")
         }
@@ -929,7 +945,8 @@ export class Halo3FileShareService {
 
         if (contentHeader.build_number !== HALO3_BUILD_NUMBER
             && contentHeader.build_number !== HALO3_TU1_BUILD_NUMBER
-            && contentHeader.build_number !== HALO3_TU2_BUILD_NUMBER) {
+            && contentHeader.build_number !== HALO3_TU2_BUILD_NUMBER
+            && contentHeader.build_number !== HALO3_ODST_BUILD_NUMBER) {
             this.logger.warn(`[FileShare] Got a file with build number ${contentHeader.build_number}, rejecting.`)
             throw new BadRequestException("Bad Version: The file is unsupported.")
         }
@@ -984,6 +1001,12 @@ export class Halo3FileShareService {
             return new ServiceUnavailableException();
         }
 
+        this.applyDebugMime(file);
+
+        if (file.mimetype !== HALO3ODST_SHAREDFILE_MIME) {
+            throw new BadRequestException('Invalid filetype.')
+        }
+
         if (uploaderXuid !== shareXuid) {
             throw new UnauthorizedException("Can't upload to someone elses file share.")
         }
@@ -993,7 +1016,8 @@ export class Halo3FileShareService {
 
         if (contentHeader.build_number !== HALO3_BUILD_NUMBER
             && contentHeader.build_number !== HALO3_TU1_BUILD_NUMBER
-            && contentHeader.build_number !== HALO3_TU2_BUILD_NUMBER) {
+            && contentHeader.build_number !== HALO3_TU2_BUILD_NUMBER
+            && contentHeader.build_number !== HALO3_ODST_BUILD_NUMBER) {
             this.logger.warn(`[FileShare] Got a file with build number ${contentHeader.build_number}, rejecting.`)
             throw new BadRequestException("Bad Version: The file is unsupported.")
         }
@@ -1036,6 +1060,158 @@ export class Halo3FileShareService {
                 campaign_survival_enabled: contentHeader.metadata.campaign_survival_enabled,
             }
         });
+    }
+
+    public handleBlindFileUploadODST = async (
+        file: Express.Multer.File, 
+        uploaderXuid: number, 
+        gameId: bigint,
+    ) => {
+        if (!IS_FILESHARE_ENABLED) {
+            return new ServiceUnavailableException();
+        }
+
+        this.applyDebugMime(file);
+
+        if (file.mimetype !== HALO3ODST_SHAREDFILE_MIME) {
+            throw new BadRequestException('Invalid filetype.')
+        }
+
+        const screenshot = BLF.halo3odst_13895_09_04_27_2201_atlas_release.read_blind_screenshot(file.buffer);
+        if (!screenshot) throw new BadRequestException('No header found for upload.');
+
+        if (screenshot.chdr.build_number !== HALO3_ODST_BUILD_NUMBER) {
+            this.logger.warn(`[FileShare] Got a file with build number ${screenshot.chdr.build_number}, rejecting.`)
+            throw new BadRequestException("Bad Version: The file is unsupported.")
+        }
+
+        const destinationFolder = join(
+            process.cwd(),
+            SCREENSHOTS_FOLDER,
+            'halo3odst',
+            uploaderXuid.toString(16).toUpperCase().padStart(16, '0'),
+        );
+        await mkdir(destinationFolder, { recursive: true })
+        const screenshotData = await this.prisma.odst_blind_screenshot.create({
+            data: {
+                author: screenshot.chdr.metadata.author,
+                author_id: uploaderXuid.toString(),
+                author_is_xuid_online: screenshot.chdr.metadata.author_is_xuid_online,
+                campaign_difficulty: screenshot.chdr.metadata.campaign_difficulty,
+                campaign_id: screenshot.chdr.metadata.campaign_id,
+                date: screenshot.chdr.metadata.date,
+                description: screenshot.chdr.metadata.description,
+                file_type: screenshot.chdr.metadata.file_type,
+                game_engine_type: screenshot.chdr.metadata.game_engine_type,
+                game_id: gameId.toString(),
+                length_seconds: screenshot.chdr.metadata.length_seconds,
+                map_id: screenshot.chdr.metadata.map_id,
+                name: screenshot.chdr.metadata.name,
+                size_in_bytes: screenshot.chdr.metadata.size_in_bytes.toString(),
+                unique_id: screenshot.chdr.metadata.unique_id.toString(),
+                campaign_insertion_point: screenshot.chdr.metadata.campaign_insertion_point,
+                campaign_survival_enabled: screenshot.chdr.metadata.campaign_survival_enabled,
+                game_tick: screenshot.scnc.game_tick,
+                film_tick: screenshot.scnc.film_tick,
+                jpeg_length: screenshot.scnc.jpeg_data_length,
+                pixel_width: screenshot.scnc.camera.camera.render_pixel_bounds.x.upper,
+                pixel_height: screenshot.scnc.camera.camera.render_pixel_bounds.y.upper,
+                camera_position: [
+                    screenshot.scnc.camera.camera.position.x,
+                    screenshot.scnc.camera.camera.position.y,
+                    screenshot.scnc.camera.camera.position.z,
+                ]
+            },
+            select: {
+                id: true,
+            }
+        });
+        
+        if (!screenshotData) {
+            throw new InternalServerErrorException('Failed to save screenshot.');
+        }
+
+        await writeFile(join(
+            destinationFolder,
+            screenshotData.id,
+        ), file.buffer);
+    }
+
+    public handleBlindFileUpload = async (
+        file: Express.Multer.File, 
+        uploaderXuid: number, 
+        gameId: bigint,
+    ) => {
+        if (!IS_FILESHARE_ENABLED) {
+            return new ServiceUnavailableException();
+        }
+
+        this.applyDebugMime(file);
+
+        if (file.mimetype !== HALO3_SHAREDFILE_MIME) {
+            throw new BadRequestException('Invalid filetype.')
+        }
+
+        const screenshot = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_blind_screenshot(file.buffer);
+        if (!screenshot) throw new BadRequestException('No header found for upload.');
+
+        if (screenshot.chdr.build_number !== HALO3_BUILD_NUMBER
+            && screenshot.chdr.build_number !== HALO3_TU1_BUILD_NUMBER
+            && screenshot.chdr.build_number !== HALO3_TU2_BUILD_NUMBER
+        ) {
+            this.logger.warn(`[FileShare] Got a file with build number ${screenshot.chdr.build_number}, rejecting.`)
+            throw new BadRequestException("Bad Version: The file is unsupported.")
+        }
+
+        const destinationFolder = join(
+            process.cwd(),
+            SCREENSHOTS_FOLDER,
+            'halo3',
+            uploaderXuid.toString(16).toUpperCase().padStart(16, '0'),
+        );
+        await mkdir(destinationFolder, { recursive: true })
+        const screenshotData = await this.prisma.blind_screenshot.create({
+            data: {
+                author: screenshot.chdr.metadata.author,
+                author_id: uploaderXuid.toString(),
+                author_is_xuid_online: screenshot.chdr.metadata.author_is_xuid_online,
+                campaign_difficulty: screenshot.chdr.metadata.campaign_difficulty,
+                campaign_id: screenshot.chdr.metadata.campaign_id,
+                date: screenshot.chdr.metadata.date,
+                description: screenshot.chdr.metadata.description,
+                file_type: screenshot.chdr.metadata.file_type,
+                game_engine_type: screenshot.chdr.metadata.game_engine_type,
+                game_id: gameId.toString(),
+                length_seconds: screenshot.chdr.metadata.length_seconds,
+                map_id: screenshot.chdr.metadata.map_id,
+                name: screenshot.chdr.metadata.name,
+                size_in_bytes: screenshot.chdr.metadata.size_in_bytes.toString(),
+                unique_id: screenshot.chdr.metadata.unique_id.toString(),
+                hopper_id: screenshot.chdr.metadata.hopper_id,
+                game_tick: screenshot.scnc.game_tick,
+                film_tick: screenshot.scnc.film_tick,
+                jpeg_length: screenshot.scnc.jpeg_data_length,
+                pixel_width: screenshot.scnc.camera.camera.render_pixel_bounds.x.upper,
+                pixel_height: screenshot.scnc.camera.camera.render_pixel_bounds.y.upper,
+                camera_position: [
+                    screenshot.scnc.camera.camera.position.x,
+                    screenshot.scnc.camera.camera.position.y,
+                    screenshot.scnc.camera.camera.position.z,
+                ]
+            },
+            select: {
+                id: true,
+            }
+        });
+        
+        if (!screenshotData) {
+            throw new InternalServerErrorException('Failed to save screenshot.');
+        }
+
+        await writeFile(join(
+            destinationFolder,
+            screenshotData.id,
+        ), file.buffer);
     }
 }
 

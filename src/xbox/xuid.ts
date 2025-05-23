@@ -1,3 +1,4 @@
+import { unsigned_to_signed } from "src/lsp/datatypes";
 import { z, ZodError } from "zod"
 
 export const parseXuid = (xuid: string): number => {
@@ -11,4 +12,4 @@ export const hexStringXuidSchema = z.string()
     .refine((val) => /^[0-9a-fA-F]{16}$/.test(val), {
         message: "Provided hex-string XUID contains invalid characters.",
     })
-    .transform((val) => Number(`0x${val}`));
+    .transform((val) => unsigned_to_signed(BigInt(`0x${val}`), 64));

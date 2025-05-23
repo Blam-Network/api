@@ -3,9 +3,11 @@ import { CompressionService } from "./compression.service";
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import { Inject, Injectable } from "@nestjs/common";
+import { UPLOADS_FOLDER } from "../constants";
 
 const ENABLE_DEBUG_MIME = false;
 const DEBUG_MIME = 'application/x-halo3-multi'
+const STORE_ALL_UPLOADS = true;
 
 @Injectable()
 export class UploadService {
@@ -21,10 +23,13 @@ export class UploadService {
     }
 
     public storeUploadedFile = async (upload: Express.Multer.File) => {
+        if (!STORE_ALL_UPLOADS) return;
+        
         const buffer = this.compressionService.inflateIfCompressed(upload);
         const uploadFolder = join(
             process.cwd(),
-            'uploads',
+            UPLOADS_FOLDER,
+            'debug',
             upload.mimetype.replace('application/', ''),
         )
         const uploadName = new Date().getTime().toString() + '_' + upload.originalname;

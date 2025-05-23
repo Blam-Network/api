@@ -39,6 +39,5 @@ lerna-debug.log*
 /public/storage
 /uploads
 /title_storage
-/fileshare
 
 src/generated/prisma/

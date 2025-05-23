@@ -26,6 +26,7 @@ export class UserStorageController {
     summary: 'Halo Reach User File',
     description: "Used to retrieve a Halo Reach user.bin BLF file. Typically required for gameplay.",
   })
+  @ApiTags('Halo: Reach')
   @Get('/:titleId/:unk1/:unk2/:unk3/:xuid/user.bin')
   @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
   async getOmahaUser(
@@ -41,6 +42,7 @@ export class UserStorageController {
     summary: 'Halo Reach Recent Players',
     description: "Used to retrieve a Halo Reach recent_players.bin BLF file. Typically required for gameplay. We're not really sure what this data does yet.",
   })
+  @ApiTags('Halo: Reach')
   @Get('/:titleId/:unk1/:unk2/:unk3/:xuid/recent_players.bin')
   @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
   async getOmahaRecentPlayers(
@@ -56,6 +58,8 @@ export class UserStorageController {
     summary: 'Halo 3 / ODST User File',
     description: "Used to retrieve a Halo 3 or Halo 3: ODST user.bin BLF file. Typically required for gameplay.",
   })
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @Get('/:unk1/:unk2/:unk3/:xuid/user.bin')
   @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
   async getHalo3User(
@@ -71,6 +75,7 @@ export class UserStorageController {
     summary: 'Halo 3 Recent Players',
     description: "Used to retrieve a Halo 3 recent_players.bin BLF file. Typically required for gameplay. We're not really sure what this data does yet.",
   })
+  @ApiTags('Halo 3')
   @Get('/:unk1/:unk2/:unk3/:xuid/recent_players.bin')
   @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
   async getHalo3RecentPlayers(

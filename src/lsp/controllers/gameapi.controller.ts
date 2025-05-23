@@ -130,6 +130,8 @@ export class GameApiController {
     description: 'Returns a file share catalog for the given user ID.'
   })
   @ApiTags('File Share')
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @Get('/FilesGetCatalog.ashx')
   @ApiQuery({ name: 'title', type: 'number', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
@@ -140,7 +142,7 @@ export class GameApiController {
     @Query('userId', ParseXUIDPipe) userID: number,
     @Query('shareId', ParseXUIDPipe) shareID: number,
     @Query('locale', new DefaultValuePipe('en')) locale,
-  ) {    
+  ) {
     switch (titleID) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
@@ -160,6 +162,8 @@ export class GameApiController {
     description: 'Begins a file share upload for Halo 3 / ODST. Returns the ID of the file.'
   })
   @ApiTags('File Share')
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @ApiQuery({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
@@ -207,6 +211,8 @@ export class GameApiController {
       Includes information like whether the Bungie PRO button appears in a file share or start menu, what text displays, alert messages for file share etc.",
   })
   @ApiTags('File Share')
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @ApiQuery({ name: 'title', type: 'number', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'locale', example: 'en' })
@@ -217,9 +223,9 @@ export class GameApiController {
     @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) title: number,
     @Query('userId', ParseXUIDPipe) userId: number,
     @Query('locale') locale: string,
-    @Query('gameRegion', new ParseIntPipe({optional: true})) gameRegion?: number,
-    @Query('profileRegion', new ParseIntPipe({optional: true})) profileRegion?: number,
-    @Query('isDebug', new ParseBoolPipe({optional: true})) isDebug?: boolean,
+    @Query('gameRegion', new ParseIntPipe({ optional: true })) gameRegion?: number,
+    @Query('profileRegion', new ParseIntPipe({ optional: true })) profileRegion?: number,
+    @Query('isDebug', new ParseBoolPipe({ optional: true })) isDebug?: boolean,
   ) {
     switch (title) {
       case TITLE_IDS.HALO3:
@@ -252,6 +258,8 @@ export class GameApiController {
     },
   })
   @ApiTags('File Share')
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @ApiHeader({ name: 'title' })
   @ApiHeader({ name: 'userid', example: EXAMPLE_XUID })
   @ApiHeader({ name: 'shareid', example: EXAMPLE_XUID })
@@ -285,6 +293,8 @@ export class GameApiController {
 
   @Get('/FilesStageForDownload.ashx')
   @ApiTags('File Share')
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @ApiOperation({
     summary: 'Initiate Halo 3 / ODST File Download',
     description: 'Start downloading a file from a Halo 3 / ODST fileshare. Returns the download URL and file size.',
@@ -315,13 +325,13 @@ export class GameApiController {
       case TITLE_IDS.HALO_ONLINE:
       case TITLE_IDS.LEGACY:
         return await this.halo3FileShareService.stageDownload(
-          userID, 
-          shareID, 
-          slot, 
-          serverId, 
-          startPosition, 
-          fromAutoQueue, 
-          view, 
+          userID,
+          shareID,
+          slot,
+          serverId,
+          startPosition,
+          fromAutoQueue,
+          view,
           preview
         );
       default:
@@ -335,6 +345,8 @@ export class GameApiController {
     description: "Not an official endpoint but used by Halo. Download a file from a Halo 3 or ODST file share. This endpoint isn't hardcoded, but we return it from FilesStageDownload.ashx."
   })
   @ApiTags('File Share')
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @ApiHeader({ name: 'title' })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
@@ -387,6 +399,8 @@ export class GameApiController {
     description: "Resume downloading a file from a Halo 3 or ODST file share. Same parameters as FilesStartDownload.ashx."
   })
   @ApiTags('File Share')
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @ApiHeader({ name: 'title' })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
@@ -439,6 +453,8 @@ export class GameApiController {
     description: "Delete a file from a Halo 3 or ODST file share."
   })
   @ApiTags('File Share')
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @ApiQuery({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
@@ -469,6 +485,8 @@ export class GameApiController {
     description: "Returns bytes uploaded."
   })
   @ApiTags('File Share')
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @ApiQuery({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
@@ -493,6 +511,40 @@ export class GameApiController {
     }
   }
 
+  @Post('/FilesUploadBlind.ashx')
+  @ApiOperation({
+    summary: 'Upload Halo 3 / ODST Screenshot',
+    description: "This endpoint is used to upload screenshots, when a screenshot is taken in game and the user is connected to the server, the screenshot is automatically uploaded.",
+  })
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
+  @ApiHeader({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
+  @ApiHeader({ name: 'userid', example: EXAMPLE_XUID })
+  @ApiHeader({ name: 'gameid' })
+  @UseInterceptors(FileInterceptor('upload'))
+  async uploadFileBlind(
+    @Headers() headers,
+    @UploadedFile() upload: Express.Multer.File,
+  ) {
+    const { title, userid: uploaderXuid, gameid } = z.object({
+      title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
+      userid: parseBungieHeader(hexStringXuidSchema),
+      gameid: parseBungieHeader(z.coerce.bigint()),
+    }).parse(headers);
+
+    switch (title) {
+      case TITLE_IDS.LEGACY:
+      case TITLE_IDS.HALO3:
+      case TITLE_IDS.HALO3_MYTHIC:
+        return await this.halo3FileShareService.handleBlindFileUpload(upload, uploaderXuid, gameid);
+      case TITLE_IDS.HALO3_ODST:
+        return await this.halo3FileShareService.handleBlindFileUploadODST(upload, uploaderXuid, gameid);
+      case TITLE_IDS.HALO_ONLINE:
+        throw new NotImplementedException("Twister you mad lad")
+      default:
+        throw new NotImplementedException();
+    }
+  }
 
   @Get('/UserBeginConsume.ashx')
   @ApiOperation({
@@ -500,11 +552,14 @@ export class GameApiController {
     description: "We're not sure what this endpoint does yet and it has never been called. It might be involved in letting Bungie.NET know when a user has bought Bungie PRO via the Xbox Marketplace.",
     deprecated: true,
   })
+  @ApiTags('File Share')
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @ApiQuery({ name: 'title', type: 'number' })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'consumableId' })
   async userBeginConsume(
-    @Query('title', new ParseIntPipe({optional: true}), new DefaultValuePipe(0)) title: number,
+    @Query('title', new ParseIntPipe({ optional: true }), new DefaultValuePipe(0)) title: number,
     @Query('userId', ParseXUIDPipe) userID: number,
     @Query('consumableId') consumableId,
   ) {
@@ -517,49 +572,17 @@ export class GameApiController {
     description: "We're not sure what this endpoint does yet and it has never been called. It might be involved in letting Bungie.NET know when a user has bought Bungie PRO via the Xbox Marketplace.",
     deprecated: true,
   })
+  @ApiTags('File Share')
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @ApiQuery({ name: 'title', type: 'number' })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'consumableId' })
   async userCompleteConsume(
-    @Query('title', new ParseIntPipe({optional: true}), new DefaultValuePipe(0)) title: number,
+    @Query('title', new ParseIntPipe({ optional: true }), new DefaultValuePipe(0)) title: number,
     @Query('userId', ParseXUIDPipe) userID: number,
     @Query('consumableId') consumableId,
   ) {
     throw new NotImplementedException();
   }
-
-    @Post('/FilesUploadBlind.ashx')
-    @ApiOperation({
-      summary: 'Upload Halo 3 / ODST Screenshot',
-      description: "This endpoint is used to upload screenshots, when a screenshot is taken in game and the user is connected to the server, the screenshot is automatically uploaded.",
-      deprecated: true, // Not Yet Implemented
-    })
-    @ApiTags('File Share')
-    @ApiHeader({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
-    @ApiHeader({ name: 'userid', example: EXAMPLE_XUID })
-    @ApiHeader({ name: 'gameid' })
-    @UseInterceptors(FileInterceptor('upload'))
-    async uploadFileBlind(
-      @Headers() headers,
-      @UploadedFile() upload: Express.Multer.File,
-    ) {
-      const { title, userid: uploaderXuid, gameid } = z.object({
-        title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
-        userid: parseBungieHeader(hexStringXuidSchema),
-        gameid: parseBungieHeader(z.coerce.bigint()),
-      }).parse(headers);
-
-      switch (title) {
-        case TITLE_IDS.LEGACY:
-        case TITLE_IDS.HALO3:
-        case TITLE_IDS.HALO3_MYTHIC:
-          return await this.halo3FileShareService.handleBlindFileUpload(upload, uploaderXuid, gameid);
-        case TITLE_IDS.HALO3_ODST:
-          return await this.halo3FileShareService.handleBlindFileUploadODST(upload, uploaderXuid, gameid);
-        case TITLE_IDS.HALO_ONLINE:
-          throw new NotImplementedException("Twister you mad lad")
-        default:
-          throw new NotImplementedException();
-      }
-    }
 }

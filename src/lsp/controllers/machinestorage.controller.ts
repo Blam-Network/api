@@ -30,6 +30,7 @@ export class MachineStorageController {
     summary: 'Halo Reach Machine File',
     description: "Used to retrieve a Halo Reach machine.bin BLF file. Typically required for gameplay.",
   })
+  @ApiTags('Halo: Reach')
   @Get('/:titleId/:unk1/:unk2/:unk3/:xuid/machine.bin')
   @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
   async getOmahaMachine(
@@ -43,6 +44,8 @@ export class MachineStorageController {
     summary: 'Halo 3 / ODST Machine File',
     description: "Used to retrieve a Halo 3 or Halo 3: ODST machine.bin BLF file. Typically required for gameplay.",
   })
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @Get('/:unk1/:unk2/:unk3/:xuid/machine.bin')
   @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
   async getMachineFile(

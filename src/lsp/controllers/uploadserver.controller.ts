@@ -42,6 +42,8 @@ export class UploadServerController {
     summary: 'Upload File',
     description: "Use to upload typically a single file to the LSP. These are usually BLF files and include a mime-type describing their contents, like 'x-halo3-multi'.",
   })
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -74,6 +76,8 @@ export class UploadServerController {
     summary: 'Upload Files',
     description: "Use to upload typically multiple crash files, these may have mime types like 'x-halo3-upload'.",
   })
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {

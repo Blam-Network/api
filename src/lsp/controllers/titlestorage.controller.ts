@@ -29,6 +29,7 @@ export class TitleStorageController {
     summary: 'Halo 3 Population',
     description: "Returns a BLF file containing Matchmaking Hopper Statistics for Halo 3.",
   })
+  @ApiTags('Halo 3')
   @Get('/tracked/:build_number/:hopper_directory/dynamic_hopper_statistics.bin')
   async getHalo3Population() {
     const blfFile = await this.halo3PopulationService.getHopperStatistics();
@@ -39,6 +40,7 @@ export class TitleStorageController {
     summary: 'Halo 3 Nightmap',
     description: "Returns the world map population image shown on Halo 3's Matchmaking menu..",
   })
+  @ApiTags('Halo 3')
   @Header('Content-Type', 'image/jpg')
   @Get('/tracked/:build_number/:hopper_directory/dynamic_matchmaking_nightmap.jpg')
   async getHalo3Nightmap() {
@@ -69,6 +71,9 @@ export class TitleStorageController {
     allowReserved: true,
   })
   @Get('/*path')
+  @ApiTags('Halo 3')
+  @ApiTags('Halo 3: ODST')
+  @ApiTags('Halo: Reach')
   async getStaticFile(
     @Param('path') path: string,
     @Res({ passthrough: true }) res: Response,

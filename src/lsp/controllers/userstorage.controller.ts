@@ -12,6 +12,7 @@ import { Response } from 'express';
 import { Halo3UserService } from '../halo3/user.service';
 import { EXAMPLE_XUID } from '../constants';
 import { HaloReachUserService } from '../haloreach/user.service';
+import { ParseXUIDPipe } from 'src/xbox/parse-xuid.pipe';
 
 @ApiTags('User Storage')
 @Controller('/storage/user')
@@ -77,9 +78,9 @@ export class UserStorageController {
   })
   @ApiTags('Halo 3')
   @Get('/:unk1/:unk2/:unk3/:xuid/recent_players.bin')
-  @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
+  @ApiParam({ name: 'xuid', type: 'string', example: EXAMPLE_XUID })
   async getHalo3RecentPlayers(
-    @Param('xuid') xuid: string,
+    @Param('xuid', ParseXUIDPipe) xuid: number,
     @Res({ passthrough: true }) res: Response,
   ) {
     const blfFile = await this.halo3UserService.getRecentPlayersFile(xuid);

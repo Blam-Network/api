@@ -130,9 +130,54 @@ export class Halo3UserService {
         );
     }
 
-    public getRecentPlayersFile = (_xuid: string) => {
+    public getRecentPlayersFile = async (playerXuid: number) => {
+        const carnageReports = await this.prisma.carnage_report.findMany({
+            where: {
+                carnage_report_player: {
+                    some: {
+                        player_xuid: playerXuid
+                    }
+                },
+                NOT: {
+                    carnage_report_matchmaking_options: null
+                }
+            },
+            select: {
+                carnage_report_player: {
+                    select: {
+                        player_xuid: true,
+                    }
+                },
+                carnage_report_matchmaking_options: {
+                    select: {
+                        hopper_identifier: true,
+                    }
+                }
+            },
+            take: 100,
+            orderBy: {
+                finish_time: 'desc'
+            }
+        })
+
+        let players: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_user_recent_players['players'] = [];
+
+        if (carnageReports) {
+            for (const carnageReport of carnageReports) {
+                if (players.length >= 100) break;
+                if (!carnageReport.carnage_report_matchmaking_options?.hopper_identifier) continue;
+
+                for (const player of carnageReport.carnage_report_player) {
+                    players.push({
+                        hopper_identifier: carnageReport.carnage_report_matchmaking_options.hopper_identifier,
+                        xuid: BigInt(player.player_xuid.toString())
+                    })
+                }
+            }
+        }
+
         return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_recent_players_file({
-            players: []
+            players
         })
     }
 

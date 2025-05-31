@@ -453,26 +453,33 @@ export class Halo3FileShareService {
         `);
     }
 
-    public viewFileShare = async (viewerXuid: number, shareXuid: number, locale: string) => {
-        if (!IS_FILESHARE_ENABLED) {
-            return this.fileshareUnavailableResponse();
-        }
-
-        const ownsFileshare = viewerXuid === shareXuid;
+    private getFileShare = async (viewerXuid: number, ownerXuid: number) => {
+        const ownsFileshare = viewerXuid === ownerXuid;
 
         let fileShare = await this.prisma.file_share.findUnique({
             where: {
-                share_id: shareXuid,
+                share_id: ownerXuid,
             }
         })
 
         if (!fileShare && ownsFileshare) {
             fileShare = await this.prisma.file_share.create({
                 data: {
-                    share_id: shareXuid,
+                    share_id: ownerXuid,
                 }
             })
         }
+
+        return fileShare;
+    }
+
+    public viewFileShare = async (viewerXuid: number, shareXuid: number, locale: string) => {
+        if (!IS_FILESHARE_ENABLED) {
+            return this.fileshareUnavailableResponse();
+        }
+
+        const ownsFileshare = viewerXuid === shareXuid;
+        const fileShare = await this.getFileShare(viewerXuid, shareXuid);
 
         if (!fileShare) {
             throw new NotFoundException("No file share.")
@@ -561,10 +568,18 @@ export class Halo3FileShareService {
 
         let subscriptionHash = await this.getShareSubscriptionHash('fileshare', shareXuid);
 
+        // If the user has been downgraded, we allow their visible slots to exceed quota.
+        // This allows them to delete over quota slots.
+        let visibleSlots = fileShare.quota_slots || UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
+        let highestSlot = fileShareSlots.sort((left, right) => left.slot - right.slot)[0]
+        if (highestSlot && highestSlot.slot > visibleSlots) {
+            visibleSlots = highestSlot.slot;
+        }
+
         return this.fileCatalogResponse({
             quotaBytes: fileShare.quota_bytes || UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
             quotaSlots: fileShare.quota_slots || UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
-            visibleSlots: fileShare.quota_slots || UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+            visibleSlots,
             subscriptionHash: subscriptionHash.currentHash,
             message: fileShare.message ?? undefined,
             slots,
@@ -872,6 +887,27 @@ export class Halo3FileShareService {
         // if the slot is already full they can't upload without first deleting.
         if (await this.prisma.file_share_slot.findUnique({ where: { share_id_slot: { share_id: shareXuid, slot } } })) {
             throw new BadRequestException('File share slot already full!');
+        }
+
+        // if the fileshare is full or there isn't enough space for this file, reject.
+        const fileshare = await this.getFileShare(uploaderXuid, shareXuid);
+        const quotaSlots = fileshare?.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
+        if (slot > quotaSlots) {
+            throw new BadRequestException("This slot is unavailable.")
+        }
+
+        const usedSlots = await this.prisma.file_share_slot.findMany({
+            where: {
+                share_id: shareXuid
+            },
+            select: {
+                compressed_size: true,
+            }
+        })
+        const quotaSpace = fileshare?.quota_bytes ?? UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA;
+        const usedSpace = usedSlots.map(slot => slot.compressed_size).reduce((acc, cur) => acc + cur, 0)
+        if (usedSpace + compressedSize > quotaSpace) {
+            throw new BadRequestException("This file is too large to store.");
         }
 
         const fileShareSlot = await this.prisma.file_share_slot.create({

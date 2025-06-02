@@ -7,7 +7,6 @@ import { access, mkdir, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
 import { FILESHARE_FOLDER, SCREENSHOTS_FOLDER } from "../constants";
 import dedent from "dedent";
-import { Prisma } from "src/generated/prisma";
 import { z } from "zod";
 import { URLSearchParams } from "url";
 import { h32 } from 'xxhashjs';

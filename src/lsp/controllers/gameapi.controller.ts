@@ -32,7 +32,8 @@ const TITLE_IDS = {
   HALO3: 1,
   HALO3_MYTHIC: 2,
   HALO3_ODST: 3,
-  HALO_ONLINE: 4,
+  HALO3_SHARE_CONTENT: 4,
+  HALO_ONLINE: 5,
 }
 
 const parseBungieHeader = (schema: z.ZodTypeAny) => {
@@ -233,8 +234,9 @@ export class GameApiController {
       case TITLE_IDS.LEGACY:
         return await this.halo3FileShareService.getSubscription(userId, locale);
       case TITLE_IDS.HALO3_ODST:
-      case TITLE_IDS.HALO_ONLINE:
         return await this.halo3FileShareService.getSubscriptionODST(userId, locale, gameRegion, profileRegion, isDebug);
+      case TITLE_IDS.HALO_ONLINE:
+        return await this.halo3FileShareService.getSubscriptionHaloOnline(userId, locale, gameRegion, profileRegion, isDebug);
       default:
         throw new NotImplementedException();
     }

@@ -866,6 +866,43 @@ export class Halo3FileShareService {
         })
     }
 
+    public getSubscriptionHaloOnline = async (
+        userXuid: number,
+        locale: string,
+        gameRegion?: number,
+        profileRegion?: number,
+        isDebug?: boolean,
+    ) => {
+        const subscriptionHash = await this.getShareSubscriptionHash('subscription', userXuid);
+
+        // if (subscriptionHash.currentHash || subscriptionHash.isUnsubscribing || isDebug) {
+            return this.fileshareSubscriptionResponseODST({
+                status: !subscriptionHash.isUnsubscribing ? 'Subscribed' : 'Expired',
+                subscriptionHash: subscriptionHash.currentHash,
+                nextOfferId: OFFER_IDS.HALO3ODST_BUNGIE_PRO,
+                hqButton: 'Bungie Pro',
+                hqMessage: 'Expand your file share with Bungie Pro!',
+                fileShareButton: 'Bungie Pro',
+                fileShareMessage: 'Expand your file share to 24 slots and 250 Megabytes of forged maps, saved films, screenshots or gametypes!',
+                fileShareHelp: 'Press  to view Bungie Pro offers.',
+                justSubscribedMessage: "Welcome to Bungie PRO!",
+                currentlySubscribedMessage: 'You already have an active Bungie Pro subscription.',
+                overQuotaMessage: 'You have exceeded your file-share quote. Please make more space before uploading new files.',
+                subscriptionEndTimestamp: !subscriptionHash.isUnsubscribing ? BigInt(Number.MAX_SAFE_INTEGER) : 0n,
+                portalButton: 'Open GitHub',
+                portalExecuteImageFileName: "Portal Execute Image File Name",
+                portalExecuteLaunchData: 123n,
+                portalExecutePackageFileName: 'Portal Execute Package File Name',
+                portalOfferCount: 1,
+                portalOfferId: OFFER_IDS.HALO3ODST_REACH_BETA
+            })
+        // }
+        
+        return this.fileshareSubscriptionResponse({
+            status: 'NeverSubscribed',
+        })
+    }
+
     public initiateNewUpload = async (
         uploaderXuid: number,
         shareXuid: number,

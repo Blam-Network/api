@@ -11,20 +11,18 @@ import {
   Headers,
   Res,
   NotImplementedException,
-  StreamableFile,
   ParseBoolPipe,
 } from '@nestjs/common';
-import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiProduces, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { Halo3UserService } from '../halo3/user.service';
 import { EXAMPLE_XUID } from '../constants';
-import dedent from "dedent";
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from '../services/upload.service';
 import { Response } from 'express';
 import { ParseXUIDPipe } from '../../xbox/parse-xuid.pipe';
 import { Halo3FileShareService } from '../halo3/fileshare.service';
-import { hexStringXuidSchema, parseXuid } from 'src/xbox/xuid';
+import { hexStringXuidSchema } from 'src/xbox/xuid';
 import { z } from 'zod';
 
 const TITLE_IDS = {

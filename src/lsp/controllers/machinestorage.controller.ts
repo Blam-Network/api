@@ -1,18 +1,12 @@
 import {
   Controller,
   Get,
-  Header,
   Inject,
-  NotFoundException,
   Param,
   Res,
   StreamableFile,
 } from '@nestjs/common';
-import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { createReadStream } from 'fs';
-import { join } from 'path';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { stat } from 'fs/promises';
 import { Response } from 'express';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { Halo3MachineService } from '../halo3/machine.service';

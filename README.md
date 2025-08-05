@@ -1,6 +1,6 @@
 ![hero](hero.jpg)
-# Halo 3 Web Services [![Build status](https://ci.appveyor.com/api/projects/status/eip5dxg0ig0bbpu9?svg=true)](https://ci.appveyor.com/project/craftycodie/sunrise-webserver)
-This api contains a rough reimplementation of all of Halo 3's web services including support for 
+# web_private 
+This API contains a reimplementation of web services for Halo 3, Halo 3: ODST and Halo: Reach. It's features include:
 - Matchmaking
 - File Share
 - Bungie Favourites
@@ -12,38 +12,28 @@ This api contains a rough reimplementation of all of Halo 3's web services inclu
 - Screenshots
 - Nameplates
 - Crash Reporting
-- Webstats (needs a lot of work, see [#4](https://github.com/craftycodie/Sunrise-Halo3-WebServices/issues/4))
+- Webstats
 
-and much more :)
-
-These web services were created for the retail version of Halo 3 for the Xbox 360. However, most builds of Halo 3 should be supported. PC builds, if they were to somehow connect, do use the same endpoints, leaked pre-release builds for the 360 however do not, though the changes are probably minor. The beta should also be supported.
-
-This project is built for use with [Sunrise-Plugin](https://github.com/craftycodie/Sunrise-Plugin), a dashlaunch plugin which connects Xbox 360 Halo 3 to a custom webserver.
+and more :)
 
 ## Preparing the project
 
-1. Install dependencies with the `npm install` command.
-2. Create a `.env` file in the project root, following this structure:
+1. Prepare a .npmrc file
+    ```
+    @blam-network:registry=https://npm.pkg.github.com
+    //npm.pkg.github.com/:_authToken=<Your GitHub Token>
+    ```
+2. Install dependencies with the `npm install` command.
+3. Create a `.env` file in the project root, following this structure:
+    ```env
+      DATABASE_URL=<PostgreSQL Database URL>
+    ```
 
-```env
-  API_PORT=8080
-  MONGO_URI=
-  DATABASE_URL=
-```
-
-3. Build the web service with the `npm run build` command.
+4. Build the web service with the `npm run build` command.
 
 ## Handling Title Storage (Playlists/MOTDs/More)
 
-This API is setup to serve "title storage" files, however these files are not included. Back in the day, Bungie had a bunch of tooling including big ass spreadsheets and debug game builds to spit out these files, these days we have a tool to generate everything we need from JSON called [Sunrise-BLFTool](https://github.com/craftycodie/Sunrise-BLFTool).
-
-There are a few options for content.
-1. Grab my recommended title storage files from the [Sunrise-Content](https://github.com/craftycodie/Sunrise-Content) repository.
-2. Fork the [Sunrise-Content](https://github.com/craftycodie/Sunrise-Content) repository and roll your own.
-3. Grab [Gamecheat13's backup](https://github.com/Gamecheat13/RawGames/tree/Halo/Halo%203/11855.07.08.20.2317.halo3_ship/title%20storage/title/default_hoppers) of the OG title storage before the servers were shutdown.
-  - Please note, this backup is slighlty corrupt (bad hash on network_configuration) which does cause some notable bugs, I recommend against this generally.
-
-Once you've got the files you need, they live in `public/storage/title`
+This API is setup to serve "title storage" files, however these files are not included. Back in the day, Bungie had a bunch of tooling including big ass spreadsheets and debug game builds to spit out these files, these days we have a tool to generate everything we need from JSON called [blf_cli](https://github.com/Blam-Network/blf). You can find out pre-built configuration files on [GitHub](https://github.com/Blam-Network/Blam-Title-Storage/actions), they should be placed in a folder called "title_storage" at project root.
 
 ## Running the app
 
@@ -59,4 +49,4 @@ $ npm run start:prod
 ```
 ---
 
-Last Updated 05/09/22 by Codie Stella 🐧
+Last Updated 05/08/25 by Codie Newark 🐧

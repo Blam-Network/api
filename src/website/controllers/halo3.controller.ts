@@ -1,4 +1,4 @@
-import { Controller, Get, Header, Headers, Inject, Param, Post, UnauthorizedException } from "@nestjs/common";
+import { Controller, Get, Header, Headers, Inject, NotFoundException, Param, Post, UnauthorizedException } from "@nestjs/common";
 import { ApiHeader, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import axios from "axios";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
@@ -121,15 +121,18 @@ export class Halo3Controller {
             where: {
                 id,
             },
-            select: {
-                map_variant_unique_id: true,
-                game_variant_unique_id: true,
+            include: {
                 carnage_report_matchmaking_options: true,
-                carnage_report_team: true,
+                carnage_report_team: {
+                    include: {
+                        carnage_report_team_statistics: true,
+                    }
+                },
                 carnage_report_player: {
                     include: {
                         carnage_report_player_statistics: true,
                         carnage_report_player_medals: true,
+                        carnage_report_player_achievements: true,
                         carnage_report_player_damage_statistics: {
                             select: {
                                 damage_source: true,
@@ -181,6 +184,10 @@ export class Halo3Controller {
             }
         })
 
+        if (!carnageReport) {
+            throw new NotFoundException();
+        }
+
         const playerInterractions = await this.prisma.carnage_report_player_interaction.findMany({
             where: {
                 carnage_report_id: id,
@@ -194,8 +201,121 @@ export class Halo3Controller {
         })
 
         return {
-            ...carnageReport,
+            id: carnageReport.id,
+            teams: carnageReport.carnage_report_team.map(team => ({
+                score: team.score,
+                standing: team.standing,
+                team_index: team.team_index,
+                statistics: team.carnage_report_team_statistics,
+            })),
+            events: {
+                kill_events: carnageReport.carnage_report_event_kill,
+                carry_events: carnageReport.carnage_report_event_carry,
+                score_events: carnageReport.carnage_report_event_score,
+            },
+            map_id: carnageReport.map_id,
+            game_id: carnageReport.game_id,
+            players: carnageReport.carnage_report_player.map(player => ({
+                medals: player.carnage_report_player_medals,
+                statistics: player.carnage_report_player_statistics,
+                achievements: player.carnage_report_player_achievements,
+                damage_statistics: player.carnage_report_player_damage_statistics,
+                ...player.carnage_report_machine,
+                result: player.result,
+                standing: player.standing,
+                ban_flags: player.ban_flags,
+                gamer_zone: player.gamer_zone,
+                is_griefer: player.is_griefer,
+                cheat_flags: player.cheat_flags,
+                last_played: player.last_played,
+                player_name: player.player_name,
+                player_team: player.player_team,
+                player_xuid: player.player_xuid,
+                service_tag: player.service_tag,
+                desires_veto: player.desires_veto,
+                emblem_flags: player.emblem_flags,
+                first_played: player.first_played,
+                gamer_region: player.gamer_region,
+                player_index: player.player_index,
+                machine_index: player.machine_index,
+                primary_color: player.primary_color,
+                tertiary_color: player.tertiary_color,
+                desires_rematch: player.desires_rematch,
+                secondary_color: player.secondary_color,
+                appearance_flags: player.appearance_flags,
+                background_emblem: player.background_emblem,
+                foreground_emblem: player.foreground_emblem,
+                is_online_enabled: player.is_online_enabled,
+                player_identifier: player.player_identifier,
+                elite_model_area_0: player.elite_model_area_0,
+                elite_model_area_1: player.elite_model_area_1,
+                elite_model_area_2: player.elite_model_area_2,
+                elite_model_area_3: player.elite_model_area_3,
+                hopper_access_flags: player.hopper_access_flags,
+                player_model_choice: player.player_model_choice,
+                bungienet_user_flags: player.bungienet_user_flags,
+                emblem_primary_color: player.emblem_primary_color,
+                hopper_statistics_mu: player.hopper_statistics_mu,
+                player_assigned_team: player.player_assigned_team,
+                spartan_model_area_0: player.spartan_model_area_0,
+                spartan_model_area_1: player.spartan_model_area_1,
+                spartan_model_area_2: player.spartan_model_area_2,
+                spartan_model_area_3: player.spartan_model_area_3,
+                custom_games_completed: player.custom_games_completed,
+                emblem_secondary_color: player.emblem_secondary_color,
+                hopper_experience_base: player.hopper_experience_base,
+                host_stats_global_rank: player.host_stats_global_rank,
+                is_controller_attached: player.is_controller_attached,
+                is_silver_or_gold_live: player.is_silver_or_gold_live,
+                emblem_background_color: player.emblem_background_color,
+                global_statistics_valid: player.global_statistics_valid,
+                hopper_statistics_sigma: player.hopper_statistics_sigma,
+                hopper_statistics_valid: player.hopper_statistics_valid,
+                host_stats_global_grade: player.host_stats_global_grade,
+                host_stats_global_valid: player.host_stats_global_valid,
+                host_stats_hopper_skill: player.host_stats_hopper_skill,
+                host_stats_hopper_valid: player.host_stats_hopper_valid,
+                experience_growth_banned: player.experience_growth_banned,
+                user_selected_team_index: player.user_selected_team_index,
+                hopper_experience_penalty: player.hopper_experience_penalty,
+                is_free_live_gold_account: player.is_free_live_gold_account,
+                repeated_play_coefficient: player.repeated_play_coefficient,
+                matchmade_ranked_games_won: player.matchmade_ranked_games_won,
+                hopper_statistics_games_won: player.hopper_statistics_games_won,
+                hopper_statistics_identifier: player.hopper_statistics_identifier,
+                host_stats_global_experience: player.host_stats_global_experience,
+                campaign_difficulty_completed: player.campaign_difficulty_completed,
+                matchmade_ranked_games_played: player.matchmade_ranked_games_played,
+                hopper_statistics_games_played: player.hopper_statistics_games_played,
+                hopper_statistics_hopper_skill: player.hopper_statistics_hopper_skill,
+                global_statistics_highest_skill: player.global_statistics_highest_skill,
+                host_stats_hopper_skill_display: player.host_stats_hopper_skill_display,
+                is_user_created_content_allowed: player.is_user_created_content_allowed,
+                matchmade_unranked_games_played: player.matchmade_unranked_games_played,
+                matchmade_ranked_games_completed: player.matchmade_ranked_games_completed,
+                global_statistics_experience_base: player.global_statistics_experience_base,
+                hopper_statistics_games_completed: player.hopper_statistics_games_completed,
+                is_friend_created_content_allowed: player.is_friend_created_content_allowed,
+                matchmade_unranked_games_completed: player.matchmade_unranked_games_completed,
+                global_statistics_experience_penalty: player.global_statistics_experience_penalty,
+                host_stats_hopper_skill_update_weight: player.host_stats_hopper_skill_update_weight,
+            })),
+            started: carnageReport.started,
+            finished: carnageReport.finished,
+            start_time: carnageReport.start_time,
+            finish_time: carnageReport.finish_time,
+            game_variant: carnageReport.carnage_report_game_variant,
+            migrated_solo: carnageReport.migrated_solo,
+            scenario_path: carnageReport.scenario_path,
+            in_group_session: carnageReport.in_group_session,
+            in_squad_session: carnageReport.in_squad_session,
+            map_variant_name: carnageReport.map_variant_name,
+            migrated_to_group: carnageReport.migrated_to_group,
+            simulation_aborted: carnageReport.simulation_aborted,
+            matchmaking_options: carnageReport.carnage_report_matchmaking_options,
             player_interactions: playerInterractions,
+            map_variant_unique_id: carnageReport.map_variant_unique_id,
+            game_variant_unique_id: carnageReport.game_variant_unique_id,
         }
     }
 }

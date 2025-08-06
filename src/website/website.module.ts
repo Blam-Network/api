@@ -5,6 +5,7 @@ import { ShutdownObserver } from 'src/ShutdownObserver';
 import { Halo3Controller } from './controllers/halo3.controller';
 import { AchievementsService } from './services/achievements.service';
 import { AppLoggerMiddleware } from 'src/middleware/AppLoggerMiddleware';
+import { EmblemsService } from './services/emblems.service';
 
 @Module({
     imports: [
@@ -18,6 +19,7 @@ import { AppLoggerMiddleware } from 'src/middleware/AppLoggerMiddleware';
     ],
     providers: [
         AchievementsService,
+        EmblemsService,
         { provide: ILoggerSymbol, useClass: ConsoleLogger },
         ShutdownObserver,
     ],

@@ -1,12 +1,11 @@
-import { Controller, Get, Header, Headers, Inject, NotFoundException, Param, Post, UnauthorizedException } from "@nestjs/common";
+import { Controller, Get, Header, Headers, Inject, NotFoundException, Param, ParseBoolPipe, ParseIntPipe, Post, Query, Res, StreamableFile, UnauthorizedException } from "@nestjs/common";
 import { ApiHeader, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
-import axios from "axios";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { EXAMPLE_XUID } from "src/lsp/constants";
-import { z } from "zod";
 import { AchievementsService } from "../services/achievements.service";
 import { parseXuid } from "src/xbox/xuid";
 import { PrismaService } from "src/db/prisma.service";
+import { EmblemsService } from "../services/emblems.service";
 
 const RECON_REQUIRED_ACHIEVEMENTS = [
     {
@@ -47,7 +46,36 @@ export class Halo3Controller {
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly achievementsService: AchievementsService,
         private readonly prisma: PrismaService,
+        private readonly emblemsService: EmblemsService,
     ) { }
+
+    @Get('/emblem')
+    @ApiOperation({
+        summary: 'Get Emblemr',
+        description: `Renders a Halo 3 Emblem PNG using the provided parameters.`,
+    })
+    @Header('Content-Type', 'image/png')
+    async generateEmblemImage(
+        @Query('armour_primary_color', new ParseIntPipe({optional: true})) armour_primary_color: number | undefined,
+        @Query('size', ParseIntPipe) size: number,
+        @Query('primary', ParseIntPipe) primary: number,
+        @Query('secondary') secondary: boolean,
+        @Query('background', ParseIntPipe) background: number,
+        @Query('primary_color', ParseIntPipe) primary_color: number,
+        @Query('secondary_color', ParseIntPipe) secondary_color: number,
+        @Query('background_color', ParseIntPipe) background_color: number,
+    ) { 
+        return new StreamableFile(await this.emblemsService.renderEmblem({
+            armour_primary_color,
+            size,
+            primary,
+            secondary,
+            background,
+            primary_color,
+            secondary_color,
+            background_color
+        }));
+    }
 
     @Post('/unlock_recon')
     @ApiOperation({

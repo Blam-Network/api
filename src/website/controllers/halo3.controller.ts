@@ -221,6 +221,7 @@ export class Halo3Controller {
                 achievements: player.carnage_report_player_achievements,
                 damage_statistics: player.carnage_report_player_damage_statistics,
                 ...player.carnage_report_machine,
+                score: player.score,
                 result: player.result,
                 standing: player.standing,
                 ban_flags: player.ban_flags,
@@ -316,6 +317,7 @@ export class Halo3Controller {
             player_interactions: playerInterractions,
             map_variant_unique_id: carnageReport.map_variant_unique_id,
             game_variant_unique_id: carnageReport.game_variant_unique_id,
+            team_game: carnageReport.team_game,
         }
     }
 }

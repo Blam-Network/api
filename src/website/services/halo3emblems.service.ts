@@ -1,12 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import axios from "axios";
 import { existsSync, readFileSync } from "fs";
 import path, { join } from "path";
 import * as sharp from "sharp";
 import { RESOURCES_FOLDER } from "src/lsp/constants";
-import { z } from "zod";
 
-export interface EmblemDto {
+interface EmblemDto {
     armour_primary_color?: number;
     size: number;
     primary: number;
@@ -72,7 +70,7 @@ function loadImage(index: number): Buffer {
 
 
 @Injectable()
-export class EmblemsService {
+export class Halo3EmblemsService {
     public async renderEmblem(
         emblem: EmblemDto,
     ) {

@@ -5,7 +5,8 @@ import { EXAMPLE_XUID } from "src/lsp/constants";
 import { AchievementsService } from "../services/achievements.service";
 import { parseXuid } from "src/xbox/xuid";
 import { PrismaService } from "src/db/prisma.service";
-import { EmblemsService } from "../services/emblems.service";
+import { Halo3EmblemsService } from "../services/halo3emblems.service";
+import { Halo3FileShareService } from "../services/halo3fileshare.service";
 
 const RECON_REQUIRED_ACHIEVEMENTS = [
     {
@@ -46,8 +47,23 @@ export class Halo3Controller {
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly achievementsService: AchievementsService,
         private readonly prisma: PrismaService,
-        private readonly emblemsService: EmblemsService,
+        private readonly emblemsService: Halo3EmblemsService,
+        private readonly fileshareService: Halo3FileShareService,
     ) { }
+
+    @Get('/screenshots/:id/view')
+    @ApiOperation({
+        summary: 'View Screenshot',
+        description: 'Returns an uploaded Halo 3 JPEG screenshot.'
+    })
+    @Header('Content-Type', 'image/jpeg')
+    async viewScreenshot(
+        @Param('id') id: string,
+    ) {
+        return new StreamableFile(
+            Uint8Array.from(await this.fileshareService.viewBlindScreenshot(id))
+        );
+    }
 
     @Get('/emblem')
     @ApiOperation({

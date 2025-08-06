@@ -5,7 +5,9 @@ import { ShutdownObserver } from 'src/ShutdownObserver';
 import { Halo3Controller } from './controllers/halo3.controller';
 import { AchievementsService } from './services/achievements.service';
 import { AppLoggerMiddleware } from 'src/middleware/AppLoggerMiddleware';
-import { EmblemsService } from './services/emblems.service';
+import { Halo3EmblemsService } from './services/halo3emblems.service';
+import { Halo3FileShareService } from './services/halo3fileshare.service';
+import { Halo3ODSTController } from './controllers/halo3odst.controller';
 
 @Module({
     imports: [
@@ -15,11 +17,13 @@ import { EmblemsService } from './services/emblems.service';
         },
     ],
     controllers: [
-        Halo3Controller
+        Halo3Controller,
+        Halo3ODSTController,
     ],
     providers: [
         AchievementsService,
-        EmblemsService,
+        Halo3EmblemsService,
+        Halo3FileShareService,
         { provide: ILoggerSymbol, useClass: ConsoleLogger },
         ShutdownObserver,
     ],

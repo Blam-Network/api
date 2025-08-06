@@ -6,7 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["halo3", "odst"]
+  schemas  = ["halo3", "odst", "reach"]
 }
 
 model blind_screenshot {
@@ -820,4 +820,12 @@ model file_share {
   unsubscribe_stage         Int?              @db.SmallInt
 
   @@schema("halo3")
+}
+
+model player_data_reach {
+  player_xuid               Decimal  @db.Decimal(20, 0)   @id
+  hopper_access             Int?     @default(0)
+  hopper_directory_override String?  @db.VarChar(32)
+
+  @@schema("reach")
 }

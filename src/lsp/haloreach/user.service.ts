@@ -1,20 +1,48 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import * as BLF from '@blam-network/blf_lsp';
+import { parseXuid } from "src/xbox/xuid";
+import ILogger, { ILoggerSymbol } from "src/ILogger";
+import { PrismaService } from "src/db/prisma.service";
 
 @Injectable()
 export class HaloReachUserService {
-    // TODO: Implement
-    public getUserFile = (_xuid: string) => {
+    constructor(
+        @Inject(ILoggerSymbol) private readonly logger: ILogger,
+        private readonly prisma: PrismaService,
+    ) { }
+
+    public getUserFile = async (xuid: string) => {
+        const player_xuid = parseXuid(xuid);
+        // If the DB is too slow, or data isn't present, we'll return a file without player data or a service record.
+        let fupd: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_player_data = undefined;
+        let srid: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record = undefined;
+
+        
+        const playerDataPromise = this.prisma.$transaction(async (prisma) => {
+            const playerData = await prisma.reach_player_data.findUnique({ where: { player_xuid } });
+
+            if (playerData) {
+                fupd = {
+                    unknown1: 0,
+                    unknown2: new Array(0x20).fill(0, 0, 0x20),
+                    unknown3: 0,
+                    hopper_access: playerData.hopper_access ?? 0,
+                    bungie_user_role: 0,
+                    hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
+                }
+            }
+        })
+
+        await Promise.allSettled([playerDataPromise]);
+
+        // Typescript is dumb
+        // @ts-ignore
+        let name = srid ? srid.player_name : '<unknown>';
+        this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
+
         return BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_file(
-            {
-                bungie_user_role: 0,
-                hopper_access: 0,
-                hopper_directory: 'default_hoppers',
-                unknown1: 0,
-                unknown2: new Array(0x20).fill(0),
-                unknown3: 0,
-            },
-            undefined
+            fupd,
+            srid,
         );
     }
 

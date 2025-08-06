@@ -34,7 +34,7 @@ export class UserStorageController {
     @Param('xuid') xuid: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const blfFile = this.haloReachUserService.getUserFile(xuid);
+    const blfFile = await this.haloReachUserService.getUserFile(xuid);
 
     return new StreamableFile(blfFile, { disposition: "filename=user.bin" });
   }

@@ -19,7 +19,7 @@ export class HaloReachUserService {
 
         
         const playerDataPromise = this.prisma.$transaction(async (prisma) => {
-            const playerData = await prisma.reach_player_data.findUnique({ where: { player_xuid } });
+            const playerData = await prisma.player_data_reach.findUnique({ where: { player_xuid } });
 
             if (playerData) {
                 fupd = {

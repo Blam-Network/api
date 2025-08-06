@@ -4,7 +4,7 @@ import path, { join } from "path";
 import * as sharp from "sharp";
 import { RESOURCES_FOLDER } from "src/lsp/constants";
 
-interface EmblemDto {
+export interface EmblemDto {
     armour_primary_color?: number;
     size: number;
     primary: number;

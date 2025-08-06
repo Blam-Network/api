@@ -11,6 +11,7 @@ import { z } from "zod";
 import { URLSearchParams } from "url";
 import { h32 } from 'xxhashjs';
 import { createReadStream } from "fs";
+import { DiscordWebhookService } from "../services/discordwebhook.service";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 
@@ -22,8 +23,8 @@ const DOWNLOAD_ENDPOINT = '/gameapi/FilesStartDownload.ashx';
 const HALO3_SHAREDFILE_MIME = 'application/x-halo3sharedfile'
 const HALO3ODST_SHAREDFILE_MIME = 'application/x-atlassharedfile'
 
-const ENABLE_DEBUG_MIME = true;
-const DEBUG_MIME = HALO3ODST_SHAREDFILE_MIME
+const ENABLE_DEBUG_MIME = false;
+const DEBUG_MIME = HALO3_SHAREDFILE_MIME
 
 const OFFER_IDS = {
     HALO3_BUNGIE_PRO: 0x4D5307E60CCF002n,
@@ -168,6 +169,7 @@ export class Halo3FileShareService {
     constructor(
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly prisma: PrismaService,
+        private readonly discordWebhookService: DiscordWebhookService,
     ) { }
 
     private applyDebugMime = (file: Express.Multer.File) => {
@@ -1284,6 +1286,41 @@ export class Halo3FileShareService {
             destinationFolder,
             screenshotData.id,
         ), file.buffer);
+
+        // Try to send a discord message, but dont wait on it.
+        (async () => {
+            const serviceRecord = await this.prisma.service_record.findUnique({
+                where: {
+                    player_xuid: screenshot.chdr.metadata.author_id.toString()
+                }
+            })
+
+            let authorName = screenshot.chdr.metadata.author;
+            let authorIconUrl: undefined | string = undefined;
+
+            if (serviceRecord) {
+                let params = new URLSearchParams({
+                    primary: serviceRecord.foreground_emblem.toString(),
+                    secondary: serviceRecord.emblem_flags ? 'true' : 'false',
+                    background: serviceRecord.background_emblem.toString(),
+                    primary_color: serviceRecord.emblem_primary_color.toString(),
+                    secondary_color: serviceRecord.emblem_secondary_color.toString(),
+                    background_color: serviceRecord.emblem_background_color.toString(),
+                    size: '100'
+                });
+
+                authorName = `${screenshot.chdr.metadata.author} - ${serviceRecord.service_tag}`;
+                authorIconUrl = `https://halo3.blam.network/halo3/emblem?` + params.toString() 
+            }
+
+            await this.discordWebhookService.sendHalo3Screenshot({
+                authorName,
+                authorIconUrl,
+                name: screenshot.chdr.metadata.name,
+                description: screenshot.chdr.metadata.description,
+                imageUrl: `https://halo3.blam.network/halo3/screenshots/${screenshotData.id}/view`
+            })
+        })()
     }
 }
 

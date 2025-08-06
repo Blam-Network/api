@@ -5,6 +5,7 @@ import { existsSync } from "fs"
 import { readFile, stat } from "fs/promises"
 import { join } from "path"
 import ILogger, { ILoggerSymbol } from "src/ILogger"
+import { EmblemDto } from "src/website/services/halo3emblems.service"
 import { z } from "zod"
 
 const WebhookTypeSchema = z.enum([
@@ -36,6 +37,14 @@ type Halo3CarnageReportMessage = {
     winningScore: number,
     teamGame: boolean,
     winner?: string,
+}
+
+type Halo3ScreenshotMessage = {
+    name: string,
+    description: string,
+    authorName: string,
+    authorIconUrl?: string,
+    imageUrl: string,
 }
 
 @Injectable()
@@ -122,5 +131,29 @@ export class DiscordWebhookService {
         }
 
         await this.sendWebhookMessage(WebhookType.HALO3_CARNAGE_REPORTS, message);
+    }
+
+    public sendHalo3Screenshot = async (data: Halo3ScreenshotMessage) => {
+        let message = {
+            embeds: [{
+                "title": data.name,
+                "description": data.description,
+                "url": data.imageUrl,
+                "color": 941076,
+                "author": {
+                    "name": data.authorName,
+                    "icon_url": data.authorIconUrl
+                },
+                "footer": {
+                    "text": "Halo 3 Screenshots - Blam Network",
+                    "icon_url": "https://cdn.discordapp.com/icons/1287731261993127977/be1cefaceefbb03879db1c47ea0cfcb7.webp?size=64"
+                },
+                "image": {
+                    "url": data.imageUrl,
+                }
+            }]
+        }
+
+        await this.sendWebhookMessage(WebhookType.HALO3_SCREENSHOTS, message);
     }
 }

@@ -521,6 +521,18 @@ export class GameApiController {
   @ApiHeader({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiHeader({ name: 'userid', example: EXAMPLE_XUID })
   @ApiHeader({ name: 'gameid' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        upload: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
   @UseInterceptors(FileInterceptor('upload'))
   async uploadFileBlind(
     @Headers() headers,

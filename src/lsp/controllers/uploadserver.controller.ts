@@ -7,6 +7,7 @@ import {
   UseInterceptors,
   HttpCode,
   UploadedFiles,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -48,14 +49,19 @@ export class UploadServerController {
   @Post('/stats.ashx')
   @UseInterceptors(FileInterceptor('upload'))
   async uploadStats(
-    @UploadedFile() upload: Express.Multer.File,
+    @UploadedFile() upload: Express.Multer.File | undefined,
     @Res({ passthrough: true }) res: Response,
   ) {
-    this.uploadService.handleDebug(upload);
-    this.uploadService.storeUploadedFile(upload);
+    if (!upload) throw new BadRequestException();
 
-    // TITLES:
-    this.halo3UploadService.handleUpload(upload);
+    this.uploadService.handleDebug(upload);
+
+    await Promise.allSettled([
+      this.uploadService.storeUploadedFile(upload),
+
+      // TITLES:
+      this.halo3UploadService.handleUpload(upload),
+    ]);
 
     res.status(200).send('');
   }
@@ -84,9 +90,11 @@ export class UploadServerController {
   @Post('/upload.ashx')
   @UseInterceptors(FileInterceptor('upload'))
   async uploadDump(
-    @UploadedFiles() uploads: Express.Multer.File[],
+    @UploadedFiles() uploads: Express.Multer.File[] | undefined,
     @Res({ passthrough: true }) res: Response,
   ) {
+    if (!uploads) throw new BadRequestException();
+
     uploads.forEach(upload => {
       this.uploadService.handleDebug(upload);
       this.uploadService.storeUploadedFile(upload);

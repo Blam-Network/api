@@ -1288,39 +1288,13 @@ export class Halo3FileShareService {
         ), file.buffer);
 
         // Try to send a discord message, but dont wait on it.
-        (async () => {
-            const serviceRecord = await this.prisma.service_record.findUnique({
-                where: {
-                    player_xuid: screenshot.chdr.metadata.author_id.toString()
-                }
-            })
-
-            let authorName = screenshot.chdr.metadata.author;
-            let authorIconUrl: undefined | string = undefined;
-
-            if (serviceRecord) {
-                let params = new URLSearchParams({
-                    primary: serviceRecord.foreground_emblem.toString(),
-                    secondary: serviceRecord.emblem_flags ? 'true' : 'false',
-                    background: serviceRecord.background_emblem.toString(),
-                    primary_color: serviceRecord.emblem_primary_color.toString(),
-                    secondary_color: serviceRecord.emblem_secondary_color.toString(),
-                    background_color: serviceRecord.emblem_background_color.toString(),
-                    size: '100'
-                });
-
-                authorName = `${screenshot.chdr.metadata.author} - ${serviceRecord.service_tag}`;
-                authorIconUrl = `https://halo3.blam.network/halo3/emblem?` + params.toString() 
-            }
-
-            await this.discordWebhookService.sendHalo3Screenshot({
-                authorName,
-                authorIconUrl,
-                name: screenshot.chdr.metadata.name,
-                description: screenshot.chdr.metadata.description,
-                imageUrl: `https://halo3.blam.network/halo3/screenshots/${screenshotData.id}/view`
-            })
-        })()
+        this.discordWebhookService.sendHalo3Screenshot({
+            authorXuid: screenshot.chdr.metadata.author_id,
+            authorName: screenshot.chdr.metadata.author,
+            name: screenshot.chdr.metadata.name,
+            description: screenshot.chdr.metadata.description,
+            imageUrl: `https://halo3.blam.network/halo3/screenshots/${screenshotData.id}/view`
+        }).catch((err) => this.logger.error(`Failed to send screenshot to discord: ${err}`))
     }
 }
 

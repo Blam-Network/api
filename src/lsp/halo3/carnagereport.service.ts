@@ -515,7 +515,7 @@ export class Halo3CarnageReportService {
                     teamGame: multi.mpgd.team_game,
                     winningScore,
                     winner
-                })
+                }).catch((err) => this.logger.error(`Failed to send carnage report to discord: ${err}`))
             }
 
             await tx.service_record.deleteMany({

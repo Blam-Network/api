@@ -3,7 +3,8 @@
         "name": "BlamNetwork Dev",
         "url": "https://discord.com/api/webhooks/1323102144332824586/zIZ-ylj9NAUEo3tn4IjJGELIlnddetFElp0DTAbZ06CMFt2YUi-92B30fjl56sLSiBdV",
         "types": [
-            "HALO3_CARNAGE_REPORTS"
+            "HALO3_CARNAGE_REPORTS",
+            "HALO3_SCREENSHOTS"
         ]
     }
 ]

@@ -12,6 +12,7 @@ import {
   Res,
   NotImplementedException,
   ParseBoolPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
@@ -111,8 +112,10 @@ export class GameApiController {
   @UseInterceptors(FileInterceptor('upload'))
   async machineUpdateNetworkStats(
     @Headers() headers: Record<string, string>,
-    @UploadedFile() upload: Express.Multer.File,
+    @UploadedFile() upload: Express.Multer.File | undefined,
   ) {
+    if (!upload) throw new BadRequestException();
+
     const { title, machineId } = z.object({
       title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
       machineId: parseBungieHeader(hexStringXuidSchema),
@@ -267,9 +270,11 @@ export class GameApiController {
   @ApiHeader({ name: 'serverid' })
   @UseInterceptors(FileInterceptor('upload'))
   async uploadFile(
-    @UploadedFile() upload: Express.Multer.File,
+    @UploadedFile() upload: Express.Multer.File | undefined,
     @Headers() headers: Record<string, string>,
   ) {
+    if (!upload) throw new BadRequestException();
+
     const { title, userid: uploaderXuid, shareid: shareXuid, slot, serverid } = z.object({
       title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
       userid: parseBungieHeader(hexStringXuidSchema),
@@ -536,8 +541,10 @@ export class GameApiController {
   @UseInterceptors(FileInterceptor('upload'))
   async uploadFileBlind(
     @Headers() headers,
-    @UploadedFile() upload: Express.Multer.File,
+    @UploadedFile() upload: Express.Multer.File | undefined,
   ) {
+    if (!upload) throw new BadRequestException();
+
     const { title, userid: uploaderXuid, gameid } = z.object({
       title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
       userid: parseBungieHeader(hexStringXuidSchema),

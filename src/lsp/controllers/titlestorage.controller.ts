@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Header,
@@ -16,6 +17,9 @@ import { Response } from 'express';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { TITLE_STORAGE_FOLDER } from '../constants';
 import { Halo3PopulationService } from '../halo3/population.service';
+import { TitleID } from 'src/xbox/titles';
+import { ParseHexPipe } from 'src/middleware/ParseHexPipe';
+import * as BLF from '@blam-network/blf_lsp';
 
 @ApiTags('Title Storage')
 @Controller('/storage/title')
@@ -26,11 +30,41 @@ export class TitleStorageController {
   ) {}
 
   @ApiOperation({
+    summary: 'Halo Title Population',
+    description: "Returns a BLF file containing Matchmaking Hopper Statistics for the provided Halo title ID.",
+  })
+  @ApiTags('Halo: Reach')
+  @ApiParam({ name: 'title_id', example: TitleID.HALOREACH.toString(16).toLowerCase(), type: 'string' })
+  @ApiParam({ name: 'tracked', example: "tracked" })
+  @ApiParam({ name: 'build_number', example: "12065" })
+  @ApiParam({ name: 'hopper_directory', example: "default_hoppers" })
+  @Get('/:title_id/:tracked/:build_number/:hopper_directory/dynamic_pres_hopper_statistics.bin')
+  async getHaloTitlePopulation(
+    @Param('title_id', ParseHexPipe) titleId: number,
+  ) {
+    if (titleId === TitleID.HALOREACH) {
+      const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.build_hopper_statistics_file({
+        unknown_population_1: 0,
+        unknown_population_2: 0,
+        unknown_population_3: 0,
+        hoppers: [],
+      })
+
+      return new StreamableFile(blfFile, { disposition: "filename=dynamic_pres_hopper_statistics.bin" });
+    }
+
+    throw new BadRequestException('Unsupported Title')
+  }
+
+  @ApiOperation({
     summary: 'Halo 3 Population',
     description: "Returns a BLF file containing Matchmaking Hopper Statistics for Halo 3.",
   })
   @ApiTags('Halo 3')
-  @Get('/tracked/:build_number/:hopper_directory/dynamic_hopper_statistics.bin')
+  @ApiParam({ name: 'tracked', example: "tracked" })
+  @ApiParam({ name: 'build_number', example: "12065" })
+  @ApiParam({ name: 'hopper_directory', example: "default_hoppers" })
+  @Get('/:tracked/:build_number/:hopper_directory/dynamic_hopper_statistics.bin')
   async getHalo3Population() {
     const blfFile = await this.halo3PopulationService.getHopperStatistics();
     return new StreamableFile(blfFile, { disposition: "filename=dynamic_hopper_statistics.bin" });

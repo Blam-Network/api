@@ -7,6 +7,7 @@ import { parseXuid } from "src/xbox/xuid";
 import { PrismaService } from "src/db/prisma.service";
 import { Halo3EmblemsService } from "../services/halo3emblems.service";
 import { Halo3FileShareService } from "../services/halo3fileshare.service";
+import { TitleID } from "src/xbox/titles";
 
 const RECON_REQUIRED_ACHIEVEMENTS = [
     {
@@ -113,7 +114,7 @@ export class Halo3Controller {
         const halo3Achieevements = await this.achievementsService.getAchievements(
             authorization,
             player_xuid,
-            0x4D5307E6,
+            TitleID.HALO3,
             true,
             79
         )
@@ -122,7 +123,7 @@ export class Halo3Controller {
         const halo3ODSTAchieevements = await this.achievementsService.getAchievements(
             authorization,
             player_xuid,
-            0x4D530877,
+            TitleID.HALO3ODST,
             true,
             47
         )

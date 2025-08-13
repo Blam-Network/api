@@ -13,10 +13,6 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
-import { Response } from 'express';
-import { join } from 'path';
-import { stat } from 'fs/promises';
-import { createReadStream } from 'fs';
 import * as BLF from '@blam-network/blf_lsp';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { EXAMPLE_XUID } from '../constants';

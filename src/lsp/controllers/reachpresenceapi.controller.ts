@@ -3,6 +3,7 @@ import {
   Inject,
   StreamableFile,
   Post,
+  HttpCode,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
@@ -15,6 +16,7 @@ export class ReachPresenceApiController {
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
   ) { }
 
+  @HttpCode(200)
   @Post('/heartbeat.ashx')
   @ApiTags('Halo: Reach')
   @ApiOperation({

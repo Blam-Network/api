@@ -125,6 +125,7 @@ export class GameApiController {
     this.logger.log(`[MACHINE] Mime type = ${upload.mimetype}`)
     await this.uploadService.handleDebug(upload);
     await this.uploadService.storeUploadedFile(upload);
+    // TODO: Store this
   }
 
   @ApiOperation({

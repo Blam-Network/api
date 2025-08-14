@@ -23,7 +23,7 @@ import { GameApiController } from './controllers/gameapi.controller';
 import { Halo3PopulationService } from './halo3/population.service';
 import { Halo3FileShareService } from './halo3/fileshare.service';
 import { GameApiOmahaController } from './controllers/gameapi_omaha.controller';
-import { ReachPresenceApiController } from './controllers/ReachPresenceApi.controller';
+import { ReachPresenceApiController } from './controllers/reachpresenceapi.controller';
 
 @Module({
     imports: [

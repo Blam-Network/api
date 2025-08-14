@@ -10,7 +10,7 @@ export class Halo3MachineService {
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly prisma: PrismaService,
     ) { }
-    public getMachineFile = (_xuid: string) => {
+    public getMachineFile = (machineId: string) => {
         return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_machine_file({
             bandwidth_data: {
                 bandwidth_dispute_count: 0,

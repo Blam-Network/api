@@ -183,7 +183,6 @@ export class GameApiController {
     @Query('fileType', ParseIntPipe) fileType: number,
     @Query('uncompressedSize', ParseIntPipe) uncompressedSize: number,
     @Query('compressedSize', ParseIntPipe) compressedSize: number,
-    @Res({ passthrough: true }) res: Response,
   ) {
     // This function returns a server ID, but we don't really use it so it's not important.
     switch (titleID) {

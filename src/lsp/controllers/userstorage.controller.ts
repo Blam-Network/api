@@ -32,7 +32,6 @@ export class UserStorageController {
   @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
   async getOmahaUser(
     @Param('xuid') xuid: string,
-    @Res({ passthrough: true }) res: Response,
   ) {
     const blfFile = await this.haloReachUserService.getUserFile(xuid);
 
@@ -48,7 +47,6 @@ export class UserStorageController {
   @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
   async getOmahaRecentPlayers(
     @Param('xuid') xuid: string,
-    @Res({ passthrough: true }) res: Response,
   ) {
     const blfFile = this.haloReachUserService.getRecentPlayersFile(xuid);
 
@@ -65,7 +63,6 @@ export class UserStorageController {
   @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
   async getHalo3User(
     @Param('xuid') xuid: string,
-    @Res({ passthrough: true }) res: Response,
   ) {
     const blfFile = await this.halo3UserService.getUserFile(xuid);
 
@@ -81,7 +78,6 @@ export class UserStorageController {
   @ApiParam({ name: 'xuid', type: 'string', example: EXAMPLE_XUID })
   async getHalo3RecentPlayers(
     @Param('xuid', ParseXUIDPipe) xuid: number,
-    @Res({ passthrough: true }) res: Response,
   ) {
     const blfFile = await this.halo3UserService.getRecentPlayersFile(xuid);
 

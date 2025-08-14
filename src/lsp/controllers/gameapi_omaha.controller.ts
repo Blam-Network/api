@@ -30,11 +30,11 @@ export class GameApiOmahaController {
     summary: 'Get Arena Season Statistics',
     description: 'Returns hopper statistics for the current Arena season. This is currently stubbed and returns an empty struct.',
   })
-  @ApiQuery({ name: 'machineId' })
-  @ApiQuery({ name: 'players' })
-  @ApiQuery({ name: 'version' })
+  @ApiQuery({ name: 'machineId', example: 'fa000022486dc405' })
+  @ApiQuery({ name: 'players', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'version', example: 3 })
   async getArenaSeasonStats(
-    @Query('machineId') titleID,
+    @Query('machineId') machineId,
     @Query('players') players,
     @Query('version') version,
     @Res({ passthrough: true }) res,

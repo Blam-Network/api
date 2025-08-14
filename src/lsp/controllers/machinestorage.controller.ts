@@ -11,6 +11,7 @@ import { Response } from 'express';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { Halo3MachineService } from '../halo3/machine.service';
 import { EXAMPLE_XUID } from '../constants';
+import { TitleID } from 'src/xbox/titles';
 
 @ApiTags('Machine Storage')
 @Controller('/storage/machine')
@@ -26,12 +27,12 @@ export class MachineStorageController {
   })
   @ApiTags('Halo: Reach')
   @Get('/:titleId/:unk1/:unk2/:unk3/:xuid/machine.bin')
+  @ApiParam({ name: 'titleId', example: TitleID.HALOREACH.toString(16).toLowerCase() })
   @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
   async getOmahaMachine(
     @Param('xuid') xuid: string,
-    @Res({ passthrough: true }) res: Response,
   ) {
-    return await this.getMachineFile(xuid, res);
+    return await this.getMachineFile(xuid);
   }
 
   @ApiOperation({
@@ -40,13 +41,12 @@ export class MachineStorageController {
   })
   @ApiTags('Halo 3')
   @ApiTags('Halo 3: ODST')
-  @Get('/:unk1/:unk2/:unk3/:xuid/machine.bin')
-  @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
+  @Get('/:unk1/:unk2/:unk3/:machineId/machine.bin')
+  @ApiParam({ name: 'machineId', example: EXAMPLE_XUID })
   async getMachineFile(
-    @Param('xuid') xuid: string,
-    @Res({ passthrough: true }) res: Response,
+    @Param('machineId') machineId: string,
   ) {
-    const blfFile = this.halo3MachineService.getMachineFile(xuid);
+    const blfFile = this.halo3MachineService.getMachineFile(machineId);
     return new StreamableFile(blfFile, { disposition: "filename=machine.bin" });
   }
 }

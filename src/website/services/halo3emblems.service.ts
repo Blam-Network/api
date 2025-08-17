@@ -125,7 +125,7 @@ export class Halo3EmblemsService {
         size: number,
         channel: 'red' | 'green' | 'blue',
     ): Promise<Buffer> {
-        const image = sharp(loadImage(emblemIndex)).resize(size, size);
+        const image = sharp(loadImage(emblemIndex)).resize(size, size, { kernel: 'nearest' });
 
         const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
         const color = getColor(colorIndex);

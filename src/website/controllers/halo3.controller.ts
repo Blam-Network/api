@@ -1,4 +1,4 @@
-import { Controller, Get, Header, Headers, Inject, NotFoundException, Param, ParseBoolPipe, ParseIntPipe, Post, Query, Res, StreamableFile, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Controller, Get, Header, Headers, Inject, NotFoundException, Param, ParseBoolPipe, ParseIntPipe, Post, Query, Res, StreamableFile, UnauthorizedException } from "@nestjs/common";
 import { ApiHeader, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { EXAMPLE_XUID } from "src/lsp/constants";
@@ -82,6 +82,8 @@ export class Halo3Controller {
         @Query('secondary_color', ParseIntPipe) secondary_color: number,
         @Query('background_color', ParseIntPipe) background_color: number,
     ) { 
+        if (size > 1000) throw new BadRequestException('Invalid emblem size.');
+        
         return new StreamableFile(await this.emblemsService.renderEmblem({
             armour_primary_color,
             size,

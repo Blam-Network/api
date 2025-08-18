@@ -124,7 +124,7 @@ export class TitleStorageController {
     @Param('path') path: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, 'ares', username, branch, ...path);
+    const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, 'ares', 'untracked', username, branch, ...path);
     const fileName = basename(filePath);
     const stats = await stat(filePath);
 

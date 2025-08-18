@@ -123,4 +123,46 @@ export class TitleStorageController {
 
     return new StreamableFile(createReadStream(filePath), {disposition: `filename=${fileName}`});
   }
+
+  @ApiOperation({
+    summary: 'Untracked Ares Static Title Storage',
+    description: "Used to download static title storage files. These are mostly BLF files containing matchmaking playlist configuration, network configuration, MOTDs etc. \
+      This endpoint is used for anything not dynamic.",
+    externalDocs: {
+      description: "Blam-Title-Storage (GitHub)",
+      url: 'https://github.com/Blam-Network/Blam-Title-Storage'
+    },
+    parameters: [
+      {
+        name: 'path',
+        example: '/default_hoppers/manifest_001.bin',
+        in: 'path'
+      }
+    ]
+  })
+  @ApiParam({
+    name: 'path',
+    example: '/default_hoppers/manifest_001.bin',
+    style: 'simple',
+    allowReserved: true,
+  })
+  @Get('/ares/untracked/:username/:branch/*path')
+  @ApiTags('Ares')
+  async getAresUntrackedStaticFile(
+    @Param('username') username: string,
+    @Param('branch') branch: string,
+    @Param('path') path: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, 'ares', username, branch, ...path);
+    const fileName = basename(filePath);
+    const stats = await stat(filePath);
+
+    if (!stats.isFile()) throw new NotFoundException();
+
+    res.set('Content-Length', stats.size.toString());
+    res.set('Cache-Control', 'no-cache');
+
+    return new StreamableFile(createReadStream(filePath), {disposition: `filename=${fileName}`});
+  }
 }

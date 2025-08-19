@@ -10,7 +10,7 @@ import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { Halo3MachineService } from '../halo3/machine.service';
-import { EXAMPLE_XUID } from '../constants';
+import { EXAMPLE_XUID } from '../../constants';
 import { TitleID } from 'src/xbox/titles';
 
 @ApiTags('Machine Storage')

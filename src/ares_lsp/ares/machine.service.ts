@@ -2,9 +2,10 @@ import { Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blam-network/blf_lsp';
+import { parseXuid } from "src/xbox/xuid";
 
 @Injectable()
-export class Halo3MachineService {
+export class AresMachineService {
     constructor(
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly prisma: PrismaService,

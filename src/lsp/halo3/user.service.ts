@@ -21,7 +21,7 @@ export class Halo3UserService {
         let osri: undefined | BLF.halo3odst_13895_09_04_27_2201_atlas_release.s_blf_chunk_odst_service_record = undefined;
         
         const serviceRecordPromise = this.prisma.$transaction(async (prisma) => {
-            const serviceRecord = await prisma.service_record.findUnique({
+            const serviceRecord = await prisma.halo3_service_record.findUnique({
                 where: { player_xuid }, select: {
                     player_name: true,
                     appearance_flags: true,
@@ -58,7 +58,7 @@ export class Halo3UserService {
         }, {timeout: 5000});
 
         const playerDataPromise = this.prisma.$transaction(async (prisma) => {
-            const playerData = await prisma.player_data.findUnique({ where: { player_xuid } });
+            const playerData = await prisma.halo3_player_data.findUnique({ where: { player_xuid } });
 
             if (playerData) {
                 let bungie_user_role = 0;
@@ -76,7 +76,7 @@ export class Halo3UserService {
         })
 
         const odstServiceRecordPromise = this.prisma.$transaction(async (prisma) => {
-            const playerData = await prisma.player_data.findUnique({ where: { player_xuid } });
+            const playerData = await prisma.halo3_player_data.findUnique({ where: { player_xuid } });
 
             if (playerData) {
                 osri = {
@@ -131,7 +131,7 @@ export class Halo3UserService {
     }
 
     public getRecentPlayersFile = async (playerXuid: number) => {
-        const carnageReports = await this.prisma.carnage_report.findMany({
+        const carnageReports = await this.prisma.halo3_carnage_report.findMany({
             where: {
                 carnage_report_player: {
                     some: {
@@ -188,7 +188,7 @@ export class Halo3UserService {
 
         this.logger.log(`[USER] Updating highest skill for user ${xuid} to ${highestSkill}`)
         
-        await this.prisma.player_data.upsert({
+        await this.prisma.halo3_player_data.upsert({
             where: { player_xuid: xuid },
             create: {
                 player_xuid: xuid,

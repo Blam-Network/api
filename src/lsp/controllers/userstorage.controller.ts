@@ -10,7 +10,7 @@ import ILogger, { ILoggerSymbol } from '../../ILogger';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Halo3UserService } from '../halo3/user.service';
-import { EXAMPLE_XUID } from '../constants';
+import { EXAMPLE_XUID } from '../../constants';
 import { HaloReachUserService } from '../haloreach/user.service';
 import { ParseXUIDPipe } from 'src/xbox/parse-xuid.pipe';
 

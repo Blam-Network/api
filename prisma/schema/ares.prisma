@@ -1,0 +1,84 @@
+model ares_player_data {
+  player_xuid               Decimal  @db.Decimal(20, 0)   @id
+  hopper_access             Int?     @default(0)
+  highest_skill             Int?     @default(0)
+  is_bungie                 Boolean? @default(false)
+  is_pro                    Boolean? @default(false)
+  has_recon                 Boolean? @default(false)
+  hopper_directory_override String?  @db.VarChar(32)
+
+  @@map("player_data")
+  @@schema("ares")
+}
+
+model ares_file_share {
+  share_id                  Decimal          @id @db.Decimal(20, 0)
+  quota_slots               Int?             @db.SmallInt
+  quota_bytes               Int?             
+  message                   String?
+  lastHash                  Int              @default(0)
+  unsubscribe_stage         Int?              @db.SmallInt
+
+  @@map("file_share")
+  @@schema("ares")
+}
+
+model ares_file_share_slot {
+  id                          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  share_id                    Decimal         @db.Decimal(20, 0)
+  slot                        Int             @db.SmallInt
+
+  compressed_size             Int
+
+  unique_id                   Decimal         @db.Decimal(20, 0)
+  name                        String?          @db.VarChar(16)
+  description                 String?          @db.VarChar(128)
+  author                      String?          @db.VarChar(16)
+  file_type                   Int
+  author_is_xuid_online       Boolean?
+  author_id                   Decimal?         @db.Decimal(20, 0)
+  size_in_bytes               Decimal         @db.Decimal(20, 0)
+  date                        DateTime?        @db.Timestamp(6)
+  length_seconds              Int?
+  map_id                      Int?            
+  game_engine_type            Int?            
+  campaign_id                 Int?            
+  campaign_difficulty         Int?            
+  campaign_insertion_point    Int?             @db.SmallInt
+  hopper_id                   Int?             @db.SmallInt
+  game_id                     Decimal?         @db.Decimal(20, 0)
+
+  @@unique([share_id, slot], map: "unique_share_id_slot")
+  @@map("file_share_slot")
+  @@schema("ares")
+}
+
+model ares_blind_screenshot {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  unique_id             Decimal? @db.Decimal(20, 0)
+  name                  String   @db.VarChar(16)
+  description           String   @db.VarChar(128)
+  author                String   @db.VarChar(16)
+  file_type             Int
+  author_is_xuid_online Boolean
+  author_id             Decimal @db.Decimal(20, 0)
+  size_in_bytes         Decimal @db.Decimal(20, 0)
+  date                  DateTime @db.Timestamp(6)
+  length_seconds        Int
+  campaign_id           Int
+  map_id                Int
+  game_engine_type      Int
+  campaign_difficulty   Int
+  hopper_id             Int      @db.SmallInt
+  game_id               Decimal @db.Decimal(20, 0)
+  game_tick             Int
+  film_tick             Int
+  jpeg_length           Int
+  camera_position       Float[]
+  pixel_width           Int      @db.SmallInt
+  pixel_height          Int      @db.SmallInt
+
+  @@unique([unique_id, date, game_id], map: "unique_unique_id_date")
+  @@map("blind_screenshot")
+  @@schema("ares")
+}

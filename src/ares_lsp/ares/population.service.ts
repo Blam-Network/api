@@ -1,8 +1,7 @@
-import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blam-network/blf_lsp';
-import { parseXuid } from "src/xbox/xuid";
 import { z } from "zod";
 import { lookup } from 'geoip-lite'; // Or whatever you use to resolve IPs
 import { readFile } from "fs/promises";
@@ -10,19 +9,18 @@ import { join } from "path";
 import { existsSync } from "fs";
 import { RESOURCES_FOLDER } from "../../constants";
 import * as sharp from "sharp";
-import { NotFoundError } from "rxjs";
 
-const HALO3_NIGHTMAP_BACKGROUND_FILE = 'halo3_nightmap_background.jpg';
+const ARES_NIGHTMAP_BACKGROUND_FILE = 'halo3_nightmap_background.jpg';
 
 @Injectable()
-export class Halo3PopulationService {
+export class AresPopulationService {
     constructor(
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly prisma: PrismaService,
     ) { }
 
     public getHopperStatistics = async () => {
-        const hopperStats: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_matchmaking_hopper_statistics['data'] = [];
+        const hopperStats: BLF.ares_untracked.s_blf_chunk_matchmaking_hopper_statistics['data'] = [];
 
         await Promise.allSettled([this.prisma.$transaction(async () => {
             const hopperPopulationResponse = await this.prisma.$queryRaw`
@@ -49,7 +47,7 @@ export class Halo3PopulationService {
 
         }, { timeout: 5000 })]);
 
-        return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_hopper_statistics_file({
+        return BLF.ares_untracked.build_hopper_statistics_file({
             data: hopperStats.concat(Array(32 - hopperStats.length).fill({ hopper_identifier: 0, player_count: 0 })),
             player_count: hopperStats.reduce((count, hp) => count + hp.player_count, 0)
         })
@@ -62,9 +60,9 @@ export class Halo3PopulationService {
     }
 
     public getNightmap = async () => {
-        const nightmapPath = join(process.cwd(), RESOURCES_FOLDER, HALO3_NIGHTMAP_BACKGROUND_FILE);
+        const nightmapPath = join(process.cwd(), RESOURCES_FOLDER, ARES_NIGHTMAP_BACKGROUND_FILE);
         if (!existsSync(nightmapPath)) {
-            this.logger.error("[TITLE] Unable to render Halo 3 nightmap as the background image doesn't exist!");
+            this.logger.error("[TITLE] Unable to render Ares nightmap as the background image doesn't exist!");
             throw new NotFoundException()
         }
 

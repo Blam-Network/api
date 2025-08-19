@@ -1,7 +1,7 @@
 import { BadRequestException, Controller, Get, Header, Headers, Inject, NotFoundException, Param, ParseBoolPipe, ParseIntPipe, Post, Query, Res, StreamableFile, UnauthorizedException } from "@nestjs/common";
 import { ApiHeader, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import { EXAMPLE_XUID } from "src/lsp/constants";
+import { EXAMPLE_XUID } from "src/constants";
 import { AchievementsService } from "../services/achievements.service";
 import { parseXuid } from "src/xbox/xuid";
 import { PrismaService } from "src/db/prisma.service";
@@ -144,7 +144,7 @@ export class Halo3Controller {
             return new UnauthorizedException("You haven't unlocked all of the required achievements yet.")
         }
 
-        await this.prisma.player_data.upsert({
+        await this.prisma.halo3_player_data.upsert({
             where: {
                 player_xuid
             },
@@ -164,7 +164,7 @@ export class Halo3Controller {
     async getCarnageReport(
         @Param('id') id: string,
     ) {
-        const carnageReport = await this.prisma.carnage_report.findUnique({
+        const carnageReport = await this.prisma.halo3_carnage_report.findUnique({
             where: {
                 id,
             },
@@ -235,7 +235,7 @@ export class Halo3Controller {
             throw new NotFoundException();
         }
 
-        const playerInterractions = await this.prisma.carnage_report_player_interaction.findMany({
+        const playerInterractions = await this.prisma.halo3_carnage_report_player_interaction.findMany({
             where: {
                 carnage_report_id: id,
             },

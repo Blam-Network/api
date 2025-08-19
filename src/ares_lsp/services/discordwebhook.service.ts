@@ -9,9 +9,8 @@ import ILogger, { ILoggerSymbol } from "src/ILogger"
 import { z } from "zod"
 
 const WebhookTypeSchema = z.enum([
-    'HALO3_CARNAGE_REPORTS',
-    'HALO3_SCREENSHOTS',
-    'CRASH'
+    'ARES_SCREENSHOTS',
+    'ARES_CRASH'
 ]);
 
 const WebhookType = WebhookTypeSchema.Enum;
@@ -25,21 +24,7 @@ const WebhookConfigSchema = z.object({
 type WebhookConfig = z.infer<typeof WebhookConfigSchema>;
 type WebhookType = z.infer<typeof WebhookTypeSchema>;
 
-type Halo3CarnageReportMessage = {
-    carnageReportId: string,
-    gametype: string,
-    map: string,
-    mapId: number,
-    hopperName?: string,
-    playerCount: number,
-    startTime: Date,
-    finishTime: Date,
-    winningScore: number,
-    teamGame: boolean,
-    winner?: string,
-}
-
-type Halo3ScreenshotMessage = {
+type AresScreenshotMessage = {
     name: string,
     description: string,
     authorXuid: BigInt,
@@ -96,68 +81,9 @@ export class DiscordWebhookService {
         )
     }
 
-    public sendHalo3CarnageReport = async (data: Halo3CarnageReportMessage) => {
-        let message = {
-            embeds: [{
-                title: `${data.gametype} on ${data.map}`,
-                description: data.winner
-                    ? `${data.winner} wins!`
-                    : 'Tie Game',
-                fields: [
-                    {
-                        name: "Score",
-                        value: data.winningScore,
-                        inline: true
-                    },
-                    {
-                        name: "Duration",
-                        value: formatDuration(intervalToDuration(interval(data.startTime, data.finishTime))),
-                        inline: true
-                    },
-                    {
-                        name: "Players",
-                        value: data.playerCount,
-                        inline: true
-                    }
-                ],
-                footer: {
-                    "text": "Halo 3 Webstats - Blam Network",
-                    "icon_url": "https://cdn.discordapp.com/icons/1287731261993127977/be1cefaceefbb03879db1c47ea0cfcb7.webp?size=64"
-                },
-                url: `https://blam.network/halo3/carnage-report/${data.carnageReportId}`,
-                "thumbnail": {
-                    "url": `https://blam.network/img/largemaps/${data.mapId}.jpg` // Adding map image URL here
-                }
-            }]
-        }
-
-        await this.sendWebhookMessage(WebhookType.HALO3_CARNAGE_REPORTS, message);
-    }
-
-    public sendHalo3Screenshot = async (data: Halo3ScreenshotMessage) => {
-        const serviceRecord = await this.prisma.halo3_service_record.findUnique({
-            where: {
-                player_xuid: data.authorXuid.toString()
-            }
-        })
-
+    public sendAresScreenshot = async (data: AresScreenshotMessage) => {
         let authorName = data.authorName;
         let authorIconUrl: undefined | string = undefined;
-
-        if (serviceRecord) {
-            let params = new URLSearchParams({
-                primary: serviceRecord.foreground_emblem.toString(),
-                secondary: serviceRecord.emblem_flags ? 'true' : 'false',
-                background: serviceRecord.background_emblem.toString(),
-                primary_color: serviceRecord.emblem_primary_color.toString(),
-                secondary_color: serviceRecord.emblem_secondary_color.toString(),
-                background_color: serviceRecord.emblem_background_color.toString(),
-                size: '100'
-            });
-
-            authorName = `${data.authorName} - ${serviceRecord.service_tag}`;
-            authorIconUrl = `https://halo3.blam.network/halo3/emblem?` + params.toString() 
-        }
         
         let message = {
             embeds: [{
@@ -170,7 +96,7 @@ export class DiscordWebhookService {
                     "icon_url": authorIconUrl
                 },
                 "footer": {
-                    "text": "Halo 3 Screenshots - Blam Network",
+                    "text": "Ares Screenshots - Blam Network",
                     "icon_url": "https://cdn.discordapp.com/icons/1287731261993127977/be1cefaceefbb03879db1c47ea0cfcb7.webp?size=64"
                 },
                 "image": {
@@ -179,6 +105,6 @@ export class DiscordWebhookService {
             }]
         }
 
-        await this.sendWebhookMessage(WebhookType.HALO3_SCREENSHOTS, message);
+        await this.sendWebhookMessage(WebhookType.ARES_SCREENSHOTS, message);
     }
 }

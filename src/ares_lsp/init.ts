@@ -9,7 +9,7 @@ import { LSPModule } from 'src/lsp/lsp.module';
 import { LSP_PORT_RANGE } from './constants';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 
-export const createLSPServer = async () => {
+export const createAresLSPServer = async () => {
     const server = express();
     const app = await NestFactory.create(
         LSPModule,
@@ -17,8 +17,8 @@ export const createLSPServer = async () => {
     );
 
     const config = new DocumentBuilder()
-        .setTitle('Blam Network LSP')
-        .setDescription('LSP Server for Halo 3, Halo 3: ODST and Halo: Reach')
+        .setTitle('Blam Network LSP (Ares)')
+        .setDescription('LSP Server for Ares')
         .setVersion('beta')
         .setExternalDoc('GitHub', 'https://github.com/Blam-Network/web_private')
         .build();

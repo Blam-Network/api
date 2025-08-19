@@ -15,7 +15,7 @@ import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import * as BLF from '@blam-network/blf_lsp';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { EXAMPLE_XUID } from '../constants';
+import { EXAMPLE_XUID } from '../../constants';
 
 @ApiTags('Game API Omaha')
 @Controller('/gameapi_omaha')

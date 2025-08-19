@@ -67,7 +67,7 @@ export class Halo3CarnageReportService {
         await this.prisma.$transaction(async (tx) => {
             // If we have a carnage report submission with an earlier finish time, the host probs dropped.
             // Delete & reinsert with newer data.
-            const existingReport = await tx.carnage_report.findFirst({
+            const existingReport = await tx.halo3_carnage_report.findFirst({
                 where: {
                     game_id: multi.mpgd.game_id.toString(),
                     map_id: multi.mpgd.map_id,
@@ -84,14 +84,14 @@ export class Halo3CarnageReportService {
                 : undefined;
 
             if (existingCarnageReportId) {
-                await tx.carnage_report.delete({
+                await tx.halo3_carnage_report.delete({
                     where: {
                         id: existingCarnageReportId
                     }
                 })
             }
 
-            const {id: carnageReportId} = await tx.carnage_report.create({
+            const {id: carnageReportId} = await tx.halo3_carnage_report.create({
                 data: {
                     id: existingCarnageReportId,
                     finish_time: multi.mpgd.finish_time,
@@ -178,7 +178,7 @@ export class Halo3CarnageReportService {
                     id: true,
                 }
             });
-            await tx.carnage_report.update({
+            await tx.halo3_carnage_report.update({
                 where: {
                     id: carnageReportId
                 },
@@ -327,7 +327,7 @@ export class Halo3CarnageReportService {
                     },
                 }
             });
-            await tx.carnage_report_player_achievements.createMany({
+            await tx.halo3_carnage_report_player_achievements.createMany({
                 data: multi._par.mps1.players
                     .filter((p, i) => i < playerCount)
                     .map((stats, i) => ({
@@ -414,7 +414,7 @@ export class Halo3CarnageReportService {
                             })
                         })
                 })
-            await tx.carnage_report_player_damage_statistics.createMany({
+            await tx.halo3_carnage_report_player_damage_statistics.createMany({
                 data: damageStatistics
             })
 
@@ -440,10 +440,10 @@ export class Halo3CarnageReportService {
                         })
                     })
                 });
-            await tx.carnage_report_player_interaction.createMany({
+            await tx.halo3_carnage_report_player_interaction.createMany({
                 data: interactions
             })
-            await tx.carnage_report_player_medals.createMany({
+            await tx.halo3_carnage_report_player_medals.createMany({
                 data: multi._par.mps1.players
                     .filter((p, i) => i < playerCount)
                     .map((p, i) => ({
@@ -452,7 +452,7 @@ export class Halo3CarnageReportService {
                         ...p.medals
                     }))
             })
-            await tx.carnage_report_player_statistics.createMany({
+            await tx.halo3_carnage_report_player_statistics.createMany({
                 data: multi._par.mps1.players
                     .filter((p, i) => i < playerCount)
                     .map((p, i) => ({
@@ -461,7 +461,7 @@ export class Halo3CarnageReportService {
                         ...p.statistics
                     }))
             })
-            await tx.carnage_report_team_statistics.createMany({
+            await tx.halo3_carnage_report_team_statistics.createMany({
                 data: multi._par.mps3.teams
                     .filter((t, i) => i < teamCount)
                     .map((t, i) => ({
@@ -518,7 +518,7 @@ export class Halo3CarnageReportService {
                 }).catch((err) => this.logger.error(`Failed to send carnage report to discord: ${err}`))
             }
 
-            await tx.service_record.deleteMany({
+            await tx.halo3_service_record.deleteMany({
                 where: {
                     player_xuid: {
                         in: multi.mppl.players
@@ -528,7 +528,7 @@ export class Halo3CarnageReportService {
                 }
             })
 
-            await tx.service_record.createMany({
+            await tx.halo3_service_record.createMany({
                 data: multi.mppl.players
                     .filter(player => player.player_exists)
                     .map(player => {

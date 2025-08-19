@@ -4,7 +4,7 @@ import * as BLF from '@blam-network/blf_lsp'
 import { PrismaService } from "src/db/prisma.service";
 import { join } from "path";
 import { createReadStream, existsSync, readFileSync, readSync } from "fs";
-import { SCREENSHOTS_FOLDER } from "src/lsp/constants";
+import { SCREENSHOTS_FOLDER } from "src/constants";
 
 @Injectable()
 export class Halo3FileShareService {
@@ -14,7 +14,7 @@ export class Halo3FileShareService {
     ) { }
 
     public viewBlindScreenshot = async (id: string): Promise<number[]> => {
-        const dbScreenshot = await this.prisma.blind_screenshot.findUnique({
+        const dbScreenshot = await this.prisma.halo3_blind_screenshot.findUnique({
             where: {
                 id
             }

@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { existsSync, readFileSync } from "fs";
 import path, { join } from "path";
 import * as sharp from "sharp";
-import { RESOURCES_FOLDER } from "src/lsp/constants";
+import { RESOURCES_FOLDER } from "src/constants";
 
 export interface EmblemDto {
     armour_primary_color?: number;

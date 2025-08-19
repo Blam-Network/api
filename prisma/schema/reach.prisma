@@ -1,0 +1,8 @@
+model reach_player_data {
+  player_xuid               Decimal  @db.Decimal(20, 0)   @id
+  hopper_access             Int?     @default(0)
+  hopper_directory_override String?  @db.VarChar(32)
+
+  @@map("player_data")
+  @@schema("reach")
+}

@@ -1,15 +1,5 @@
-generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
-}
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  schemas  = ["halo3", "odst", "reach"]
-}
-
-model blind_screenshot {
+model halo3_blind_screenshot {
   id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   unique_id             Decimal? @db.Decimal(20, 0)
   name                  String   @db.VarChar(16)
@@ -36,9 +26,10 @@ model blind_screenshot {
 
   @@unique([unique_id, date, game_id], map: "unique_unique_id_date")
   @@schema("halo3")
+  @@map("blind_screenshot")
 }
 
-model carnage_report {
+model halo3_carnage_report {
   id                                 String                              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   team_game                          Boolean
   game_id                            Decimal @db.Decimal(20, 0)
@@ -56,21 +47,22 @@ model carnage_report {
   simulation_aborted                 Boolean
   in_group_session                   Boolean                             @default(false)
   in_squad_session                   Boolean                             @default(false)
-  carnage_report_event_carry         carnage_report_event_carry[]
-  carnage_report_event_kill          carnage_report_event_kill[]
-  carnage_report_event_score         carnage_report_event_score[]
-  carnage_report_game_variant        carnage_report_game_variant?
-  carnage_report_machine             carnage_report_machine[]
-  carnage_report_matchmaking_options carnage_report_matchmaking_options?
-  carnage_report_player              carnage_report_player[]
-  carnage_report_player_medals       carnage_report_player_medals[]
-  carnage_report_team                carnage_report_team[]
+  carnage_report_event_carry         halo3_carnage_report_event_carry[]
+  carnage_report_event_kill          halo3_carnage_report_event_kill[]
+  carnage_report_event_score         halo3_carnage_report_event_score[]
+  carnage_report_game_variant        halo3_carnage_report_game_variant?
+  carnage_report_machine             halo3_carnage_report_machine[]
+  carnage_report_matchmaking_options halo3_carnage_report_matchmaking_options?
+  carnage_report_player              halo3_carnage_report_player[]
+  carnage_report_player_medals       halo3_carnage_report_player_medals[]
+  carnage_report_team                halo3_carnage_report_team[]
 
   @@unique([start_time, finish_time, game_id], map: "unique_start_finish_game")
   @@schema("halo3")
+  @@map("carnage_report")
 }
 
-model carnage_report_event_carry {
+model halo3_carnage_report_event_carry {
   id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   carnage_report_id     String?                @db.Uuid
   time                  Decimal @db.Decimal(20, 0)
@@ -78,13 +70,14 @@ model carnage_report_event_carry {
   position              Float[]
   weapon_index          Int
   carry_type            Int
-  carnage_report_player carnage_report_player? @relation(fields: [carnage_report_id, carry_player_index], references: [carnage_report_id, player_index], onDelete: Cascade, onUpdate: NoAction)
-  carnage_report        carnage_report?        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  carnage_report_player halo3_carnage_report_player? @relation(fields: [carnage_report_id, carry_player_index], references: [carnage_report_id, player_index], onDelete: Cascade, onUpdate: NoAction)
+  carnage_report        halo3_carnage_report?        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("halo3")
+  @@map("carnage_report_event_carry")
 }
 
-model carnage_report_event_kill {
+model halo3_carnage_report_event_kill {
   id                                                                                                           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   carnage_report_id                                                                                            String?                @db.Uuid
   time                                                                                                         Decimal @db.Decimal(20, 0)
@@ -93,14 +86,15 @@ model carnage_report_event_kill {
   killer_position                                                                                              Float[]
   dead_position                                                                                                Float[]
   kill_type                                                                                                    Int
-  carnage_report_player_carnage_report_event_kill_carnage_report_id_dead_player_indexTocarnage_report_player   carnage_report_player? @relation("carnage_report_event_kill_carnage_report_id_dead_player_indexTocarnage_report_player", fields: [carnage_report_id, dead_player_index], references: [carnage_report_id, player_index], onDelete: Cascade, onUpdate: NoAction)
-  carnage_report                                                                                               carnage_report?        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade)
-  carnage_report_player_carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player carnage_report_player? @relation("carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player", fields: [carnage_report_id, killer_player_index], references: [carnage_report_id, player_index], onDelete: Cascade, onUpdate: NoAction)
+  carnage_report_player_carnage_report_event_kill_carnage_report_id_dead_player_indexTocarnage_report_player   halo3_carnage_report_player? @relation("carnage_report_event_kill_carnage_report_id_dead_player_indexTocarnage_report_player", fields: [carnage_report_id, dead_player_index], references: [carnage_report_id, player_index], onDelete: Cascade, onUpdate: NoAction)
+  carnage_report                                                                                               halo3_carnage_report?        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade)
+  carnage_report_player_carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player halo3_carnage_report_player? @relation("carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player", fields: [carnage_report_id, killer_player_index], references: [carnage_report_id, player_index], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("halo3")
+  @@map("carnage_report_event_kill")
 }
 
-model carnage_report_event_score {
+model halo3_carnage_report_event_score {
   id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   carnage_report_id     String?                @db.Uuid
   time                  Decimal @db.Decimal(20, 0)
@@ -108,13 +102,14 @@ model carnage_report_event_score {
   position              Float[]
   weapon_index          Int
   score_type            Int
-  carnage_report        carnage_report?        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  carnage_report_player carnage_report_player? @relation(fields: [carnage_report_id, score_player_index], references: [carnage_report_id, player_index], onDelete: Cascade, onUpdate: NoAction)
+  carnage_report        halo3_carnage_report?        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  carnage_report_player halo3_carnage_report_player? @relation(fields: [carnage_report_id, score_player_index], references: [carnage_report_id, player_index], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("halo3")
+  @@map("carnage_report_event_score")
 }
 
-model carnage_report_game_variant {
+model halo3_carnage_report_game_variant {
   id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   game_engine           Int            @db.SmallInt
   unique_id             Decimal @db.Decimal(20, 0)
@@ -126,12 +121,13 @@ model carnage_report_game_variant {
   author_id             Decimal @db.Decimal(20, 0)
   size_in_bytes         Decimal @db.Decimal(20, 0)
   date                  DateTime       @db.Timestamp(6)
-  carnage_report        carnage_report @relation(fields: [id], references: [id], onDelete: Cascade, map: "fk_carnage_report")
+  carnage_report        halo3_carnage_report @relation(fields: [id], references: [id], onDelete: Cascade, map: "fk_carnage_report")
 
   @@schema("halo3")
+  @@map("carnage_report_game_variant")
 }
 
-model carnage_report_machine {
+model halo3_carnage_report_machine {
   carnage_report_id                               String                  @db.Uuid
   machine_index                                   Int                     @db.SmallInt
   machine_identifier                              Bytes
@@ -157,14 +153,15 @@ model carnage_report_machine {
   session_peer_to_peer_probed_mask                Int?
   inaddr                                          String?
   inaddr_online                                   String?
-  carnage_report                                  carnage_report          @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade, map: "fk_carnage_report")
-  carnage_report_player                           carnage_report_player[]
+  carnage_report                                  halo3_carnage_report          @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade, map: "fk_carnage_report")
+  carnage_report_player                           halo3_carnage_report_player[]
 
   @@id([carnage_report_id, machine_index])
   @@schema("halo3")
+  @@map("carnage_report_machine")
 }
 
-model carnage_report_matchmaking_options {
+model halo3_carnage_report_matchmaking_options {
   id                           String         @id(map: "pk_carnage_report_matchmaking_options") @db.Uuid
   hopper_identifier            Int
   hopper_name                  String         @db.VarChar(32)
@@ -176,12 +173,13 @@ model carnage_report_matchmaking_options {
   tau                          Float
   experience_base_increment    Decimal @db.Decimal(20, 0)
   experience_penalty_decrement Decimal @db.Decimal(20, 0)
-  carnage_report               carnage_report @relation(fields: [id], references: [id], onDelete: Cascade)
+  carnage_report               halo3_carnage_report @relation(fields: [id], references: [id], onDelete: Cascade)
 
   @@schema("halo3")
+  @@map("carnage_report_matchmaking_options")
 }
 
-model carnage_report_player {
+model halo3_carnage_report_player {
   carnage_report_id                                                                                                               String                                    @db.Uuid
   player_identifier                                                                                                               Decimal @db.Decimal(20, 0)
   player_index                                                                                                                    Int                                       @db.SmallInt
@@ -262,26 +260,27 @@ model carnage_report_player {
   standing                                                                                                                        Int                                       @db.SmallInt
   result                                                                                                                          Int                                       @db.SmallInt
   score                                                                                                                           Int                                       @db.SmallInt
-  carnage_report_event_carry                                                                                                      carnage_report_event_carry[]
-  carnage_report_event_kill_carnage_report_event_kill_carnage_report_id_dead_player_indexTocarnage_report_player                  carnage_report_event_kill[]               @relation("carnage_report_event_kill_carnage_report_id_dead_player_indexTocarnage_report_player")
-  carnage_report_event_kill_carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player                carnage_report_event_kill[]               @relation("carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player")
-  carnage_report_event_score                                                                                                      carnage_report_event_score[]
-  carnage_report                                                                                                                  carnage_report                            @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade)
-  carnage_report_machine                                                                                                          carnage_report_machine?                   @relation(fields: [machine_index, carnage_report_id], references: [machine_index, carnage_report_id], onDelete: NoAction, onUpdate: NoAction)
-  carnage_report_player_achievements                                                                                              carnage_report_player_achievements?
-  carnage_report_player_damage_statistics                                                                                         carnage_report_player_damage_statistics[]
-  carnage_report_player_interaction_carnage_report_player_interaction_left_player_index_carnage_report_idTocarnage_report_player  carnage_report_player_interaction[]       @relation("carnage_report_player_interaction_left_player_index_carnage_report_idTocarnage_report_player")
-  carnage_report_player_interaction_carnage_report_player_interaction_right_player_index_carnage_report_idTocarnage_report_player carnage_report_player_interaction[]       @relation("carnage_report_player_interaction_right_player_index_carnage_report_idTocarnage_report_player")
-  carnage_report_player_medals                                                                                                    carnage_report_player_medals?
-  carnage_report_player_statistics                                                                                                carnage_report_player_statistics?
+  carnage_report_event_carry                                                                                                      halo3_carnage_report_event_carry[]
+  carnage_report_event_kill_carnage_report_event_kill_carnage_report_id_dead_player_indexTocarnage_report_player                  halo3_carnage_report_event_kill[]               @relation("carnage_report_event_kill_carnage_report_id_dead_player_indexTocarnage_report_player")
+  carnage_report_event_kill_carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player                halo3_carnage_report_event_kill[]               @relation("carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player")
+  carnage_report_event_score                                                                                                      halo3_carnage_report_event_score[]
+  carnage_report                                                                                                                  halo3_carnage_report                            @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade)
+  carnage_report_machine                                                                                                          halo3_carnage_report_machine?                   @relation(fields: [machine_index, carnage_report_id], references: [machine_index, carnage_report_id], onDelete: NoAction, onUpdate: NoAction)
+  carnage_report_player_achievements                                                                                              halo3_carnage_report_player_achievements?
+  carnage_report_player_damage_statistics                                                                                         halo3_carnage_report_player_damage_statistics[]
+  carnage_report_player_interaction_carnage_report_player_interaction_left_player_index_carnage_report_idTocarnage_report_player  halo3_carnage_report_player_interaction[]       @relation("carnage_report_player_interaction_left_player_index_carnage_report_idTocarnage_report_player")
+  carnage_report_player_interaction_carnage_report_player_interaction_right_player_index_carnage_report_idTocarnage_report_player halo3_carnage_report_player_interaction[]       @relation("carnage_report_player_interaction_right_player_index_carnage_report_idTocarnage_report_player")
+  carnage_report_player_medals                                                                                                    halo3_carnage_report_player_medals?
+  carnage_report_player_statistics                                                                                                halo3_carnage_report_player_statistics?
 
   @@id([carnage_report_id, player_index])
   @@index([player_name], map: "idx_player_name")
   @@index([player_xuid], map: "idx_player_xuid")
   @@schema("halo3")
+  @@map("carnage_report_player")
 }
 
-model carnage_report_player_achievements {
+model halo3_carnage_report_player_achievements {
   carnage_report_id           String                @db.Uuid
   player_index                Int                   @db.SmallInt
   landfall                    Int                   @db.SmallInt
@@ -333,13 +332,14 @@ model carnage_report_player_achievements {
   fear_the_pink_mist          Int                   @db.SmallInt
   headshot_honcho             Int                   @db.SmallInt
   used_car_salesman           Int                   @db.SmallInt
-  carnage_report_player       carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: Cascade, map: "fk_achievements_carnage_report_player")
+  carnage_report_player       halo3_carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: Cascade, map: "fk_achievements_carnage_report_player")
 
   @@id([carnage_report_id, player_index])
   @@schema("halo3")
+  @@map("carnage_report_player_achievements")
 }
 
-model carnage_report_player_damage_statistics {
+model halo3_carnage_report_player_damage_statistics {
   carnage_report_id     String                @db.Uuid
   player_index          Int                   @db.SmallInt
   damage_source         String                @db.VarChar
@@ -348,26 +348,28 @@ model carnage_report_player_damage_statistics {
   betrayals             Int                   @db.SmallInt
   suicides              Int                   @db.SmallInt
   headshots             Int                   @db.SmallInt
-  carnage_report_player carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: Cascade, map: "fk_damage_statistics_carnage_report_player")
+  carnage_report_player halo3_carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: Cascade, map: "fk_damage_statistics_carnage_report_player")
 
   @@id([carnage_report_id, player_index, damage_source])
   @@schema("halo3")
+  @@map("carnage_report_player_damage_statistics")
 }
 
-model carnage_report_player_interaction {
+model halo3_carnage_report_player_interaction {
   carnage_report_id                                                                                                   String                @db.Uuid
   left_player_index                                                                                                   Int                   @db.SmallInt
   right_player_index                                                                                                  Int                   @db.SmallInt
   killed                                                                                                              Int                   @db.SmallInt
   killed_by                                                                                                           Int                   @db.SmallInt
-  carnage_report_player_carnage_report_player_interaction_left_player_index_carnage_report_idTocarnage_report_player  carnage_report_player @relation("carnage_report_player_interaction_left_player_index_carnage_report_idTocarnage_report_player", fields: [left_player_index, carnage_report_id], references: [player_index, carnage_report_id], onDelete: Cascade, onUpdate: NoAction, map: "carnage_report_player_interac_left_player_index_carnage_re_fkey")
-  carnage_report_player_carnage_report_player_interaction_right_player_index_carnage_report_idTocarnage_report_player carnage_report_player @relation("carnage_report_player_interaction_right_player_index_carnage_report_idTocarnage_report_player", fields: [right_player_index, carnage_report_id], references: [player_index, carnage_report_id], onDelete: Cascade, onUpdate: NoAction, map: "carnage_report_player_interac_right_player_index_carnage_r_fkey")
+  carnage_report_player_carnage_report_player_interaction_left_player_index_carnage_report_idTocarnage_report_player  halo3_carnage_report_player @relation("carnage_report_player_interaction_left_player_index_carnage_report_idTocarnage_report_player", fields: [left_player_index, carnage_report_id], references: [player_index, carnage_report_id], onDelete: Cascade, onUpdate: NoAction, map: "carnage_report_player_interac_left_player_index_carnage_re_fkey")
+  carnage_report_player_carnage_report_player_interaction_right_player_index_carnage_report_idTocarnage_report_player halo3_carnage_report_player @relation("carnage_report_player_interaction_right_player_index_carnage_report_idTocarnage_report_player", fields: [right_player_index, carnage_report_id], references: [player_index, carnage_report_id], onDelete: Cascade, onUpdate: NoAction, map: "carnage_report_player_interac_right_player_index_carnage_r_fkey")
 
   @@id([carnage_report_id, left_player_index, right_player_index])
   @@schema("halo3")
+  @@map("carnage_report_player_interaction")
 }
 
-model carnage_report_player_medals {
+model halo3_carnage_report_player_medals {
   carnage_report_id                 String                @db.Uuid
   player_index                      Int                   @db.SmallInt
   extermination                     Int                   @db.SmallInt
@@ -428,14 +430,15 @@ model carnage_report_player_medals {
   nemesis                           Int                   @db.SmallInt
   avenger                           Int                   @db.SmallInt
   unused3                           Int                   @db.SmallInt
-  carnage_report                    carnage_report        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade)
-  carnage_report_player             carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: NoAction, onUpdate: NoAction)
+  carnage_report                    halo3_carnage_report        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade)
+  carnage_report_player             halo3_carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([carnage_report_id, player_index])
   @@schema("halo3")
+  @@map("carnage_report_player_medals")
 }
 
-model carnage_report_player_statistics {
+model halo3_carnage_report_player_statistics {
   carnage_report_id              String                @db.Uuid
   player_index                   Int                   @db.SmallInt
   games_played                   Int                   @db.SmallInt
@@ -489,25 +492,27 @@ model carnage_report_player_statistics {
   infection_zombie_kills         Int                   @db.SmallInt
   infection_infections           Int                   @db.SmallInt
   infection_time_as_human        Int                   @db.SmallInt
-  carnage_report_player          carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: Cascade, map: "fk_statistics_carnage_report_player")
+  carnage_report_player          halo3_carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: Cascade, map: "fk_statistics_carnage_report_player")
 
   @@id([carnage_report_id, player_index])
   @@schema("halo3")
+  @@map("carnage_report_player_statistics")
 }
 
-model carnage_report_team {
+model halo3_carnage_report_team {
   team_index                     Int
   carnage_report_id              String                          @db.Uuid
   standing                       Int                             @db.SmallInt
   score                          Int                             @db.SmallInt
-  carnage_report                 carnage_report                  @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  carnage_report_team_statistics carnage_report_team_statistics?
+  carnage_report                 halo3_carnage_report                  @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  carnage_report_team_statistics halo3_carnage_report_team_statistics?
 
   @@id([team_index, carnage_report_id])
   @@schema("halo3")
+  @@map("carnage_report_team")
 }
 
-model carnage_report_team_statistics {
+model halo3_carnage_report_team_statistics {
   carnage_report_id              String              @db.Uuid
   team_index                     Int                 @db.SmallInt
   games_played                   Int                 @db.SmallInt
@@ -561,13 +566,14 @@ model carnage_report_team_statistics {
   infection_zombie_kills         Int                 @db.SmallInt
   infection_infections           Int                 @db.SmallInt
   infection_time_as_human        Int                 @db.SmallInt
-  carnage_report_team            carnage_report_team @relation(fields: [carnage_report_id, team_index], references: [carnage_report_id, team_index], onDelete: Cascade, onUpdate: NoAction, map: "fk_statistics_carnage_report_team")
+  carnage_report_team            halo3_carnage_report_team @relation(fields: [carnage_report_id, team_index], references: [carnage_report_id, team_index], onDelete: Cascade, onUpdate: NoAction, map: "fk_statistics_carnage_report_team")
 
   @@id([carnage_report_id, team_index])
   @@schema("halo3")
+  @@map("carnage_report_team_statistics")
 }
 
-model matchmaking_quality {
+model halo3_matchmaking_quality {
   id                                               String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   aborted                                          Boolean
   assemble_timed_out                               Boolean
@@ -614,12 +620,13 @@ model matchmaking_quality {
   inaddr_online                                    String
   port_online                                      Int
   ab_online                                        Bytes
-  matchmaking_session_search                       matchmaking_session_search[]
+  matchmaking_session_search                       halo3_matchmaking_session_search[]
 
   @@schema("halo3")
+  @@map("matchmaking_quality")
 }
 
-model matchmaking_session_search {
+model halo3_matchmaking_session_search {
   id                                  String                                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   matchmaking_quality_id              String                                @db.Uuid
   session_count                       Int
@@ -658,35 +665,38 @@ model matchmaking_session_search {
   search_preference                   String
   query_flags                         Int                                   @db.SmallInt
   query                               String
-  matchmaking_quality                 matchmaking_quality                   @relation(fields: [matchmaking_quality_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  matchmaking_session_search_context  matchmaking_session_search_context[]
-  matchmaking_session_search_property matchmaking_session_search_property[]
+  matchmaking_quality                 halo3_matchmaking_quality                   @relation(fields: [matchmaking_quality_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  matchmaking_session_search_context  halo3_matchmaking_session_search_context[]
+  matchmaking_session_search_property halo3_matchmaking_session_search_property[]
 
   @@schema("halo3")
+  @@map("matchmaking_session_search")
 }
 
-model matchmaking_session_search_context {
+model halo3_matchmaking_session_search_context {
   id                         String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   matchmaking_search_id      String                     @db.Uuid
   context_id                 String
   context_value              String
-  matchmaking_session_search matchmaking_session_search @relation(fields: [matchmaking_search_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  matchmaking_session_search halo3_matchmaking_session_search @relation(fields: [matchmaking_search_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("halo3")
+  @@map("matchmaking_session_search_context")
 }
 
-model matchmaking_session_search_property {
+model halo3_matchmaking_session_search_property {
   id                         String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   matchmaking_search_id      String                     @db.Uuid
   property                   String
   property_type              String
   property_value             String
-  matchmaking_session_search matchmaking_session_search @relation(fields: [matchmaking_search_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  matchmaking_session_search halo3_matchmaking_session_search @relation(fields: [matchmaking_search_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("halo3")
+  @@map("matchmaking_session_search_property")
 }
 
-model player_data {
+model halo3_player_data {
   player_xuid               Decimal  @db.Decimal(20, 0)   @id
   hopper_access             Int?     @default(0)
   highest_skill             Int?     @default(0)
@@ -699,9 +709,10 @@ model player_data {
   odst_extras_portal_debug  Boolean? @default(false)
 
   @@schema("halo3")
+  @@map("player_data")
 }
 
-model service_record {
+model halo3_service_record {
   player_xuid                        Decimal @db.Decimal(20, 0)   @id
   player_name                        String   @db.VarChar(16)
   appearance_flags                   Int      @db.SmallInt
@@ -730,7 +741,7 @@ model service_record {
   experience_base                    Int
   rank                               Int
   grade                              Int
-  games_completed                       Int
+  games_completed                    Int
   first_played                       DateTime @db.Timestamp(6)
   last_played                        DateTime @db.Timestamp(6)
   bungienet_user_flags               Decimal @db.Decimal(20, 0)
@@ -747,41 +758,11 @@ model service_record {
   custom_games_completed             Decimal @db.Decimal(20, 0)
 
   @@index([player_name], map: "idx_service_record_player_name")
+  @@map("service_record")
   @@schema("halo3")
 }
 
-model odst_blind_screenshot {
-  id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  unique_id                 Decimal? @db.Decimal(20, 0)
-  name                      String   @db.VarChar(16)
-  description               String   @db.VarChar(128)
-  author                    String   @db.VarChar(16)
-  file_type                 Int
-  author_is_xuid_online     Boolean
-  author_id                 Decimal @db.Decimal(20, 0)
-  size_in_bytes             Decimal @db.Decimal(20, 0)
-  date                      DateTime @db.Timestamp(6)
-  length_seconds            Int
-  campaign_id               Int
-  map_id                    Int
-  game_engine_type          Int
-  campaign_difficulty       Int
-  campaign_insertion_point  Int      @db.SmallInt
-  campaign_survival_enabled Boolean
-  game_id                   Decimal @db.Decimal(20, 0)
-  game_tick                 Int
-  film_tick                 Int
-  jpeg_length               Int
-  camera_position           Float[]
-  pixel_width               Int      @db.SmallInt
-  pixel_height              Int      @db.SmallInt
-
-  @@unique([unique_id, date, game_id], map: "unique_unique_id_date")
-  @@map("blind_screenshot")
-  @@schema("odst")
-}
-
-model file_share_slot {
+model halo3_file_share_slot {
   id                          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   share_id                    Decimal         @db.Decimal(20, 0)
   slot                        Int             @db.SmallInt
@@ -808,10 +789,11 @@ model file_share_slot {
   game_id                     Decimal?         @db.Decimal(20, 0)
 
   @@unique([share_id, slot], map: "unique_share_id_slot")
+  @@map("file_share_slot")
   @@schema("halo3")
 }
 
-model file_share {
+model halo3_file_share {
   share_id                  Decimal          @id @db.Decimal(20, 0)
   quota_slots               Int?             @db.SmallInt
   quota_bytes               Int?             
@@ -820,12 +802,5 @@ model file_share {
   unsubscribe_stage         Int?              @db.SmallInt
 
   @@schema("halo3")
-}
-
-model player_data_reach {
-  player_xuid               Decimal  @db.Decimal(20, 0)   @id
-  hopper_access             Int?     @default(0)
-  hopper_directory_override String?  @db.VarChar(32)
-
-  @@schema("reach")
+  @@map("file_share")
 }

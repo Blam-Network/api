@@ -8,7 +8,7 @@ import {
   Res,
   StreamableFile,
 } from '@nestjs/common';
-import { createReadStream } from 'fs';
+import { createReadStream, existsSync } from 'fs';
 import { basename, join } from 'path';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { stat } from 'fs/promises';
@@ -104,6 +104,9 @@ export class TitleStorageController {
   ) {
     const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, 'ares', 'untracked', username, branch, ...path);
     const fileName = basename(filePath);
+
+    if (!existsSync(filePath)) throw new NotFoundException();
+
     const stats = await stat(filePath);
 
     if (!stats.isFile()) throw new NotFoundException();
@@ -144,6 +147,9 @@ export class TitleStorageController {
   ) {
     const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, 'ares', 'tracked', buildNumber, ...path);
     const fileName = basename(filePath);
+
+    if (!existsSync(filePath)) throw new NotFoundException();
+
     const stats = await stat(filePath);
 
     if (!stats.isFile()) throw new NotFoundException();

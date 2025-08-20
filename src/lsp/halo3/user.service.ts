@@ -62,10 +62,10 @@ export class Halo3UserService {
 
             if (playerData) {
                 let bungie_user_role = 0;
-                bungie_user_role | 1 << 1; // give everyone the seventh column
-                if (playerData.is_pro) bungie_user_role | 1 << 1;
-                if (playerData.is_bungie) bungie_user_role | 1 << 2;
-                if (playerData.has_recon || playerData.road_to_recon_completed) bungie_user_role | 1 << 3;
+                bungie_user_role |= (1 << 0); // give everyone the seventh column
+                if (playerData.is_pro) bungie_user_role |= (1 << 1);
+                if (playerData.is_bungie) bungie_user_role |= (1 << 2);
+                if (playerData.has_recon || playerData.road_to_recon_completed) bungie_user_role |= (1 << 3);
                 fupd = {
                     hopper_access: playerData.hopper_access ?? 0,
                     highest_skill: playerData.highest_skill ?? 0,

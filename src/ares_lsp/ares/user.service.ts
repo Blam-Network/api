@@ -37,7 +37,7 @@ export class AresUserService {
 
         await Promise.allSettled([playerDataPromise]);
 
-        this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
+        this.logger.log(`[USER] user file requested for user ${xuid}`)
 
         return BLF.ares_untracked.build_user_file(
             fupd,

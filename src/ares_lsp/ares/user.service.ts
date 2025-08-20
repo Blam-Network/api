@@ -35,6 +35,15 @@ export class AresUserService {
             }
         })
 
+        if (!fupd) {
+            fupd = {
+                bungie_user_role: 1,
+                highest_skill: 1,
+                hopper_access: 0xffffffff,
+                hopper_directory: 'ares_hoppers'
+            }
+        }
+
         await Promise.allSettled([playerDataPromise]);
 
         this.logger.log(`[USER] ares user file requested for user ${xuid}`)

@@ -83,60 +83,6 @@ export class TitleStorageController {
   }
 
   @ApiOperation({
-    summary: 'Ares Untracked Nignmap',
-    description: "Returns the world map population image shown on Halo 3's Matchmaking menu.",
-  })
-  @ApiTags('Ares')
-  @Header('Content-Type', 'image/jpg')
-  @Get('/ares/untracked/:username/:branch/:hopper_directory/dynamic_matchmaking_nightmap.jpg')
-  async aresUntrackedNightmap() {
-    const nightmap = await this.halo3PopulationService.getNightmap();
-    return new StreamableFile(nightmap, { disposition: "filename=dynamic_matchmaking_nightmap.jpg" });
-  }
-
-  @ApiOperation({
-    summary: 'Untracked Ares Static Title Storage',
-    description: "Used to download static title storage files. These are mostly BLF files containing matchmaking playlist configuration, network configuration, MOTDs etc. \
-      This endpoint is used for anything not dynamic.",
-    externalDocs: {
-      description: "Blam-Title-Storage (GitHub)",
-      url: 'https://github.com/Blam-Network/Blam-Title-Storage'
-    },
-    parameters: [
-      {
-        name: 'path',
-        example: '/default_hoppers/manifest_001.bin',
-        in: 'path'
-      }
-    ]
-  })
-  @ApiParam({
-    name: 'path',
-    example: '/default_hoppers/manifest_001.bin',
-    style: 'simple',
-    allowReserved: true,
-  })
-  @Get('/ares/untracked/:username/:branch/*path')
-  @ApiTags('Ares')
-  async getAresUntrackedStaticFile(
-    @Param('username') username: string,
-    @Param('branch') branch: string,
-    @Param('path') path: string,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, 'ares', 'untracked', username, branch, ...path);
-    const fileName = basename(filePath);
-    const stats = await stat(filePath);
-
-    if (!stats.isFile()) throw new NotFoundException();
-
-    res.set('Content-Length', stats.size.toString());
-    res.set('Cache-Control', 'no-cache');
-
-    return new StreamableFile(createReadStream(filePath), {disposition: `filename=${fileName}`});
-  }
-
-    @ApiOperation({
     summary: 'Static Title Storage',
     description: "Used to download static title storage files. These are mostly BLF files containing matchmaking playlist configuration, network configuration, MOTDs etc. \
       This endpoint is used for anything not dynamic.",

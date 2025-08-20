@@ -43,11 +43,11 @@ import { AresFileShareService } from './ares/fileshare.service';
         AresFileShareService,
         CompressionService,
         DiscordWebhookService,
-        { provide: ILoggerSymbol, useClass: ConsoleLogger },
+        { provide: ILoggerSymbol, useFactory: () => new ConsoleLogger({prefix: 'ARES'}) },
         ShutdownObserver,
     ],
 })
-export class LSPModule implements NestModule {
+export class AresLSPModule implements NestModule {
     configure(consumer: MiddlewareConsumer): void {
         consumer.apply(AppLoggerMiddleware).forRoutes('*');
     }

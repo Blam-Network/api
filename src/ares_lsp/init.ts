@@ -5,14 +5,14 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import * as http from 'http';
 import * as express from 'express';
 import { ShutdownObserver } from 'src/ShutdownObserver';
-import { LSPModule } from 'src/lsp/lsp.module';
+import { AresLSPModule } from 'src/ares_lsp/ares_lsp.module';
 import { LSP_PORT_RANGE } from './constants';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 
 export const createAresLSPServer = async () => {
     const server = express();
     const app = await NestFactory.create(
-        LSPModule,
+        AresLSPModule,
         new ExpressAdapter(server),
     );
 
@@ -40,5 +40,5 @@ export const createAresLSPServer = async () => {
     })
 
     const logger = app.get<ILogger>(ILoggerSymbol)
-    logger.log(`[LSP] Listening on ports: ${LSP_PORT_RANGE.toString()}`)
+    logger.log(`[Ares] Listening on ports: ${LSP_PORT_RANGE.toString()}`)
 }

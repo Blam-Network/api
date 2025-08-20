@@ -1,8 +1,5 @@
 import { ConsoleLogger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'path';
-import { CqrsModule } from '@nestjs/cqrs';
-import { UploadServerController } from 'src/lsp/controllers/uploadserver.controller';
+import { UploadServerController } from './controllers/uploadserver.controller';
 import { AresUploadService } from './ares/upload.service';
 import { AppLoggerMiddleware } from 'src/middleware/AppLoggerMiddleware';
 import { CompressionService } from './services/compression.service';

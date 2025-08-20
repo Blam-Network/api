@@ -29,12 +29,24 @@ export class TitleStorageController {
     summary: 'Population',
     description: "Returns a BLF file containing Matchmaking Hopper Statistics for Halo 3.",
   })
-  @ApiTags('Ares')
   @ApiParam({ name: 'tracked', example: "tracked" })
   @ApiParam({ name: 'build_number', example: "12065" })
   @ApiParam({ name: 'hopper_directory', example: "default_hoppers" })
-  @Get('/:tracked/:build_number/:hopper_directory/dynamic_hopper_statistics.bin')
+  @Get('/tracked/:build_number/:hopper_directory/dynamic_hopper_statistics.bin')
   async getHalo3Population() {
+    const blfFile = await this.halo3PopulationService.getHopperStatistics();
+    return new StreamableFile(blfFile, { disposition: "filename=dynamic_hopper_statistics.bin" });
+  }
+
+  @ApiOperation({
+    summary: 'Untracked Population',
+    description: "Returns a BLF file containing Matchmaking Hopper Statistics for Halo 3.",
+  })
+  @ApiParam({ name: 'tracked', example: "tracked" })
+  @ApiParam({ name: 'build_number', example: "12065" })
+  @ApiParam({ name: 'hopper_directory', example: "default_hoppers" })
+  @Get('/untracked/:username/:branch/:hopper_directory/dynamic_hopper_statistics.bin')
+  async getUntrackedAresPopulation() {
     const blfFile = await this.halo3PopulationService.getHopperStatistics();
     return new StreamableFile(blfFile, { disposition: "filename=dynamic_hopper_statistics.bin" });
   }

@@ -367,12 +367,10 @@ export class GameApiController {
 
   @Get('/FilesResumeDownload.ashx')
   @ApiOperation({
-    summary: "Resume Halo 3 / ODST File Download",
+    summary: "Resume File Download",
     description: "Resume downloading a file from a file share. Same parameters as FilesStartDownload.ashx."
   })
   @ApiTags('File Share')
-  @ApiTags('Halo 3')
-  @ApiTags('Halo 3: ODST')
   @ApiHeader({ name: 'title' })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })

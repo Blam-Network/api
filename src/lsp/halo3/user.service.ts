@@ -68,7 +68,7 @@ export class Halo3UserService {
                 if (playerData.has_recon || playerData.road_to_recon_completed) bungie_user_role | 1 << 3;
                 fupd = {
                     hopper_access: playerData.hopper_access ?? 0,
-                    highest_skill: playerData.hopper_access ?? 0,
+                    highest_skill: playerData.highest_skill ?? 0,
                     bungie_user_role,
                     hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
                 }

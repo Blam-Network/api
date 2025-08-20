@@ -27,7 +27,7 @@ export class AresUserService {
                 if (playerData.has_recon) bungie_user_role | 1 << 3;
                 fupd = {
                     hopper_access: playerData.hopper_access ?? 0,
-                    highest_skill: playerData.hopper_access ?? 0,
+                    highest_skill: playerData.highest_skill ?? 0,
                     bungie_user_role,
                     // Don't make this "default_hoppers", we use that to update the port range.
                     hopper_directory: playerData.hopper_directory_override || 'ares_hoppers'

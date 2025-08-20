@@ -29,16 +29,14 @@ export class AresUserService {
                     hopper_access: playerData.hopper_access ?? 0,
                     highest_skill: playerData.hopper_access ?? 0,
                     bungie_user_role,
-                    hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
+                    // Don't make this "default_hoppers", we use that to update the port range.
+                    hopper_directory: playerData.hopper_directory_override || 'ares_hoppers'
                 }
             }
         })
 
         await Promise.allSettled([playerDataPromise]);
 
-        // Typescript is dumb
-        // @ts-ignore
-        let name = srid ? srid.player_name : '<unknown>';
         this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
 
         return BLF.ares_untracked.build_user_file(

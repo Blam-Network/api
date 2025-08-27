@@ -4,6 +4,7 @@ import {
   StreamableFile,
   Post,
   HttpCode,
+  NotFoundException,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
@@ -29,5 +30,15 @@ export class ReachPresenceApiController {
     });
 
     return new StreamableFile(blfFile);
+  }
+
+  @HttpCode(200)
+  @Post('/query.ashx')
+  @ApiTags('Halo: Reach')
+  @ApiOperation({
+    description: 'We dont know anything about this endpoint yet.',
+  })
+  async postQuery() {
+    throw new NotFoundException();
   }
 }

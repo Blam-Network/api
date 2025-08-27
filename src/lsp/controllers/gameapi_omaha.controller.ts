@@ -99,4 +99,14 @@ export class GameApiOmahaController {
   ) {
     return `Status: Subscribed`;
   }
+
+  @HttpCode(200)
+  @Post('/UserUpdateImage.ashx')
+  @ApiTags('Halo: Reach')
+  @ApiOperation({
+    description: 'We dont know anything about this endpoint yet.',
+  })
+  async userUpdateImage() {
+    throw new NotFoundException();
+  }
 }

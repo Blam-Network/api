@@ -16,6 +16,7 @@ import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import * as BLF from '@blam-network/blf_lsp';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { EXAMPLE_XUID } from '../../constants';
+import dedent from 'dedent';
 
 @ApiTags('Game API Omaha')
 @Controller('/gameapi_omaha')
@@ -108,5 +109,25 @@ export class GameApiOmahaController {
   })
   async userUpdateImage() {
     throw new NotFoundException();
+  }
+
+  @HttpCode(200)
+  @Post('/CheckWhitelist.ashx')
+  @ApiTags('Halo: Reach')
+  @ApiQuery({ name: 'machineId', type: 'number' })
+  @ApiQuery({ name: 'xuids', type: 'number' })
+  @ApiOperation({
+    summary: 'Check if the user is on the Whitelist.',
+    description: 'Used in pre-release Halo: Reach. Not much is known about this yet.',
+  })
+  async checkWhitelist(
+    @Query('xuids') xuids,
+  ) {
+    return dedent(`
+      Allowed: 1
+      AllowedXuid0: ${xuids}
+      AllowedVIPXuid0: ${xuids}
+      ErrorCode: 0
+    `)
   }
 }

@@ -112,7 +112,7 @@ export class GameApiOmahaController {
   }
 
   @HttpCode(200)
-  @Post('/CheckWhitelist.ashx')
+  @Get('/CheckWhitelist.ashx')
   @ApiTags('Halo: Reach')
   @ApiQuery({ name: 'machineId', type: 'number' })
   @ApiQuery({ name: 'xuids', type: 'number' })

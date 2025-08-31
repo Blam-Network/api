@@ -17,6 +17,7 @@ import * as BLF from '@blam-network/blf_lsp';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { EXAMPLE_XUID } from '../../constants';
 import dedent from 'dedent';
+import { parseXuid } from 'src/xbox/xuid';
 
 @ApiTags('Game API Omaha')
 @Controller('/gameapi_omaha')
@@ -125,8 +126,8 @@ export class GameApiOmahaController {
   ) {
     return dedent(`
       Allowed: 1
-      AllowedXuid0: ${xuids}
-      AllowedVIPXuid0: ${xuids}
+      AllowedXuid0: ${parseXuid(xuids)}
+      AllowedVIPXuid0: ${parseXuid(xuids)}
       ErrorCode: 0
     `)
   }

@@ -63,7 +63,12 @@ export class HaloReachWhitelistService {
                     select: { player_xuid: true }
                 })).map(playerData => Number(playerData.player_xuid))
 
-                return buildWhitelistResponse(whitelistedXuids, [], WhitelistStatusCode.SUCCESS);
+                const vipXuids = (await this.prisma.reach_player_data.findMany({
+                    where: { player_xuid: { in: xuids }, is_vip: true },
+                    select: { player_xuid: true }
+                })).map(playerData => Number(playerData.player_xuid))
+
+                return buildWhitelistResponse(whitelistedXuids, vipXuids, WhitelistStatusCode.SUCCESS);
             }
         }
     }

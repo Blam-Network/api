@@ -18,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { EXAMPLE_XUID } from '../../constants';
 import { getExampleResponse, HaloReachWhitelistService } from '../haloreach/whitelist.service';
 import { ParseXUIDPipe } from 'src/xbox/parse-xuid.pipe';
+import dedent from 'dedent';
 
 @ApiTags('Game API Omaha', 'Halo: Reach')
 @Controller('/gameapi_omaha')
@@ -345,7 +346,15 @@ export class GameApiOmahaController {
   @ApiQuery({ name: 'xuids', type: 'number', description: 'xuids of players signed into each controller. 4 max.' })
   @ApiOperation({
     summary: 'Check if the users are on the Whitelist.',
-    description: 'Used in pre-release Halo: Reach to unlock the game.',
+    description: dedent(`
+      Used in pre-release Halo: Reach to unlock the game.\r\n
+      Players who are given VIP status have access to three keybinds:\r\n
+      • Network Status Debug (CLAW)\r\n
+      • Tracedump (doesn't work in release builds)\r\n
+        - Might have 2 bindings for 2 different types of dump update_thread.bin and render_thread.bin.\r\n
+      • Prevent Host Migration\r\n
+        - if the player is hosting, they will never handover to another player. \r\n
+    `),
     responses: {
       default:  {
         content: {

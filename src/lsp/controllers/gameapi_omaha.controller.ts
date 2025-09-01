@@ -5,29 +5,29 @@ import {
   Query,
   Res,
   StreamableFile,
-  NotFoundException,
   UseInterceptors,
   HttpCode,
   Post,
   UploadedFile,
+  NotImplementedException,
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import * as BLF from '@blam-network/blf_lsp';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { EXAMPLE_XUID } from '../../constants';
-import dedent from 'dedent';
-import { parseXuid } from 'src/xbox/xuid';
+import { getExampleResponse, HaloReachWhitelistService } from '../haloreach/whitelist.service';
+import { ParseXUIDPipe } from 'src/xbox/parse-xuid.pipe';
 
-@ApiTags('Game API Omaha')
+@ApiTags('Game API Omaha', 'Halo: Reach')
 @Controller('/gameapi_omaha')
 export class GameApiOmahaController {
   constructor(
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
+    @Inject() private readonly whitelist: HaloReachWhitelistService,
   ) { }
 
   @Get('/ArenaGetSeasonStats.ashx')
-  @ApiTags('Halo: Reach')
   @ApiOperation({
     summary: 'Get Arena Season Statistics',
     description: 'Returns hopper statistics for the current Arena season. This is currently stubbed and returns an empty struct.',
@@ -50,7 +50,6 @@ export class GameApiOmahaController {
 
   @HttpCode(200)
   @Post('/UserUpdateRewards.ashx')
-  @ApiTags('Halo: Reach')
   @ApiOperation({
     summary: 'Update User Rewards',
     description: "We're not sure how this endpoint works yet, but it returns player unlocks and daily challenges, and the game sends up a BLF file. Currently stubbed to return everything unlocked and no challenges.",
@@ -88,9 +87,8 @@ export class GameApiOmahaController {
   summary: 'User Get Bungie.NET Subscription Info',
   description: "Returns information about the user's Bungie PRO subscription, if they have one.\
     We don't support File-Share for Halo: Reach yet, so this is stubbed.",
-})
+  })
   @ApiTags('File Share')
-  @ApiTags('Halo: Reach')
   @ApiQuery({ name: 'titleId', type: 'number' })
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'locale', type: 'string', example: 'en' })
@@ -99,36 +97,268 @@ export class GameApiOmahaController {
     @Query('userId') userID,
     @Query('locale') locale,
   ) {
+    // Seems to use the same response format as ODST.
     return `Status: Subscribed`;
   }
 
   @HttpCode(200)
   @Post('/UserUpdateImage.ashx')
-  @ApiTags('Halo: Reach')
   @ApiOperation({
     description: 'We dont know anything about this endpoint yet.',
+    deprecated: true // used to denote not-implemented.
   })
   async userUpdateImage() {
-    throw new NotFoundException();
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Post('/SignBuffer.ashx')
+  @ApiOperation({
+    description: 'We dont know anything about this endpoint yet.',
+        deprecated: true // used to denote not-implemented.
+  })
+  async signBuffer() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesGetCatalog.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async getFileshare() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesGetCatalogInfo.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async getFileshareInfo() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesDelete.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async deleteFile() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesNewUpload.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async startFileUpload() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesGetUploadProgress.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async getUploadProgress() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesTagItem.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async tagFile() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesGetDetails.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async getFileDetails() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesGetPredefinedCount.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async getPredefinedCount() {
+    throw new NotImplementedException();
+  }
+  
+  @HttpCode(200)
+  @Get('/FilesGetPredefinedQuery.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async getPredefinedQuery() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesReccomend.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async recommendFile() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesGetReccomendation.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async getFileRecommendation() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesGetSearchCount.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async getFileSearchCount() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesGetSearch.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async getFileSearch() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesUpload.ashx')
+  @ApiTags('File Share')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async uploadFile() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/MachineUpdateNetworkStats.ashx')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async machineUpdateNetworkStats() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesUploadBlind.ashx')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async uploadFileBlind() {
+    throw new NotImplementedException();
+  }
+
+  @HttpCode(200)
+  @Get('/FilesResumeDownload.ashx')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async resumeFileDownload() {
+    throw new NotImplementedException();
+  }
+
+
+  @HttpCode(200)
+  @Get('/UserGetServiceRecord.ashx')
+  @ApiOperation({
+    description: 'Not yet implemented.',
+    deprecated: true // used to denote not-implemented.
+  })
+  async getServiceRecord() {
+    // I think this might return a blf file with a srid in it.
+    throw new NotImplementedException();
+  }
+
+  @Get('/UserBeginConsume.ashx')
+  @ApiOperation({
+    summary: 'Bungie Pro - Complete Consume',
+    description: "We're not sure what this endpoint does yet and it has never been called. It might be involved in letting Bungie.NET know when a user has bought Bungie PRO via the Xbox Marketplace.",
+    deprecated: true,
+  })
+  @ApiTags('File Share')
+  async userBeginConsume() {
+    throw new NotImplementedException();
+  }
+
+  @Get('/UserCompleteConsume.ashx')
+  @ApiOperation({
+    summary: 'Bungie Pro - Complete Consume',
+    description: "We're not sure what this endpoint does yet and it has never been called. It might be involved in letting Bungie.NET know when a user has bought Bungie PRO via the Xbox Marketplace.",
+    deprecated: true,
+  })
+  @ApiTags('File Share')
+  async userCompleteConsume() {
+    throw new NotImplementedException();
   }
 
   @HttpCode(200)
   @Get('/CheckWhitelist.ashx')
-  @ApiTags('Halo: Reach')
   @ApiQuery({ name: 'machineId', type: 'number' })
-  @ApiQuery({ name: 'xuids', type: 'number' })
+  @ApiQuery({ name: 'xuids', type: 'number', description: 'xuids of players signed into each controller. 4 max.' })
   @ApiOperation({
-    summary: 'Check if the user is on the Whitelist.',
-    description: 'Used in pre-release Halo: Reach. Not much is known about this yet.',
+    summary: 'Check if the users are on the Whitelist.',
+    description: 'Used in pre-release Halo: Reach to unlock the game.',
+    responses: {
+      default:  {
+        content: {
+          'text/plain': {'example': getExampleResponse() }
+        },
+        description: 'Example response for allowing users to play.',
+      }
+    }
   })
   async checkWhitelist(
-    @Query('xuids') xuids,
+    @Query('machineId', ParseXUIDPipe) machineId,
+    @Query('xuids', ParseXUIDPipe) xuids,
   ) {
-    return dedent(`
-      Allowed: 1
-      AllowedXuid0: ${parseXuid(xuids)}
-      AllowedVIPXuid0: ${parseXuid(xuids)}
-      ErrorCode: 0
-    `)
+    return await this.whitelist.getWhitelistResponse(machineId, [xuids]);
   }
 }

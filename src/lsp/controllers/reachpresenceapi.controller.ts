@@ -4,7 +4,7 @@ import {
   StreamableFile,
   Post,
   HttpCode,
-  NotFoundException,
+  NotImplementedException,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
@@ -37,8 +37,9 @@ export class ReachPresenceApiController {
   @ApiTags('Halo: Reach')
   @ApiOperation({
     description: 'We dont know anything about this endpoint yet.',
+    deprecated: true // Deprecated to denote not implemented.
   })
   async postQuery() {
-    throw new NotFoundException();
+    throw new NotImplementedException();
   }
 }

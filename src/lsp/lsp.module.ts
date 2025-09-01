@@ -24,6 +24,7 @@ import { Halo3PopulationService } from './halo3/population.service';
 import { Halo3FileShareService } from './halo3/fileshare.service';
 import { GameApiOmahaController } from './controllers/gameapi_omaha.controller';
 import { ReachPresenceApiController } from './controllers/reachpresenceapi.controller';
+import { HaloReachWhitelistService } from './haloreach/whitelist.service';
 
 @Module({
     imports: [
@@ -51,6 +52,7 @@ import { ReachPresenceApiController } from './controllers/reachpresenceapi.contr
         HaloReachMachineService,
         Halo3PopulationService,
         Halo3FileShareService,
+        HaloReachWhitelistService,
         CompressionService,
         DiscordWebhookService,
         { provide: ILoggerSymbol, useClass: ConsoleLogger },

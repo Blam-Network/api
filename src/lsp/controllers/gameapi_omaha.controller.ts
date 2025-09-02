@@ -19,6 +19,7 @@ import { EXAMPLE_XUID } from '../../constants';
 import { getExampleResponse, HaloReachWhitelistService } from '../haloreach/whitelist.service';
 import { ParseXUIDPipe } from 'src/xbox/parse-xuid.pipe';
 import dedent from 'dedent';
+import { ParseXUIDArrayPipe } from 'src/xbox/parse-xuid-array.pipe';
 
 @ApiTags('Game API Omaha', 'Halo: Reach')
 @Controller('/gameapi_omaha')
@@ -43,14 +44,12 @@ export class GameApiOmahaController {
     @Res({ passthrough: true }) res,
   ) {
     const blfFile =  BLF.haloreach_12065_11_08_24_1738_tu1actual.build_arena_hopper_stats_file({
-      data: [
-        0, 0, 0, 1,
-        0, 0, 0, 0,
-        0, 0, 0, 0,
-        0, 0, 0, 0,
-        0, 0, 0, 0,
-        0, 0
-      ]
+      season: 1,
+      unknown04: 0,
+      unknown08: 0,
+      unknown0C: 0,
+      unknown10: 0,
+      unknown12: 0,
     });
 
     return new StreamableFile(blfFile);
@@ -372,9 +371,9 @@ export class GameApiOmahaController {
     }
   })
   async checkWhitelist(
-    @Query('machineId', ParseXUIDPipe) machineId,
-    @Query('xuids', ParseXUIDPipe) xuids,
+    @Query('machineId', ParseXUIDPipe) machineId: number,
+    @Query('xuids', ParseXUIDArrayPipe) xuids: number[],
   ) {
-    return await this.whitelist.getWhitelistResponse(machineId, [xuids]);
+    return await this.whitelist.getWhitelistResponse(machineId, xuids);
   }
 }

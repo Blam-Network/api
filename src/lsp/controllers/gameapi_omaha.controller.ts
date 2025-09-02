@@ -43,11 +43,14 @@ export class GameApiOmahaController {
     @Res({ passthrough: true }) res,
   ) {
     const blfFile =  BLF.haloreach_12065_11_08_24_1738_tu1actual.build_arena_hopper_stats_file({
-      season: 1,
-      unknown04: 0,
-      unknown08: 0,
-      unknown0C: 0,
-      unknown10: 0,
+      data: [
+        0, 0, 0, 1,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0
+      ]
     });
 
     return new StreamableFile(blfFile);

@@ -44,13 +44,12 @@ export class GameApiOmahaController {
     @Res({ passthrough: true }) res,
   ) {
     const blfFile =  BLF.haloreach_12065_11_08_24_1738_tu1actual.build_arena_hopper_stats_file({
-      data: [
-        0x0, 0x0, 0x0, 0x1, 
-        0x0, 0x0, 0x0, 0x0, 
-        0x0, 0x0, 0x0, 0x0, 
-        0x0, 0x0, 0x0, 0x0,
-        0x0, 0x0
-      ]
+      season: 1,
+      unknown04: 0,
+      unknown08: 0,
+      unknown0C: 0,
+      unknown10: 0,
+      unknown14: 0,
     });
 
     return new StreamableFile(blfFile);
@@ -73,16 +72,14 @@ export class GameApiOmahaController {
     @Query('machineId') machineId,
     @Res({ passthrough: true }) res,
   ) {
-    let rdpl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_rewards_persistance = {
+    let rdpl: BLF.haloreach_09730_10_04_09_1309_omaha_delta.s_blf_chunk_rewards_persistance = {
       unknown1: 20_000_000, // credits?,
       unknown2: new Array(0x20F).fill(1, 0, 0x20F), // unlocks related
-      unknown3: 0,
-      unknown4: 0,
     }
 
     let dcha: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_daily_challenges | undefined = undefined;
 
-    const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_rewards_file(
+    const blfFile = BLF.haloreach_09730_10_04_09_1309_omaha_delta.build_user_rewards_file(
       rdpl,
       dcha
     )

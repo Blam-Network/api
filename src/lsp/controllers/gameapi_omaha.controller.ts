@@ -77,11 +77,8 @@ export class GameApiOmahaController {
       unknown2: new Array(0x20F).fill(1, 0, 0x20F), // unlocks related
     }
 
-    let dcha: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_daily_challenges | undefined = undefined;
-
     const blfFile = BLF.haloreach_09730_10_04_09_1309_omaha_delta.build_user_rewards_file(
       rdpl,
-      dcha
     )
 
     return new StreamableFile(blfFile);

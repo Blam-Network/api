@@ -55,7 +55,7 @@ export class AresUserService {
     }
 
     public getRecentPlayersFile = async (playerXuid: number) => {
-        return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_recent_players_file({
+        return BLF.ares_untracked.build_recent_players_file({
             players: []
         })
     }

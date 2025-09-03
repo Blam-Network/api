@@ -74,7 +74,7 @@ export class GameApiOmahaController {
   ) {
     let rdpl: BLF.haloreach_09730_10_04_09_1309_omaha_delta.s_blf_chunk_rewards_persistance = {
       unknown1: 20_000_000, // credits?,
-      unknown2: new Array(0x20F).fill(1, 0, 0x20F), // unlocks related
+      unknown2: new Array(0x20F).fill(1, 0, 384), // unlocks related
     }
 
     const blfFile = BLF.haloreach_09730_10_04_09_1309_omaha_delta.build_user_rewards_file(

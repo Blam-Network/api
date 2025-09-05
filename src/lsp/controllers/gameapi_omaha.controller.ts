@@ -77,7 +77,7 @@ export class GameApiOmahaController {
       unknown2: new Array(0x20F).fill(1, 0, 384), // unlocks related
     }
 
-    const blfFile = BLF.haloreach_09730_10_04_09_1309_omaha_delta.build_user_rewards_file(
+    const blfFile = BLF.haloreach_09730_10_04_09_1309_omaha_delta.build_beta_user_rewards_file(
       rdpl,
     )
 

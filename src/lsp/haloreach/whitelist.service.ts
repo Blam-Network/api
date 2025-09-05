@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { EXAMPLE_XUID } from "src/constants";
 import { PrismaService } from "src/db/prisma.service";
+import { timeLimited } from "src/utils/resiliance";
 import { parseXuid } from "src/xbox/xuid";
 
 enum WhitelistStatusCode {
@@ -50,26 +51,51 @@ export class HaloReachWhitelistService {
     ) { }
 
     public getWhitelistResponse = async (machineId: number, xuids: number[]) => {
+        let vipXuids: number[] = []
+        let whitelistXuids: number[] = [];
+        let status = WhitelistStatusCode.NOT_AUTHORIZED;
+
+        vipXuids = await timeLimited(
+            this.prisma.reach_player_data.findMany({
+                where: { player_xuid: { in: xuids }, is_vip: true },
+                select: { player_xuid: true },
+            }).then(players => players.map(p => Number(p.player_xuid))),
+            {
+                limit: { value: 5, unit: "seconds" },
+                fallback: [],
+            },
+        );
+
         switch (OPERATION_MODE) {
-            case WhitelistOperationMode.ALLOW_ALL: {
-                return buildWhitelistResponse(xuids, [], WhitelistStatusCode.SUCCESS);
-            }
-            case WhitelistOperationMode.ALLOW_NONE: {
-                return buildWhitelistResponse([], [], WhitelistStatusCode.GAME_DISABLED);
-            }
-            case WhitelistOperationMode.NORMAL: {
-                const whitelistedXuids = (await this.prisma.reach_player_data.findMany({
-                    where: { player_xuid: { in: xuids }, is_whitelisted: true },
-                    select: { player_xuid: true }
-                })).map(playerData => Number(playerData.player_xuid))
+            case WhitelistOperationMode.ALLOW_ALL:
+                status = WhitelistStatusCode.SUCCESS;
+                whitelistXuids.push(...xuids);
+                break;
 
-                const vipXuids = (await this.prisma.reach_player_data.findMany({
-                    where: { player_xuid: { in: xuids }, is_vip: true },
-                    select: { player_xuid: true }
-                })).map(playerData => Number(playerData.player_xuid))
+            case WhitelistOperationMode.ALLOW_NONE:
+                status = xuids.some(xuid => vipXuids.includes(xuid))
+                    ? WhitelistStatusCode.SUCCESS
+                    : WhitelistStatusCode.GAME_DISABLED;
+                break;
 
-                return buildWhitelistResponse(whitelistedXuids, vipXuids, WhitelistStatusCode.SUCCESS);
-            }
+            case WhitelistOperationMode.NORMAL:
+                whitelistXuids = await timeLimited(
+                    this.prisma.reach_player_data.findMany({
+                        where: { player_xuid: { in: xuids }, is_whitelisted: true },
+                        select: { player_xuid: true },
+                    }).then(players => players.map(p => Number(p.player_xuid))),
+                    {
+                        limit: { value: 5, unit: "seconds" },
+                        fallback: [],
+                    },
+                );
+
+                status = xuids.some(xuid => whitelistXuids.includes(xuid) || vipXuids.includes(xuid))
+                    ? WhitelistStatusCode.SUCCESS
+                    : WhitelistStatusCode.NOT_AUTHORIZED;
+                break;
         }
+
+        return buildWhitelistResponse(whitelistXuids, vipXuids, status);
     }
 }

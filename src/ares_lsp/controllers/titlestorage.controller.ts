@@ -102,7 +102,7 @@ export class TitleStorageController {
     @Param('path') path: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, 'ares', 'untracked', username, branch, ...path);
+    const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, 'ares', 'untracked', 'username', 'main', ...path);
     const fileName = basename(filePath);
 
     if (!existsSync(filePath)) throw new NotFoundException();

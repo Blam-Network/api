@@ -37,7 +37,7 @@ export class AresUserService {
 
         if (!fupd) {
             fupd = {
-                bungie_user_role: 1,
+                bungie_user_role: 0xffffffff,
                 highest_skill: 1,
                 hopper_access: 0xffffffff,
                 hopper_directory: 'ares_hoppers'

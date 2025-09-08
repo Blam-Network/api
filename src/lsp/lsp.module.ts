@@ -25,6 +25,7 @@ import { Halo3FileShareService } from './halo3/fileshare.service';
 import { GameApiOmahaController } from './controllers/gameapi_omaha.controller';
 import { ReachPresenceApiController } from './controllers/reachpresenceapi.controller';
 import { HaloReachWhitelistService } from './haloreach/whitelist.service';
+import { HTTP1_0Middleware } from 'src/middleware/HTTP1_0Middleware';
 
 @Module({
     imports: [
@@ -62,5 +63,6 @@ import { HaloReachWhitelistService } from './haloreach/whitelist.service';
 export class LSPModule implements NestModule {
     configure(consumer: MiddlewareConsumer): void {
         consumer.apply(AppLoggerMiddleware).forRoutes('*');
+        consumer.apply(HTTP1_0Middleware).forRoutes('*');
     }
 }

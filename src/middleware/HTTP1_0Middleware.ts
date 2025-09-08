@@ -6,7 +6,6 @@ import { Request, Response, NextFunction } from 'express';
 @Injectable()
 export class HTTP1_0Middleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
-    console.log({req});
     if (req.httpVersionMajor != 1 || req.httpVersionMinor != 0) {
         res.statusCode = 404;
         res.send()

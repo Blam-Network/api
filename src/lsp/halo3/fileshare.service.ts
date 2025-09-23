@@ -21,11 +21,12 @@ const MEGABYTE = 1024 * 1024;
 const UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA = 25 * MEGABYTE;
 const UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA = 6;
 const DOWNLOAD_ENDPOINT = '/gameapi/FilesStartDownload.ashx';
+const FORCE_ODST_PORTAL = true;
 
 const HALO3_SHAREDFILE_MIME = 'application/x-halo3sharedfile'
 const HALO3ODST_SHAREDFILE_MIME = 'application/x-atlassharedfile'
 
-const ENABLE_DEBUG_MIME = true;
+const ENABLE_DEBUG_MIME = false;
 const DEBUG_MIME = HALO3_SHAREDFILE_MIME
 
 const OFFER_IDS = {
@@ -842,7 +843,7 @@ export class Halo3FileShareService {
     ) => {
         const subscriptionHash = await this.getShareSubscriptionHash('subscription', userXuid);
 
-        if (subscriptionHash.currentHash || subscriptionHash.isUnsubscribing || isDebug) {
+        if (subscriptionHash.currentHash || subscriptionHash.isUnsubscribing || isDebug || FORCE_ODST_PORTAL) {
             return this.fileshareSubscriptionResponseODST({
                 status: !subscriptionHash.isUnsubscribing ? 'Subscribed' : 'Expired',
                 subscriptionHash: subscriptionHash.currentHash,

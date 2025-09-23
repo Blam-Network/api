@@ -859,11 +859,11 @@ export class Halo3FileShareService {
                 overQuotaMessage: 'You have exceeded your file-share quote. Please make more space before uploading new files.',
                 subscriptionEndTimestamp: !subscriptionHash.isUnsubscribing ? BigInt(Number.MAX_SAFE_INTEGER) : 0n,
                 portalButton: 'PLAY THE BETA',
-                portalExecuteImageFileName: "Portal Execute Image File Name",
+                portalExecuteImageFileName: "4d5308770ccf0004",
                 portalExecuteLaunchData: 123n,
-                portalExecutePackageFileName: 'Portal Execute Package File Name',
+                portalExecutePackageFileName: 'CA9CF5F254AE815EE5EBAF300E8C762501C67D414D',
                 portalOfferCount: 1,
-                portalOfferId: 0x4D5308770CCF0003n// OFFER_IDS.HALO3ODST_REACH_BETA 
+                portalOfferId: OFFER_IDS.HALO3ODST_REACH_BETA 
             })
         }
         

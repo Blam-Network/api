@@ -859,8 +859,8 @@ export class Halo3FileShareService {
                 overQuotaMessage: 'You have exceeded your file-share quote. Please make more space before uploading new files.',
                 subscriptionEndTimestamp: !subscriptionHash.isUnsubscribing ? BigInt(Number.MAX_SAFE_INTEGER) : 0n,
                 portalButton: 'PLAY THE BETA',
-                portalExecuteImageFileName: "4d5308770ccf0004",
-                portalExecuteLaunchData: 123n,
+                portalExecuteImageFileName: "default.xex",
+                portalExecuteLaunchData: 0xffffffffffffffffn,
                 portalExecutePackageFileName: 'CA9CF5F254AE815EE5EBAF300E8C762501C67D414D',
                 portalOfferCount: 1,
                 portalOfferId: OFFER_IDS.HALO3ODST_REACH_BETA 

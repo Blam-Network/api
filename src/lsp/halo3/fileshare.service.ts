@@ -31,7 +31,8 @@ const DEBUG_MIME = HALO3_SHAREDFILE_MIME
 
 const OFFER_IDS = {
     HALO3_BUNGIE_PRO: 0x4D5307E60CCF002n,
-    HALO3ODST_BUNGIE_PRO: 0x4D5308770CCF0002n,
+    HALO3ODST_BUNGIE_PRO: 0x4D5308770CCF0001n,
+    HALO3ODST_SGT_JOHNSON: 0x4D5308770CCF0002n,
     HALO3ODST_REACH_BETA: 0x4D5308770CCF0004n,
 }
 
@@ -862,7 +863,7 @@ export class Halo3FileShareService {
                 portalExecuteLaunchData: 123n,
                 portalExecutePackageFileName: 'Portal Execute Package File Name',
                 portalOfferCount: 1,
-                portalOfferId: OFFER_IDS.HALO3ODST_REACH_BETA
+                portalOfferId: 0x4D5308770CCF0003n// OFFER_IDS.HALO3ODST_REACH_BETA 
             })
         }
         

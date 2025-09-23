@@ -863,7 +863,7 @@ export class Halo3FileShareService {
                 portalExecuteLaunchData: 123n,
                 portalExecutePackageFileName: 'CA9CF5F254AE815EE5EBAF300E8C762501C67D414D',
                 portalOfferCount: 1,
-                portalOfferId: 0x4D5308770CCF0003n// OFFER_IDS.HALO3ODST_REACH_BETA 
+                portalOfferId: OFFER_IDS.HALO3ODST_REACH_BETA 
             })
         }
         

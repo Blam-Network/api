@@ -860,7 +860,7 @@ export class Halo3FileShareService {
                 subscriptionEndTimestamp: !subscriptionHash.isUnsubscribing ? BigInt(Number.MAX_SAFE_INTEGER) : 0n,
                 portalButton: 'PLAY THE BETA',
                 portalExecuteImageFileName: "default.xex",
-                portalExecuteLaunchData: 0xffffffffffffffffn,
+                portalExecuteLaunchData: 0n,
                 portalExecutePackageFileName: 'CA9CF5F254AE815EE5EBAF300E8C762501C67D414D',
                 portalOfferCount: 1,
                 portalOfferId: OFFER_IDS.HALO3ODST_REACH_BETA 

@@ -861,7 +861,7 @@ export class Halo3FileShareService {
                 portalButton: 'PLAY THE BETA',
                 portalExecuteImageFileName: "default.xex",
                 portalExecuteLaunchData: 0n,
-                portalExecutePackageFileName: 'Halo: Reach Multiplayer Beta',
+                portalExecutePackageFileName: '4D5308770CCF0004',
                 portalOfferCount: 1,
                 portalOfferId: OFFER_IDS.HALO3ODST_REACH_BETA 
             })

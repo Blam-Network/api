@@ -861,7 +861,7 @@ export class Halo3FileShareService {
                 portalButton: 'PLAY THE BETA',
                 portalExecuteImageFileName: "default.xex",
                 portalExecuteLaunchData: 0n,
-                portalExecutePackageFileName: 'Content\\4D530877\\00000002\\CA9CF5F254AE815EE5EBAF300E8C762501C67D414D',
+                portalExecutePackageFileName: '/content/0000000000000000/4D530877/00000002/CA9CF5F254AE815EE5EBAF300E8C762501C67D414D',
                 portalOfferCount: 1,
                 portalOfferId: OFFER_IDS.HALO3ODST_REACH_BETA 
             })

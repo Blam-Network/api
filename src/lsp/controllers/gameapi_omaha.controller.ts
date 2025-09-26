@@ -72,13 +72,20 @@ export class GameApiOmahaController {
     @Query('machineId') machineId,
     @Res({ passthrough: true }) res,
   ) {
-    let rdpl: BLF.haloreach_09730_10_04_09_1309_omaha_delta.s_blf_chunk_rewards_persistance = {
+    // let rdpl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_rewards_persistance = {
+    //   unknown1: 20_000_000, // credits?,
+    //   unknown2: new Array(384).fill(1, 0, 384), // unlocks related
+    // }
+
+    let rdpl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_rewards_persistance = {
       unknown1: 20_000_000, // credits?,
-      unknown2: new Array(384).fill(1, 0, 384), // unlocks related
+      unknown2: new Array(0x20F).fill(1, 0, 0x20F), // unlocks related
+      unknown3: 0,
+      unknown4: 0,
     }
 
-    const blfFile = BLF.haloreach_09730_10_04_09_1309_omaha_delta.build_beta_user_rewards_file(
-      rdpl,
+    const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_rewards_file(
+      rdpl, undefined
     )
 
     return new StreamableFile(blfFile);

@@ -36,6 +36,10 @@ const OFFER_IDS = {
     HALO3ODST_REACH_BETA: 0x4D5308770CCF0004n,
 }
 
+const PACKAGE_NAMES = {
+    HALO_REACH_BETA: "ÃA9CF5F254AE815EE5EBAF300E8C762501C67D414D",
+}
+
 export const FileShareSlotFileTypeSchema = z.enum([
     'GameVariantCtf',
     'GameVariantSlayer',
@@ -861,7 +865,7 @@ export class Halo3FileShareService {
                 portalButton: 'PLAY THE BETA',
                 portalExecuteImageFileName: "default.xex",
                 portalExecuteLaunchData: 0n,
-                portalExecutePackageFileName: '/content/0000000000000000/4D530877/00000002/CA9CF5F254AE815EE5EBAF300E8C762501C67D414D',
+                portalExecutePackageFileName: PACKAGE_NAMES.HALO_REACH_BETA,
                 portalOfferCount: 1,
                 portalOfferId: OFFER_IDS.HALO3ODST_REACH_BETA 
             })

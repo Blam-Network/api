@@ -17,13 +17,12 @@ export class HaloReachUserService {
         let fupd: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_player_data = undefined;
         let srid: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record = undefined;
 
-        
         const playerDataPromise = this.prisma.$transaction(async (prisma) => {
             const playerData = await prisma.reach_player_data.findUnique({ where: { player_xuid } });
 
             if (playerData) {
                 fupd = {
-                    unknown1: 0,
+                    unknown1: playerData.has_blue_flames ? 4 : 0,
                     unknown2: new Array(0x20).fill(0, 0, 0x20),
                     unknown3: 1,
                     hopper_access: playerData.hopper_access ?? 0,

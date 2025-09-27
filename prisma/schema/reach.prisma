@@ -4,6 +4,7 @@ model reach_player_data {
   hopper_directory_override String?  @db.VarChar(32)
   is_whitelisted            Boolean  @default(false)
   is_vip                    Boolean  @default(false)
+  has_blue_flames           Boolean  @default(false)
 
   @@map("player_data")
   @@schema("reach")

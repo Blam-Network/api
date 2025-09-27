@@ -25,9 +25,9 @@ export class HaloReachUserService {
                 fupd = {
                     unknown1: 0,
                     unknown2: new Array(0x20).fill(0, 0, 0x20),
-                    unknown3: 0,
+                    unknown3: 1,
                     hopper_access: playerData.hopper_access ?? 0,
-                    bungie_user_role: 0,
+                    bungie_user_role: 0xFFFF,
                     hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
                 }
             }

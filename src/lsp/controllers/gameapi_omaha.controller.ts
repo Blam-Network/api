@@ -72,11 +72,6 @@ export class GameApiOmahaController {
     @Query('machineId') machineId,
     @Res({ passthrough: true }) res,
   ) {
-    // let rdpl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_rewards_persistance = {
-    //   unknown1: 20_000_000, // credits?,
-    //   unknown2: new Array(384).fill(1, 0, 384), // unlocks related
-    // }
-
     let rdpl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_rewards_persistance = {
       credits: 20_000_000, // credits?,
       unknown1: 0,
@@ -85,7 +80,9 @@ export class GameApiOmahaController {
       unknown2: 0,
       unknown3: 0,
       unknown4: 0,
-    
+      unknown5: 0,
+      unknown6: 0,
+      unknown7: 0,
     }
 
     const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_rewards_file(

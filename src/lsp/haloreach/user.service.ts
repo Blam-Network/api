@@ -28,53 +28,53 @@ export class HaloReachUserService {
                 if (playerData.is_bungie) bungie_user_role |= (1 << 2);
                 if (playerData.has_blue_flames) bungie_user_role |= (1 << 3);
 
-                let nameplate = 0;
+                let nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.none;
                 switch (playerData.nameplate) {
                     case reach_player_data_nameplate.none:
-                        nameplate = 0;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.none;
                         break;
                     case reach_player_data_nameplate.seventh_column:
-                        nameplate = 1;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.seventh_column;
                         break;
                     case reach_player_data_nameplate.dmr:
-                        nameplate = 2;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.dmr;
                         break;
                     case reach_player_data_nameplate.bungie:
-                        nameplate = 3;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.bungie;
                         break;
                     case reach_player_data_nameplate.marathon:
-                        nameplate = 4;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.marathon;
                         break;
                     case reach_player_data_nameplate.halo1:
-                        nameplate = 5;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.halo1;
                         break;
                     case reach_player_data_nameplate.halo2:
-                        nameplate = 6;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.halo2;
                         break;
                     case reach_player_data_nameplate.halo3:
-                        nameplate = 7;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.halo3;
                         break;
                     case reach_player_data_nameplate.odst:
-                        nameplate = 8;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.odst;
                         break;
                     case reach_player_data_nameplate.assault_rifle:
-                        nameplate = 9;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.assault_rifle;
                         break;
                     case reach_player_data_nameplate.mk4_helmet:
-                        nameplate = 10;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.mk4_helmet;
                         break;
                     case reach_player_data_nameplate.halo:
-                        nameplate = 11;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.halo;
                         break;
                     case reach_player_data_nameplate.allstar:
-                        nameplate = 12;
+                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.allstar;
                         break;
                 }
 
                 fupd = {
                     extras_portal_debug: playerData.extras_portal_debug,
-                    nameplate,
-                    unlock_achievements: new Array(0x20).fill(0, 0, 0x20),
+                    nameplate, 
+                    unlock_achievements: new Array(32).fill(0, 0, 32),
                     hopper_access: playerData.hopper_access ?? 0,
                     bungie_user_role,
                     hopper_directory: playerData.hopper_directory_override || 'default_hoppers'

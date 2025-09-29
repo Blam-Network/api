@@ -78,10 +78,14 @@ export class GameApiOmahaController {
     // }
 
     let rdpl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_rewards_persistance = {
-      unknown1: 20_000_000, // credits?,
-      unknown2: new Array(0x20F).fill(1, 0, 0x20F), // unlocks related
+      credits: 20_000_000, // credits?,
+      unknown1: 0,
+      commendations: new Array(128).fill(0),
+      purchased_items: new Array(256).fill(1),
+      unknown2: 0,
       unknown3: 0,
       unknown4: 0,
+    
     }
 
     const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_rewards_file(

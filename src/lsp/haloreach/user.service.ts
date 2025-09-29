@@ -3,6 +3,7 @@ import * as BLF from '@blam-network/blf_lsp';
 import { parseXuid } from "src/xbox/xuid";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
+import { reach_player_data_nameplate } from "@prisma/client";
 
 @Injectable()
 export class HaloReachUserService {
@@ -21,12 +22,61 @@ export class HaloReachUserService {
             const playerData = await prisma.reach_player_data.findUnique({ where: { player_xuid } });
 
             if (playerData) {
+                let bungie_user_role = 0;
+                bungie_user_role |= (1 << 0); // 7th column
+                if (playerData.is_pro) bungie_user_role |= (1 << 1);
+                if (playerData.is_bungie) bungie_user_role |= (1 << 2);
+                if (playerData.has_blue_flames) bungie_user_role |= (1 << 3);
+
+                let nameplate = 0;
+                switch (playerData.nameplate) {
+                    case reach_player_data_nameplate.none:
+                        nameplate = 0;
+                        break;
+                    case reach_player_data_nameplate.seventh_column:
+                        nameplate = 1;
+                        break;
+                    case reach_player_data_nameplate.dmr:
+                        nameplate = 2;
+                        break;
+                    case reach_player_data_nameplate.bungie:
+                        nameplate = 3;
+                        break;
+                    case reach_player_data_nameplate.marathon:
+                        nameplate = 4;
+                        break;
+                    case reach_player_data_nameplate.halo1:
+                        nameplate = 5;
+                        break;
+                    case reach_player_data_nameplate.halo2:
+                        nameplate = 6;
+                        break;
+                    case reach_player_data_nameplate.halo3:
+                        nameplate = 7;
+                        break;
+                    case reach_player_data_nameplate.odst:
+                        nameplate = 8;
+                        break;
+                    case reach_player_data_nameplate.assault_rifle:
+                        nameplate = 9;
+                        break;
+                    case reach_player_data_nameplate.mk4_helmet:
+                        nameplate = 10;
+                        break;
+                    case reach_player_data_nameplate.halo:
+                        nameplate = 11;
+                        break;
+                    case reach_player_data_nameplate.allstar:
+                        nameplate = 12;
+                        break;
+                }
+
                 fupd = {
-                    unknown1: playerData.has_blue_flames ? 4 : 0,
-                    unknown2: new Array(0x20).fill(0, 0, 0x20),
-                    unknown3: 1,
+                    extras_portal_debug: playerData.extras_portal_debug,
+                    nameplate,
+                    unlock_achievements: new Array(0x20).fill(0, 0, 0x20),
                     hopper_access: playerData.hopper_access ?? 0,
-                    bungie_user_role: 0xFFFF,
+                    bungie_user_role,
                     hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
                 }
             }

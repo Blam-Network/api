@@ -25,7 +25,7 @@ export class HaloReachFileShareService {
             process.cwd(),
             SCREENSHOTS_FOLDER,
             'haloreach',
-            Number(dbScreenshot.author_id).toString(16).toUpperCase().padStart(16, '0'),
+            BigInt(dbScreenshot.author_id.toFixed(0)).toString(16).toUpperCase().padStart(16, '0'),
             dbScreenshot.id
         );
 

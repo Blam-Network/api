@@ -31,43 +31,43 @@ export class HaloReachUserService {
                 let nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.none;
                 switch (playerData.nameplate) {
                     case reach_player_data_nameplate.none:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.none;
+                        nameplate = 0;
                         break;
                     case reach_player_data_nameplate.seventh_column:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.seventh_column;
+                        nameplate = 1;
                         break;
                     case reach_player_data_nameplate.dmr:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.dmr;
+                        nameplate = 2;
                         break;
                     case reach_player_data_nameplate.bungie:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.bungie;
+                        nameplate = 3;
                         break;
                     case reach_player_data_nameplate.marathon:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.marathon;
+                        nameplate = 4;
                         break;
                     case reach_player_data_nameplate.halo1:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.halo1;
+                        nameplate = 5;
                         break;
                     case reach_player_data_nameplate.halo2:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.halo2;
+                        nameplate = 6;
                         break;
                     case reach_player_data_nameplate.halo3:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.halo3;
+                        nameplate = 7;
                         break;
                     case reach_player_data_nameplate.odst:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.odst;
+                        nameplate = 8;
                         break;
                     case reach_player_data_nameplate.assault_rifle:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.assault_rifle;
+                        nameplate = 9;
                         break;
                     case reach_player_data_nameplate.mk4_helmet:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.mk4_helmet;
+                        nameplate = 10;
                         break;
                     case reach_player_data_nameplate.halo:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.halo;
+                        nameplate = 11;
                         break;
                     case reach_player_data_nameplate.allstar:
-                        nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.allstar;
+                        nameplate = 12;
                         break;
                 }
 

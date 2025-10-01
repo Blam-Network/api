@@ -336,8 +336,7 @@ export class GameApiOmahaController {
       machineid: parseBungieHeader(hexStringXuidSchema),
     }).parse(headers);
 
-    console.log
-
+    this.uploadService.storeUploadedFile(upload);
     this.fileshareService.handleBlindFileUpload(upload, uploaderXuid, uploaderMachineId);
   }
 

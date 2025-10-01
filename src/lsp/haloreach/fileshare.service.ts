@@ -299,6 +299,7 @@ export class HaloReachFileShareService {
                 root_unique_id: chdr.metadata.root_unique_id.toString(),
                 hopper_id: chdr.metadata.matchmaking_data?.hopper_identifier,
                 jpeg_length: scnd.jpeg_data.length,
+                build_number: chdr.build_number,
             },
             select: {
                 id: true,

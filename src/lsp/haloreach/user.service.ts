@@ -13,7 +13,7 @@ export class HaloReachUserService {
     ) { }
 
     public getUserFile = async (xuid: string) => {
-        const player_xuid = parseXuid(xuid);
+        const player_xuid = parseXuid(xuid).toString();
         // If the DB is too slow, or data isn't present, we'll return a file without player data or a service record.
         let fupd: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_player_data = undefined;
         let srid: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record = undefined;

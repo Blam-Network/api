@@ -111,11 +111,11 @@ export class Halo3Controller {
     ) {
         // Request Achievements
         const authorization = `XBL3.0 x=${uhs};${xsts}`
-        const player_xuid = parseXuid(xuid);
+        const playerXuid = parseXuid(xuid);
 
         const halo3Achieevements = await this.achievementsService.getAchievements(
             authorization,
-            player_xuid,
+            playerXuid,
             TitleID.HALO3,
             true,
             79
@@ -124,7 +124,7 @@ export class Halo3Controller {
         
         const halo3ODSTAchieevements = await this.achievementsService.getAchievements(
             authorization,
-            player_xuid,
+            playerXuid,
             TitleID.HALO3ODST,
             true,
             47
@@ -146,10 +146,10 @@ export class Halo3Controller {
 
         await this.prisma.halo3_player_data.upsert({
             where: {
-                player_xuid
+                player_xuid: playerXuid.toString()
             },
             create: {
-                player_xuid,
+                player_xuid: playerXuid.toString(),
                 road_to_recon_completed: true
             },
             update: {

@@ -42,7 +42,7 @@ export class ParseXUIDArrayPipe implements PipeTransform<string> {
       (error => new HttpErrorByCode[errorHttpStatusCode](error));
   }
 
-  async transform(value: string, metadata: ArgumentMetadata): Promise<number[]> {
+  async transform(value: string, metadata: ArgumentMetadata): Promise<BigInt[]> {
     const xuidStrings = value.split(',');
     
     for (let xuidString in xuidStrings) {

@@ -14,7 +14,7 @@ export class Halo3UserService {
     ) { }
 
     public getUserFile = async (xuid: string) => {
-        const player_xuid = parseXuid(xuid);
+        const player_xuid = parseXuid(xuid).toString();
         // If the DB is too slow, or data isn't present, we'll return a file without player data or a service record.
         let srid: undefined | BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_service_record = undefined;
         let fupd: undefined | BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_player_data = undefined;

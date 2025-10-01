@@ -12,7 +12,7 @@ export class AresUserService {
     ) { }
 
     public getUserFile = async (xuid: string) => {
-        const player_xuid = parseXuid(xuid);
+        const player_xuid = parseXuid(xuid).toString();
         // If the DB is too slow, or data isn't present, we'll return a file without player data or a service record.
         let fupd: undefined | BLF.ares_untracked.s_blf_chunk_player_data = undefined;
 
@@ -30,7 +30,7 @@ export class AresUserService {
                     highest_skill: playerData.highest_skill ?? 0,
                     bungie_user_role,
                     // Don't make this "default_hoppers", we use that to update the port range.
-                    hopper_directory: playerData.hopper_directory_override || 'ares_hoppers'
+                    hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
                 }
             }
         })
@@ -40,7 +40,7 @@ export class AresUserService {
                 bungie_user_role: 0xffffffff,
                 highest_skill: 1,
                 hopper_access: 0xffffffff,
-                hopper_directory: 'ares_hoppers'
+                hopper_directory: 'default_hoppers'
             }
         }
 

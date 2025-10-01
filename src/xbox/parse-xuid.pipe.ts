@@ -42,7 +42,7 @@ export class ParseXUIDPipe implements PipeTransform<string> {
       (error => new HttpErrorByCode[errorHttpStatusCode](error));
   }
 
-  async transform(value: string, metadata: ArgumentMetadata): Promise<number> {
+  async transform(value: string, metadata: ArgumentMetadata): Promise<BigInt> {
     if (!this.isXUID(value)) {
       throw this.exceptionFactory(
         `Validation failed (XUID is expected)`,

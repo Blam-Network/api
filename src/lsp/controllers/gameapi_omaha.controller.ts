@@ -408,8 +408,8 @@ export class GameApiOmahaController {
     }
   })
   async checkWhitelist(
-    @Query('machineId', ParseXUIDPipe) machineId: number,
-    @Query('xuids', ParseXUIDArrayPipe) xuids: number[],
+    @Query('machineId', ParseXUIDPipe) machineId: BigInt,
+    @Query('xuids', ParseXUIDArrayPipe) xuids: BigInt[],
   ) {
     return await this.whitelist.getWhitelistResponse(machineId, xuids);
   }

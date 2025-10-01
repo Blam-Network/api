@@ -21,8 +21,8 @@ enum WhitelistOperationMode {
 const OPERATION_MODE: WhitelistOperationMode = WhitelistOperationMode.ALLOW_ALL
 
 const buildWhitelistResponse = (
-    allowedXuids: number[],
-    allowedVIPXuids: number[],
+    allowedXuids: BigInt[],
+    allowedVIPXuids: BigInt[],
     statusCode: WhitelistStatusCode,
 ) => {
     const allowed = Number(allowedXuids.length > 0 || allowedVIPXuids.length > 0);
@@ -50,16 +50,16 @@ export class HaloReachWhitelistService {
         private readonly prisma: PrismaService,
     ) { }
 
-    public getWhitelistResponse = async (machineId: number, xuids: number[]) => {
-        let vipXuids: number[] = []
-        let whitelistXuids: number[] = [];
+    public getWhitelistResponse = async (machineId: BigInt, xuids: BigInt[]) => {
+        let vipXuids: BigInt[] = []
+        let whitelistXuids: BigInt[] = [];
         let status = WhitelistStatusCode.NOT_AUTHORIZED;
 
         vipXuids = await timeLimited(
             this.prisma.reach_player_data.findMany({
-                where: { player_xuid: { in: xuids }, is_vip: true },
+                where: { player_xuid: { in: xuids.map(xuid => xuid.toString()) }, is_vip: true },
                 select: { player_xuid: true },
-            }).then(players => players.map(p => Number(p.player_xuid))),
+            }).then(players => players.map(p => BigInt(p.player_xuid.toFixed(0)))),
             {
                 limit: { value: 5, unit: "seconds" },
                 fallback: [],
@@ -81,9 +81,9 @@ export class HaloReachWhitelistService {
             case WhitelistOperationMode.NORMAL:
                 whitelistXuids = await timeLimited(
                     this.prisma.reach_player_data.findMany({
-                        where: { player_xuid: { in: xuids }, is_whitelisted: true },
+                        where: { player_xuid: { in: xuids.map(xuid => xuid.toString()) }, is_whitelisted: true },
                         select: { player_xuid: true },
-                    }).then(players => players.map(p => Number(p.player_xuid))),
+                    }).then(players => players.map(p => BigInt(p.player_xuid.toFixed(0)))),
                     {
                         limit: { value: 5, unit: "seconds" },
                         fallback: [],

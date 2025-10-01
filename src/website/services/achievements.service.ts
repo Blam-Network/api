@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { DecimalJsLike } from "@prisma/client/runtime/library";
 import axios from "axios";
 import { z } from "zod";
 
@@ -13,7 +14,7 @@ const XboxLIVEAchivementsSchema = z.object({
 export class AchievementsService {
     public async getAchievements(
         authorization: string,
-        xuid: number,
+        xuid: BigInt,
         titleId: number,
         unlockedOnly: boolean | undefined,
         maxItems: number | undefined,

@@ -11,6 +11,7 @@ import { URLSearchParams } from "url";
 import { h32 } from 'xxhashjs';
 import { createReadStream } from "fs";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
+import { xuidToHexString } from "src/xbox/xuid";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 
@@ -232,8 +233,8 @@ export class HaloReachFileShareService {
 
     public handleBlindFileUpload = async (
         file: Express.Multer.File, 
-        uploaderXuid: number, 
-        machineId: number,
+        uploaderXuid: bigint, 
+        machineId: bigint,
     ) => {
         if (!IS_FILESHARE_ENABLED) {
             return new ServiceUnavailableException();
@@ -260,7 +261,7 @@ export class HaloReachFileShareService {
             process.cwd(),
             SCREENSHOTS_FOLDER,
             'haloreach',
-            uploaderXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(uploaderXuid),
         );
         await mkdir(destinationFolder, { recursive: true })
         const screenshotData = await this.prisma.reach_blind_screenshot.create({

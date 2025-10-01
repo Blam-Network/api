@@ -6,10 +6,7 @@ import { access, mkdir, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
 import { FILESHARE_FOLDER, SCREENSHOTS_FOLDER } from "../../constants";
 import dedent from "dedent";
-import { z } from "zod";
-import { URLSearchParams } from "url";
 import { h32 } from 'xxhashjs';
-import { createReadStream } from "fs";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { xuidToHexString } from "src/xbox/xuid";
 const IS_FILESHARE_ENABLED = true;
@@ -24,7 +21,7 @@ const DOWNLOAD_ENDPOINT = '/gameapi/FilesStartDownload.ashx';
 
 const SHAREDFILE_MIME = 'application/x-reach-sharedfile'
 
-const ENABLE_DEBUG_MIME = false;
+const ENABLE_DEBUG_MIME = true;
 const DEBUG_MIME = SHAREDFILE_MIME
 
 const OFFER_IDS = {

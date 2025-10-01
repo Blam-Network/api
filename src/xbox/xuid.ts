@@ -15,10 +15,7 @@ export const hexStringXuidSchema = z.string()
     .transform((val) => unsigned_to_signed(BigInt(`0x${val}`), 64));
 
 export const xuidToHexString = (xuid: bigint) => {
-  if (xuid & (1n << 63n)) {
-    xuid -= (1n << 64n);
-  }
+  const u64 = xuid < 0n ? xuid + (1n << 64n) : xuid;
 
-  // hex string padded to 16 hex digits
-  return xuid.toString(16).padStart(16, '0');
+  return u64.toString(16).padStart(16, '0');
 }

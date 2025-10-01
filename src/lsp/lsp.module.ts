@@ -26,6 +26,7 @@ import { GameApiOmahaController } from './controllers/gameapi_omaha.controller';
 import { ReachPresenceApiController } from './controllers/reachpresenceapi.controller';
 import { HaloReachWhitelistService } from './haloreach/whitelist.service';
 import { HTTP1_0Middleware } from 'src/middleware/HTTP1_0Middleware';
+import { HaloReachFileShareService } from './haloreach/fileshare.service';
 
 @Module({
     imports: [
@@ -53,6 +54,7 @@ import { HTTP1_0Middleware } from 'src/middleware/HTTP1_0Middleware';
         HaloReachMachineService,
         Halo3PopulationService,
         Halo3FileShareService,
+        HaloReachFileShareService,
         HaloReachWhitelistService,
         CompressionService,
         DiscordWebhookService,

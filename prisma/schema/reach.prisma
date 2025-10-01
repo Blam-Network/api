@@ -46,20 +46,15 @@ model reach_blind_screenshot {
   author_id             Decimal @db.Decimal(20, 0)
   size_in_bytes         Decimal @db.Decimal(20, 0)
   date                  DateTime @db.Timestamp(6)
-  length_seconds        Int
-  campaign_id           Int
+  length_seconds        Int?
+  campaign_id           Int?
   map_id                Int
   game_mode             Int
   game_engine_type      Int
-  difficulty            Int
-  hopper_id             Int      @db.SmallInt
+  difficulty            Int?
+  hopper_id             Int?      @db.SmallInt
   game_id               Decimal @db.Decimal(20, 0)
-  game_tick             Int
-  film_tick             Int
   jpeg_length           Int
-  camera_position       Float[]
-  pixel_width           Int      @db.SmallInt
-  pixel_height          Int      @db.SmallInt
 
   @@unique([unique_id, date, game_id], map: "unique_unique_id_date")
   @@schema("reach")

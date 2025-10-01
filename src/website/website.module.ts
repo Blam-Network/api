@@ -8,6 +8,8 @@ import { AppLoggerMiddleware } from 'src/middleware/AppLoggerMiddleware';
 import { Halo3EmblemsService } from './services/halo3emblems.service';
 import { Halo3FileShareService } from './services/halo3fileshare.service';
 import { Halo3ODSTController } from './controllers/halo3odst.controller';
+import { HaloReachController } from './controllers/haloreach.controller';
+import { HaloReachFileShareService } from './services/haloreachfileshare.service';
 
 @Module({
     imports: [
@@ -19,11 +21,13 @@ import { Halo3ODSTController } from './controllers/halo3odst.controller';
     controllers: [
         Halo3Controller,
         Halo3ODSTController,
+        HaloReachController
     ],
     providers: [
         AchievementsService,
         Halo3EmblemsService,
         Halo3FileShareService,
+        HaloReachFileShareService,
         { provide: ILoggerSymbol, useClass: ConsoleLogger },
         ShutdownObserver,
     ],

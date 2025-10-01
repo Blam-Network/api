@@ -11,6 +11,7 @@ import { z } from "zod"
 const WebhookTypeSchema = z.enum([
     'HALO3_CARNAGE_REPORTS',
     'HALO3_SCREENSHOTS',
+    'HALOREACH_SCREENSHOTS',
     'CRASH'
 ]);
 
@@ -40,6 +41,14 @@ type Halo3CarnageReportMessage = {
 }
 
 type Halo3ScreenshotMessage = {
+    name: string,
+    description: string,
+    authorXuid: BigInt,
+    authorName: string,
+    imageUrl: string,
+}
+
+type HaloReachScreenshotMessage = {
     name: string,
     description: string,
     authorXuid: BigInt,
@@ -180,5 +189,28 @@ export class DiscordWebhookService {
         }
 
         await this.sendWebhookMessage(WebhookType.HALO3_SCREENSHOTS, message);
+    }
+
+    public sendHaloReachScreenshot = async (data: HaloReachScreenshotMessage) => {
+        let message = {
+            embeds: [{
+                "title": data.name,
+                "description": data.description,
+                "url": data.imageUrl,
+                "color": 941076,
+                "author": {
+                    "name": data.authorName,
+                },
+                "footer": {
+                    "text": "Halo: Reach Screenshots - Blam Network",
+                    "icon_url": "https://cdn.discordapp.com/icons/1287731261993127977/be1cefaceefbb03879db1c47ea0cfcb7.webp?size=64"
+                },
+                "image": {
+                    "url": data.imageUrl,
+                }
+            }]
+        }
+
+        await this.sendWebhookMessage(WebhookType.HALOREACH_SCREENSHOTS, message);
     }
 }

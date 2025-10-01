@@ -132,6 +132,9 @@ export class GameApiOmahaController {
 
   @HttpCode(200)
   @Post('/SignBuffer.ashx')
+  @ApiHeader({ name: 'userid', example: EXAMPLE_XUID })
+  @ApiHeader({ name: 'machineid', example: EXAMPLE_XUID })
+  @ApiTags('File Share')
   @ApiOperation({
     description: 'We dont know anything about this endpoint yet.',
         deprecated: true // used to denote not-implemented.

@@ -9,6 +9,7 @@ import dedent from "dedent";
 import { h32 } from 'xxhashjs';
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { xuidToHexString } from "src/xbox/xuid";
+import { HALOREACH_BUILD_NUMBERS } from "./constants";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 
@@ -243,16 +244,30 @@ export class HaloReachFileShareService {
             throw new BadRequestException('Invalid filetype.')
         }
 
-        const screenshot = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_blind_screenshot(file.buffer);
-        if (!screenshot) throw new BadRequestException('No header found for upload.');
+        let chdr: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_content_header | undefined = undefined;
+        let scnd: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_screenshot_data | undefined = undefined;
 
-        // if (screenshot.chdr.build_number !== HALO3_BUILD_NUMBER
-        //     && screenshot.chdr.build_number !== HALO3_TU1_BUILD_NUMBER
-        //     && screenshot.chdr.build_number !== HALO3_TU2_BUILD_NUMBER
-        // ) {
-        //     this.logger.warn(`[FileShare] Got a file with build number ${screenshot.chdr.build_number}, rejecting.`)
-        //     throw new BadRequestException("Bad Version: The file is unsupported.")
-        // }
+        const releaseScreenshot = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_blind_screenshot(file.buffer);
+        if (releaseScreenshot && releaseScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.RELEASE_TU1) {
+            chdr = releaseScreenshot.chdr;
+            scnd = releaseScreenshot.scnd;
+        }
+
+        const betaScreenshot = BLF.haloreach_09730_10_04_09_1309_omaha_delta.read_blind_screenshot(file.buffer);
+        if (betaScreenshot && (
+            betaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PUBLIC
+            || betaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PRIVATE_TU1
+            || betaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PRIVATE
+            || betaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.ALPHA_PRIVATE
+        )) {
+            chdr = betaScreenshot.chdr;
+            scnd = betaScreenshot._cmp;
+        }
+
+        if (!chdr || !scnd) {
+            this.logger.warn(`[FileShare] Got an unsupported blind file.`)
+            throw new BadRequestException("Bad Version: The file is unsupported.")
+        }
 
         const destinationFolder = join(
             process.cwd(),
@@ -263,27 +278,27 @@ export class HaloReachFileShareService {
         await mkdir(destinationFolder, { recursive: true })
         const screenshotData = await this.prisma.reach_blind_screenshot.create({
             data: {
-                author: screenshot.chdr.metadata.creator_name,
+                author: chdr.metadata.creator_name,
                 author_id: uploaderXuid.toString(),
-                author_is_xuid_online: screenshot.chdr.metadata.creator_xuid_is_online,
-                difficulty: screenshot.chdr.metadata.campaign_data?.campaign_difficulty || screenshot.chdr.metadata.firefight_data?.firefight_difficulty,
-                campaign_id: screenshot.chdr.metadata.campaign_data?.campaign_id,
-                date: screenshot.chdr.metadata.creation_time,
-                description: screenshot.chdr.metadata.description,
-                file_type: screenshot.chdr.metadata.file_type,
-                game_engine_type: screenshot.chdr.metadata.game_engine_type,
-                game_mode: screenshot.chdr.metadata.game_mode,
-                activity: screenshot.chdr.metadata.activity,
-                game_id: screenshot.chdr.metadata.game_id.toString(),
-                length_seconds: screenshot.chdr.metadata.film_data?.seconds,
-                map_id: screenshot.chdr.metadata.map_id,
-                name: screenshot.chdr.metadata.name,
-                size_in_bytes: screenshot.chdr.metadata.size_in_bytes.toString(),
-                unique_id: screenshot.chdr.metadata.unique_id.toString(),
-                parent_unique_id: screenshot.chdr.metadata.parent_unique_id.toString(),
-                root_unique_id: screenshot.chdr.metadata.root_unique_id.toString(),
-                hopper_id: screenshot.chdr.metadata.matchmaking_data?.hopper_identifier,
-                jpeg_length: screenshot._cmp.jpeg_data.length,
+                author_is_xuid_online: chdr.metadata.creator_xuid_is_online,
+                difficulty: chdr.metadata.campaign_data?.campaign_difficulty || chdr.metadata.firefight_data?.firefight_difficulty,
+                campaign_id: chdr.metadata.campaign_data?.campaign_id,
+                date: chdr.metadata.creation_time,
+                description: chdr.metadata.description,
+                file_type: chdr.metadata.file_type,
+                game_engine_type: chdr.metadata.game_engine_type,
+                game_mode: chdr.metadata.game_mode,
+                activity: chdr.metadata.activity,
+                game_id: chdr.metadata.game_id.toString(),
+                length_seconds: chdr.metadata.film_data?.seconds,
+                map_id: chdr.metadata.map_id,
+                name: chdr.metadata.name,
+                size_in_bytes: chdr.metadata.size_in_bytes.toString(),
+                unique_id: chdr.metadata.unique_id.toString(),
+                parent_unique_id: chdr.metadata.parent_unique_id.toString(),
+                root_unique_id: chdr.metadata.root_unique_id.toString(),
+                hopper_id: chdr.metadata.matchmaking_data?.hopper_identifier,
+                jpeg_length: scnd.jpeg_data.length,
             },
             select: {
                 id: true,
@@ -301,10 +316,10 @@ export class HaloReachFileShareService {
 
         // Try to send a discord message, but dont wait on it.
         this.discordWebhookService.sendHalo3Screenshot({
-            authorXuid: screenshot.chdr.metadata.creator_xuid,
-            authorName: screenshot.chdr.metadata.creator_name,
-            name: screenshot.chdr.metadata.name,
-            description: screenshot.chdr.metadata.description,
+            authorXuid: chdr.metadata.creator_xuid,
+            authorName: chdr.metadata.creator_name,
+            name: chdr.metadata.name,
+            description: chdr.metadata.description,
             imageUrl: `https://halo3.blam.network/haloreach/screenshots/${screenshotData.id}/view`
         }).catch((err) => this.logger.error(`Failed to send screenshot to discord: ${err}`))
     }

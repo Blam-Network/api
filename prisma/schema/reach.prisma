@@ -55,6 +55,7 @@ model reach_blind_screenshot {
   hopper_id             Int?      @db.SmallInt
   game_id               Decimal @db.Decimal(20, 0)
   jpeg_length           Int
+  build_number          Int       @default(09730)
 
   @@unique([unique_id, date, game_id], map: "unique_unique_id_date")
   @@schema("reach")

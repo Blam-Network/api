@@ -30,14 +30,32 @@ export class HaloReachFileShareService {
         );
 
         if (!existsSync(screenshotPath)) throw new NotFoundException('screenshot file not found');
+        let fileData = readFileSync(screenshotPath);
 
-        const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_blind_screenshot(
-            readFileSync(screenshotPath),
-        );
+        let scnd: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_screenshot_data | undefined = undefined;
 
-        if (!blfFile) throw new Error('Bad Screenshot File');
+        if (!scnd) {
+            const releaseBlfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_blind_screenshot(
+                fileData,
+            );
+            if (releaseBlfFile) {
+                scnd = releaseBlfFile.scnd;
+            }
+        }
 
-        return blfFile._cmp.jpeg_data;
+        if (!scnd) {
+            const betaBlfFile = BLF.haloreach_09730_10_04_09_1309_omaha_delta.read_blind_screenshot(
+                fileData,
+            );
+            if (betaBlfFile) {
+                scnd = betaBlfFile._cmp;
+            }
+        }
+
+
+        if (!scnd) throw new Error('Bad Screenshot File');
+
+        return scnd.jpeg_data;
     }
 }
 

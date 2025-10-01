@@ -10,8 +10,10 @@ import {
   Post,
   UploadedFile,
   NotImplementedException,
+  Headers,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import * as BLF from '@blam-network/blf_lsp';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -20,6 +22,10 @@ import { getExampleResponse, HaloReachWhitelistService } from '../haloreach/whit
 import { ParseXUIDPipe } from 'src/xbox/parse-xuid.pipe';
 import dedent from 'dedent';
 import { ParseXUIDArrayPipe } from 'src/xbox/parse-xuid-array.pipe';
+import { parseBungieHeader } from '../parse-bungie-header.pipe';
+import { hexStringXuidSchema } from 'src/xbox/xuid';
+import { z } from 'zod';
+import { UploadService } from '../services/upload.service';
 
 @ApiTags('Game API Omaha', 'Halo: Reach')
 @Controller('/gameapi_omaha')
@@ -27,6 +33,7 @@ export class GameApiOmahaController {
   constructor(
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
     @Inject() private readonly whitelist: HaloReachWhitelistService,
+    @Inject() private readonly uploadService: UploadService,
   ) { }
 
   @Get('/ArenaGetSeasonStats.ashx')
@@ -295,14 +302,39 @@ export class GameApiOmahaController {
     throw new NotImplementedException();
   }
 
-  @HttpCode(200)
-  @Get('/FilesUploadBlind.ashx')
+  @Post('/FilesUploadBlind.ashx')
   @ApiOperation({
-    description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
+    summary: 'Upload Halo: Reach Screenshot',
+    description: "This endpoint is used to upload screenshots, when a screenshot is taken in game and the user is connected to the server, the screenshot is automatically uploaded.",
   })
-  async uploadFileBlind() {
-    throw new NotImplementedException();
+  @ApiTags('File Share')
+  @ApiHeader({ name: 'userid', example: EXAMPLE_XUID })
+  @ApiHeader({ name: 'machineid', example: EXAMPLE_XUID })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        upload: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('upload'))
+  async uploadFileBlind(
+    @Headers() headers,
+    @UploadedFile() upload: Express.Multer.File | undefined,
+  ) {
+    if (!upload) throw new BadRequestException();
+
+    const { userid: uploaderXuid, machineid: uploaderMachineId } = z.object({
+      userid: parseBungieHeader(hexStringXuidSchema),
+      machineid: parseBungieHeader(hexStringXuidSchema),
+    }).parse(headers);
+
+    this.uploadService.storeUploadedFile(upload);
   }
 
   @HttpCode(200)

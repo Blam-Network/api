@@ -29,8 +29,6 @@ export class Halo3FileShareService {
             dbScreenshot.id
         );
 
-        console.log({screenshotPath});
-
         if (!existsSync(screenshotPath)) throw new NotFoundException('screenshot file not found');
 
         const blfFile = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_blind_screenshot(
@@ -57,8 +55,6 @@ export class Halo3FileShareService {
             Number(dbScreenshot.author_id).toString(16).toUpperCase().padStart(16, '0'),
             dbScreenshot.id
         );
-
-        console.log({screenshotPath});
 
         if (!existsSync(screenshotPath)) throw new NotFoundException('screenshot file not found');
 

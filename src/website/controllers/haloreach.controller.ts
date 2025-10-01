@@ -12,7 +12,7 @@ export class HaloReachController {
     @Get('/screenshots/:id/view')
     @ApiOperation({
         summary: 'View Screenshot',
-        description: 'Returns an uploaded Halo 3 JPEG screenshot.'
+        description: 'Returns an uploaded Halo: Reach JPEG screenshot.'
     })
     @Header('Content-Type', 'image/jpeg')
     async viewScreenshot(

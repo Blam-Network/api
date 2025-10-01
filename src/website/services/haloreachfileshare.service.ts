@@ -29,8 +29,6 @@ export class HaloReachFileShareService {
             dbScreenshot.id
         );
 
-        console.log({screenshotPath});
-
         if (!existsSync(screenshotPath)) throw new NotFoundException('screenshot file not found');
 
         const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_blind_screenshot(

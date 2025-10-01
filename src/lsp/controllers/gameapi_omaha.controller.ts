@@ -82,7 +82,7 @@ export class GameApiOmahaController {
     @Res({ passthrough: true }) res,
   ) {
     let rdpl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_rewards_persistance = {
-      credits: 20_000_000, // credits?,
+      credits: 200_000_000, // credits?,
       unknown1: 0,
       commendations: new Array(128).fill(0),
       purchased_items: new Array(256).fill(1),
@@ -335,6 +335,8 @@ export class GameApiOmahaController {
       userid: parseBungieHeader(hexStringXuidSchema),
       machineid: parseBungieHeader(hexStringXuidSchema),
     }).parse(headers);
+
+    console.log
 
     this.fileshareService.handleBlindFileUpload(upload, uploaderXuid, uploaderMachineId);
   }

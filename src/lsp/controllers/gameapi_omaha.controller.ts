@@ -26,6 +26,7 @@ import { parseBungieHeader } from '../parse-bungie-header.pipe';
 import { hexStringXuidSchema } from 'src/xbox/xuid';
 import { z } from 'zod';
 import { UploadService } from '../services/upload.service';
+import { HaloReachFileShareService } from '../haloreach/fileshare.service';
 
 @ApiTags('Game API Omaha', 'Halo: Reach')
 @Controller('/gameapi_omaha')
@@ -33,6 +34,7 @@ export class GameApiOmahaController {
   constructor(
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
     @Inject() private readonly whitelist: HaloReachWhitelistService,
+    @Inject() private readonly fileshareService :HaloReachFileShareService,
     @Inject() private readonly uploadService: UploadService,
   ) { }
 
@@ -334,7 +336,7 @@ export class GameApiOmahaController {
       machineid: parseBungieHeader(hexStringXuidSchema),
     }).parse(headers);
 
-    this.uploadService.storeUploadedFile(upload);
+    this.fileshareService.handleBlindFileUpload(upload, uploaderXuid, uploaderMachineId);
   }
 
   @HttpCode(200)

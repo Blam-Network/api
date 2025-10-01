@@ -233,7 +233,7 @@ export class HaloReachFileShareService {
     public handleBlindFileUpload = async (
         file: Express.Multer.File, 
         uploaderXuid: number, 
-        gameId: bigint,
+        machineId: number,
     ) => {
         if (!IS_FILESHARE_ENABLED) {
             return new ServiceUnavailableException();
@@ -276,7 +276,7 @@ export class HaloReachFileShareService {
                 game_engine_type: screenshot.chdr.metadata.game_engine_type,
                 game_mode: screenshot.chdr.metadata.game_mode,
                 activity: screenshot.chdr.metadata.activity,
-                game_id: gameId.toString(),
+                game_id: screenshot.chdr.metadata.game_id.toString(),
                 length_seconds: screenshot.chdr.metadata.film_data?.seconds,
                 map_id: screenshot.chdr.metadata.map_id,
                 name: screenshot.chdr.metadata.name,

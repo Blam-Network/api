@@ -316,7 +316,7 @@ export class HaloReachFileShareService {
         ), file.buffer);
 
         // Try to send a discord message, but dont wait on it.
-        this.discordWebhookService.sendHalo3Screenshot({
+        this.discordWebhookService.sendHaloReachScreenshot({
             authorXuid: chdr.metadata.creator_xuid,
             authorName: chdr.metadata.creator_name,
             name: chdr.metadata.name,

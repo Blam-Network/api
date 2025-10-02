@@ -12,14 +12,13 @@ export class HaloReachUserService {
         private readonly prisma: PrismaService,
     ) { }
 
-    public getUserFile = async (xuid: string) => {
-        const player_xuid = parseXuid(xuid).toString();
+    public getUserFile = async (xuid: BigInt) => {
         // If the DB is too slow, or data isn't present, we'll return a file without player data or a service record.
         let fupd: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_player_data = undefined;
         let srid: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record = undefined;
 
         const playerDataPromise = this.prisma.$transaction(async (prisma) => {
-            const playerData = await prisma.reach_player_data.findUnique({ where: { player_xuid } });
+            const playerData = await prisma.reach_player_data.findUnique({ where: { player_xuid: xuid.toString() } });
 
             if (playerData) {
                 let bungie_user_role = 0;

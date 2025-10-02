@@ -31,7 +31,7 @@ export class UserStorageController {
   @Get('/:titleId/:unk1/:unk2/:unk3/:xuid/user.bin')
   @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
   async getOmahaUser(
-    @Param('xuid') xuid: string,
+    @Param('xuid', ParseXUIDPipe) xuid: BigInt,
   ) {
     const blfFile = await this.haloReachUserService.getUserFile(xuid);
 

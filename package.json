@@ -28,7 +28,7 @@
     "schema": "prisma/schema"
   },
   "dependencies": {
-    "@blam-network/blf_lsp": "^1.6.1",
+    "@blam-network/blf_lsp": "^1.6.3",
     "@faker-js/faker": "^8.4.1",
     "@nestjs/common": "^11.1.0",
     "@nestjs/core": "^11.1.0",

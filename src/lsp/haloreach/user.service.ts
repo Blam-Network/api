@@ -85,7 +85,7 @@ export class HaloReachUserService {
 
         if (!fupd) {
             fupd = {
-                bungie_user_role: 0,
+                bungie_user_role: 1,
                 extras_portal_debug: false,
                 hopper_access: 0,
                 hopper_directory: 'default_hoppers',

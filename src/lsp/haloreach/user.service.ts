@@ -25,7 +25,6 @@ export class HaloReachUserService {
                 bungie_user_role |= (1 << 0); // 7th column
                 if (playerData.is_pro) bungie_user_role |= (1 << 1);
                 if (playerData.is_bungie) bungie_user_role |= (1 << 2);
-                if (playerData.has_blue_flames) bungie_user_role |= (1 << 3);
 
                 let nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.none;
                 switch (playerData.nameplate) {
@@ -83,9 +82,11 @@ export class HaloReachUserService {
 
         await Promise.allSettled([playerDataPromise]);
 
+        console.log({fupd})
+
         if (!fupd) {
             fupd = {
-                bungie_user_role: 1,
+                bungie_user_role: 0xffff,
                 extras_portal_debug: false,
                 hopper_access: 0,
                 hopper_directory: 'default_hoppers',
@@ -98,6 +99,8 @@ export class HaloReachUserService {
         // @ts-ignore
         let name = srid ? srid.player_name : '<unknown>';
         this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
+
+        console.log({fupd})
 
         return BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_file(
             fupd,

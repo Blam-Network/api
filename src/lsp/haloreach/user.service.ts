@@ -83,6 +83,17 @@ export class HaloReachUserService {
 
         await Promise.allSettled([playerDataPromise]);
 
+        if (!fupd) {
+            fupd = {
+                bungie_user_role: 0,
+                extras_portal_debug: false,
+                hopper_access: 0,
+                hopper_directory: 'default_hoppers',
+                nameplate: BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.seventh_column,
+                unlock_achievements: new Array(32).fill(0, 0, 32),
+            }
+        }
+
         // Typescript is dumb
         // @ts-ignore
         let name = srid ? srid.player_name : '<unknown>';

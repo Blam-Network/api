@@ -22,56 +22,54 @@ export class HaloReachUserService {
 
             if (playerData) {
                 let bungie_user_role = 0;
-                bungie_user_role |= (1 << 0); // 7th column
-                if (playerData.is_pro) bungie_user_role |= (1 << 1);
-                if (playerData.is_bungie) bungie_user_role |= (1 << 2);
+                bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.is_bnet_user;
+                if (playerData.is_pro) bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.is_pro;
+                if (playerData.is_bungie) bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.is_bungie;
+                if (playerData.is_vip) bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.debug_enabled;
 
-                let nameplate = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.none;
                 switch (playerData.nameplate) {
                     case reach_player_data_nameplate.none:
-                        nameplate = 0;
                         break;
                     case reach_player_data_nameplate.seventh_column:
-                        nameplate = 1;
+                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_seventh_column;
                         break;
                     case reach_player_data_nameplate.dmr:
-                        nameplate = 2;
+                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_dmr;
                         break;
                     case reach_player_data_nameplate.bungie:
-                        nameplate = 3;
+                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_bungie;
                         break;
                     case reach_player_data_nameplate.marathon:
-                        nameplate = 4;
+                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_marathon;
                         break;
                     case reach_player_data_nameplate.halo1:
-                        nameplate = 5;
+                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_halo1;
                         break;
                     case reach_player_data_nameplate.halo2:
-                        nameplate = 6;
+                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_halo2;
                         break;
                     case reach_player_data_nameplate.halo3:
-                        nameplate = 7;
+                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_halo3;
                         break;
                     case reach_player_data_nameplate.odst:
-                        nameplate = 8;
+                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_odst;
                         break;
                     case reach_player_data_nameplate.assault_rifle:
-                        nameplate = 9;
+                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_assault_rifle;
                         break;
                     case reach_player_data_nameplate.mk4_helmet:
-                        nameplate = 10;
+                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_mk4_helmet;
                         break;
                     case reach_player_data_nameplate.halo:
-                        nameplate = 11;
+                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_halo;
                         break;
                     case reach_player_data_nameplate.allstar:
-                        nameplate = 12;
+                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_allstar;
                         break;
                 }
-
+                
                 fupd = {
                     extras_portal_debug: playerData.extras_portal_debug,
-                    nameplate, 
                     unlock_achievements: new Array(32).fill(0, 0, 32),
                     hopper_access: playerData.hopper_access ?? 0,
                     bungie_user_role,
@@ -86,11 +84,10 @@ export class HaloReachUserService {
 
         if (!fupd) {
             fupd = {
-                bungie_user_role: 0xffff,
+                bungie_user_role: BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_seventh_column,
                 extras_portal_debug: false,
                 hopper_access: 0,
                 hopper_directory: 'default_hoppers',
-                nameplate: BLF.haloreach_12065_11_08_24_1738_tu1actual.e_player_nameplate.seventh_column,
                 unlock_achievements: new Array(32).fill(0, 0, 32),
             }
         }

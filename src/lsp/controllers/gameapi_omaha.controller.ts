@@ -79,7 +79,6 @@ export class GameApiOmahaController {
     @Query('getDailyChallenges') getDailyChallenges,
     @Query('userId') userId,
     @Query('machineId') machineId,
-    @Res({ passthrough: true }) res,
   ) {
     let rdpl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_rewards_persistance = {
       credits: 200_000_000, // credits?,
@@ -339,6 +338,7 @@ export class GameApiOmahaController {
       machineid: parseBungieHeader(hexStringXuidSchema),
     }).parse(headers);
 
+    await this.uploadService.storeUploadedFile(upload);
     await this.fileshareService.handleBlindFileUpload(upload, uploaderXuid, uploaderMachineId);
   }
 

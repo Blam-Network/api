@@ -257,11 +257,19 @@ export class HaloReachFileShareService {
         if (betaScreenshot && (
             betaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PUBLIC
             || betaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PRIVATE_TU1
-            || betaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PRIVATE
-            || betaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.ALPHA_PRIVATE
         )) {
             chdr = betaScreenshot.chdr;
             scnd = betaScreenshot._cmp;
+        }
+
+        const privateBetaScreenshot = BLF.haloreach_09730_10_04_09_1309_omaha_delta.read_blind_screenshot(file.buffer);
+        if (privateBetaScreenshot && (
+            privateBetaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PRIVATE_TU1
+            || privateBetaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PRIVATE
+            || privateBetaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.ALPHA_PRIVATE
+        )) {
+            chdr = privateBetaScreenshot.chdr;
+            scnd = privateBetaScreenshot._cmp;
         }
 
         if (!chdr || !scnd) {

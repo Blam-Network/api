@@ -80,8 +80,6 @@ export class HaloReachUserService {
 
         await Promise.allSettled([playerDataPromise]);
 
-        console.log({fupd})
-
         if (!fupd) {
             fupd = {
                 bungie_user_role: BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_seventh_column,
@@ -96,8 +94,6 @@ export class HaloReachUserService {
         // @ts-ignore
         let name = srid ? srid.player_name : '<unknown>';
         this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
-
-        console.log({fupd})
 
         return BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_file(
             fupd,

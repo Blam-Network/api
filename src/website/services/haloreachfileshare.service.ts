@@ -53,6 +53,15 @@ export class HaloReachFileShareService {
             }
         }
 
+        if (!scnd) {
+            const privateBetaBlfFile = BLF.haloreach_09449_10_03_25_1545_omaha_beta.read_blind_screenshot(
+                fileData,
+            );
+            if (privateBetaBlfFile) {
+                scnd = privateBetaBlfFile._cmp;
+            }
+        }
+
 
         if (!scnd) throw new Error('Bad Screenshot File');
 

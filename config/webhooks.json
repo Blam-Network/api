@@ -7,5 +7,12 @@
             "HALO3_SCREENSHOTS",
             "HALOREACH_SCREENSHOTS"
         ]
+    },
+    {
+        "name": "Reach MM Testing",
+        "url": "https://discord.com/api/webhooks/1423601882638848011/9iYz32OsI5djtmexThl-E5GHqjjtyLTr-486ZOd16Tt8Qs-xZmHhvml5YC4fhC9-VXHP",
+        "types": [
+            "HALOREACH_SCREENSHOTS"
+        ]
     }
 ]

@@ -262,7 +262,7 @@ export class HaloReachFileShareService {
             scnd = betaScreenshot._cmp;
         }
 
-        const privateBetaScreenshot = BLF.haloreach_09730_10_04_09_1309_omaha_delta.read_blind_screenshot(file.buffer);
+        const privateBetaScreenshot = BLF.haloreach_09449_10_03_25_1545_omaha_beta.read_blind_screenshot(file.buffer);
         if (privateBetaScreenshot && (
             privateBetaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PRIVATE_TU1
             || privateBetaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PRIVATE

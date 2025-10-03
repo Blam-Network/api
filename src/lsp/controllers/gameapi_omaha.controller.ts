@@ -85,7 +85,7 @@ export class GameApiOmahaController {
       credits: 200_000_000, // credits?,
       unknown1: 0,
       commendations: new Array(128).fill(0),
-      purchased_items: new Array(256).fill(1),
+      purchased_items: new Array(200).fill(1),
       unknown2: 0,
       unknown3: 0,
       unknown4: 0,

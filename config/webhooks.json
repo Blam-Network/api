@@ -14,5 +14,12 @@
         "types": [
             "HALOREACH_SCREENSHOTS"
         ]
+    },
+    {
+        "name": "Halo Classic Hub",
+        "url": "https://discord.com/api/webhooks/1423487979464425614/30FNPcfIKOVIf_V2qjEDnot4G0gNA9-3alsW0hIGXYRZYOXh406hTA_wLrirW94Uau0R",
+        "types": [
+            "HALOREACH_SCREENSHOTS"
+        ]
     }
 ]

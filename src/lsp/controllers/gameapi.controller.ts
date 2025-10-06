@@ -205,7 +205,7 @@ export class GameApiController {
           uncompressedSize,
           compressedSize
         )
-        return uuid.replace('-', '');
+        return uuid.replace(/-/g, '');
       default:
         throw new NotImplementedException('Not implemented for provided title.');
     }

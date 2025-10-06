@@ -54,12 +54,17 @@ export class Halo3CarnageReportService {
             ? this.compressionService.inflateIfCompressed(upload)
             : this.compressionService.inflate(upload);
 
+        this.logger.log('[PGCR] Reading Carnage Report...')
         const multi = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_webstats(buffer);
 
-        if (!multi)
+        if (!multi) {
+            this.logger.log('[PGCR] got nothing.')
             return;
-        if (!this.isValidCarnageReport(multi))
+        }
+        if (!this.isValidCarnageReport(multi)) {
+            this.logger.log('[PGCR] Invalid PGCR.')
             return;
+        }
 
         const playerCount = multi.mppl.players.filter(p => p.player_exists).length;
         const teamCount = multi.mptm.teams.filter(t => t.exists).length;

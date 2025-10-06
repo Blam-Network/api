@@ -58,7 +58,7 @@ export class UploadServerController {
 
     // This endpoint wants a swift response,
     // so we don't await this and respond while processing the uploaded data.
-    Promise.allSettled([
+    Promise.all([
       this.uploadService.storeUploadedFile(upload),
 
       // TITLES:
@@ -99,8 +99,8 @@ export class UploadServerController {
 
     // This endpoint wants a swift response,
     // so we don't await this and respond while processing the uploaded data.
-    Promise.allSettled(uploads.map((upload) =>
-      Promise.allSettled([
+    Promise.all(uploads.map((upload) =>
+      Promise.all([
         this.uploadService.handleDebug(upload),
         this.uploadService.storeUploadedFile(upload),
 

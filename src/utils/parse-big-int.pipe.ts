@@ -46,11 +46,17 @@ export class ParseBigIntPipe implements PipeTransform<string, Promise<bigint>> {
     return this.options?.hex ? HexBigIntRegex.test(value) : BigIntRegex.test(value);
   }
 
-  protected parseBigInt(value: string): bigint {
-    try {
-      return this.options?.hex ? BigInt(value) : BigInt(value);
-    } catch {
-      throw this.exceptionFactory('Failed to parse value to bigint');
+protected parseBigInt(value: string): bigint {
+  try {
+    if (this.options?.hex) {
+      if (!value.startsWith('0x') && /^[0-9a-fA-F]+$/.test(value)) {
+        value = '0x' + value;
+      }
     }
+
+    return BigInt(value);
+  } catch {
+    throw this.exceptionFactory(`Failed to parse value to bigint: "${value}"`);
   }
+}
 }

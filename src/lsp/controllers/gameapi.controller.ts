@@ -182,7 +182,7 @@ export class GameApiController {
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('uniqueId', new ParseBigIntPipe({hex: true})) uniqueID: number,
+    @Query('uniqueId', new ParseBigIntPipe({hex: true})) uniqueID: BigInt,
     @Query('fileType', ParseIntPipe) fileType: number,
     @Query('uncompressedSize', ParseIntPipe) uncompressedSize: number,
     @Query('compressedSize', ParseIntPipe) compressedSize: number,

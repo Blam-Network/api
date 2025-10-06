@@ -11,7 +11,7 @@ export interface ParseBigIntPipeOptions {
 }
 
 const BigIntRegex = /^[0-9]+$/;
-const HexBigIntRegex = /^0x[0-9a-fA-F]+$/;
+const HexBigIntRegex = /^(0x)?[0-9a-fA-F]+$/;
 
 @Injectable()
 export class ParseBigIntPipe implements PipeTransform<string, Promise<bigint>> {

@@ -919,13 +919,14 @@ export class Halo3FileShareService {
         uploaderXuid: BigInt,
         shareXuid: BigInt,
         slot: number,
-        uniqueId: number,
+        uniqueId: BigInt,
         fileType: number,
         uncompressedSize: number,
         compressedSize: number,
-    ) => {
+    ): Promise<string> => {
         if (!IS_FILESHARE_ENABLED) {
-            return new ServiceUnavailableException();
+            this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload into share but fileshare is disabled.`);
+            throw new ServiceUnavailableException();
         }
 
         if (uploaderXuid !== shareXuid) {
@@ -969,7 +970,7 @@ export class Halo3FileShareService {
                 compressed_size: compressedSize,
                 file_type: fileType,
                 size_in_bytes: uncompressedSize,
-                unique_id: uniqueId,
+                unique_id: uniqueId.toString(),
             }
         });
 

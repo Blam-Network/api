@@ -1,7 +1,4 @@
-import { ConsoleLogger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'path';
-import { CqrsModule } from '@nestjs/cqrs';
+import { ConsoleLogger, MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { UploadServerController } from 'src/lsp/controllers/uploadserver.controller';
 import { Halo3UploadService } from './halo3/upload.service';
 import { AppLoggerMiddleware } from 'src/middleware/AppLoggerMiddleware';
@@ -64,7 +61,13 @@ import { HaloReachFileShareService } from './haloreach/fileshare.service';
 })
 export class LSPModule implements NestModule {
     configure(consumer: MiddlewareConsumer): void {
-        consumer.apply(AppLoggerMiddleware).forRoutes('*');
+        consumer    
+            .apply(AppLoggerMiddleware)
+            .exclude(
+                // This one is noisy.
+                { path: '/ReachPresenceApi/heartbeat.ashx', method: RequestMethod.POST }
+            )
+            .forRoutes('*');
         consumer.apply(HTTP1_0Middleware).forRoutes('*');
     }
 }

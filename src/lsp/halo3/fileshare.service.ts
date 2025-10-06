@@ -928,11 +928,13 @@ export class Halo3FileShareService {
         }
 
         if (uploaderXuid !== shareXuid) {
+            this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload into share ${shareXuid}`);
             throw new UnauthorizedException("Can't upload to someone elses file share.")
         }
 
         // if the slot is already full they can't upload without first deleting.
         if (await this.prisma.halo3_file_share_slot.findUnique({ where: { share_id_slot: { share_id: shareXuid.toString(), slot } } })) {
+            this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload into filled slot ${slot}`);
             throw new BadRequestException('File share slot already full!');
         }
 
@@ -940,6 +942,7 @@ export class Halo3FileShareService {
         const fileshare = await this.getFileShare(uploaderXuid, shareXuid);
         const quotaSlots = fileshare?.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
         if (slot > quotaSlots) {
+            this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot quota.`);
             throw new BadRequestException("This slot is unavailable.")
         }
 
@@ -954,6 +957,7 @@ export class Halo3FileShareService {
         const quotaSpace = fileshare?.quota_bytes ?? UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA;
         const usedSpace = usedSlots.map(slot => slot.compressed_size).reduce((acc, cur) => acc + cur, 0)
         if (usedSpace + compressedSize > quotaSpace) {
+            this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot byte quota.`);
             throw new BadRequestException("This file is too large to store.");
         }
 

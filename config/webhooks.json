@@ -30,13 +30,6 @@
         ]
     },
     {
-        "name": "Halo Classic Hub",
-        "url": "https://discord.com/api/webhooks/1423487979464425614/30FNPcfIKOVIf_V2qjEDnot4G0gNA9-3alsW0hIGXYRZYOXh406hTA_wLrirW94Uau0R",
-        "types": [
-            "HALOREACH_SCREENSHOTS"
-        ]
-    },
-    {
         "name": "Original Halo 3 Carnage Reports",
         "url": "https://discord.com/api/webhooks/1324099441937879140/c1I9-vjtSvMlTamgSddP1W4b84GV7J5HbV3ieBbHVQwJQnL_GjIOqAvlPcrLC6Ao7aq7",
         "types": [

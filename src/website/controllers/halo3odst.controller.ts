@@ -1,11 +1,6 @@
-import { Controller, Get, Header, Headers, Inject, NotFoundException, Param, ParseBoolPipe, ParseIntPipe, Post, Query, Res, StreamableFile, UnauthorizedException } from "@nestjs/common";
-import { ApiHeader, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
+import { Controller, Get, Header, Inject, Param, StreamableFile } from "@nestjs/common";
+import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import { EXAMPLE_XUID } from "src/constants";
-import { AchievementsService } from "../services/achievements.service";
-import { parseXuid } from "src/xbox/xuid";
-import { PrismaService } from "src/db/prisma.service";
-import { Halo3EmblemsService } from "../services/halo3emblems.service";
 import { Halo3FileShareService } from "../services/halo3fileshare.service";
 
 @ApiTags('Halo 3: ODST')

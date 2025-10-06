@@ -24,7 +24,7 @@ const DOWNLOAD_ENDPOINT = '/gameapi/FilesStartDownload.ashx';
 const FORCE_ODST_PORTAL = true;
 
 const HALO3_SHAREDFILE_MIME = 'application/x-halo3sharedfile'
-const HALO3ODST_SHAREDFILE_MIME = 'application/x-atlassharedfile'
+const HALO3ODST_SHAREDFILE_MIME = 'application/x-atlas-sharedfile'
 
 const ENABLE_DEBUG_MIME = false;
 const DEBUG_MIME = HALO3_SHAREDFILE_MIME

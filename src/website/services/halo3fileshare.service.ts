@@ -5,6 +5,7 @@ import { PrismaService } from "src/db/prisma.service";
 import { join } from "path";
 import { createReadStream, existsSync, readFileSync, readSync } from "fs";
 import { SCREENSHOTS_FOLDER } from "src/constants";
+import { xuidToHexString } from "src/xbox/xuid";
 
 @Injectable()
 export class Halo3FileShareService {
@@ -25,7 +26,7 @@ export class Halo3FileShareService {
             process.cwd(),
             SCREENSHOTS_FOLDER,
             'halo3',
-            Number(dbScreenshot.author_id).toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(BigInt(dbScreenshot.author_id.toFixed(0))),
             dbScreenshot.id
         );
 
@@ -52,7 +53,7 @@ export class Halo3FileShareService {
             process.cwd(),
             SCREENSHOTS_FOLDER,
             'halo3odst',
-            Number(dbScreenshot.author_id).toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(BigInt(dbScreenshot.author_id.toFixed(0))),
             dbScreenshot.id
         );
 

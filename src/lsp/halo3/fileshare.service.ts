@@ -13,6 +13,7 @@ import { h32 } from 'xxhashjs';
 import { createReadStream } from "fs";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { xuidToHexString } from "src/xbox/xuid";
+import { HALO3_EPSILON_REFRESH_NUMBER } from "src/ares_lsp/ares/constants";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 
@@ -1255,6 +1256,7 @@ export class Halo3FileShareService {
         if (!screenshot) throw new BadRequestException('No header found for upload.');
 
         if (screenshot.chdr.build_number !== HALO3_BUILD_NUMBER
+            && screenshot.chdr.build_number !== HALO3_EPSILON_REFRESH_NUMBER
             && screenshot.chdr.build_number !== HALO3_TU1_BUILD_NUMBER
             && screenshot.chdr.build_number !== HALO3_TU2_BUILD_NUMBER
         ) {

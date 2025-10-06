@@ -62,7 +62,7 @@ export class TitleStorageController {
   })
   @ApiTags('Halo 3')
   @ApiParam({ name: 'tracked', example: "tracked" })
-  @ApiParam({ name: 'build_number', example: "12065" })
+  @ApiParam({ name: 'build_number', example: "12070" })
   @ApiParam({ name: 'hopper_directory', example: "default_hoppers" })
   @Get('/:tracked/:build_number/:hopper_directory/dynamic_hopper_statistics.bin')
   async getHalo3Population() {

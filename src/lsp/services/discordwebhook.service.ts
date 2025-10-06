@@ -191,6 +191,29 @@ export class DiscordWebhookService {
         await this.sendWebhookMessage(WebhookType.HALO3_SCREENSHOTS, message);
     }
 
+    public sendHalo3ODSTScreenshot = async (data: Halo3ScreenshotMessage) => {
+        let message = {
+            embeds: [{
+                "title": data.name,
+                "description": data.description,
+                "url": data.imageUrl,
+                "color": 941076,
+                "author": {
+                    "name": data.authorName,
+                },
+                "footer": {
+                    "text": "Halo 3: ODST Screenshots - Blam Network",
+                    "icon_url": "https://cdn.discordapp.com/icons/1287731261993127977/be1cefaceefbb03879db1c47ea0cfcb7.webp?size=64"
+                },
+                "image": {
+                    "url": data.imageUrl,
+                }
+            }]
+        }
+
+        await this.sendWebhookMessage(WebhookType.HALO3_SCREENSHOTS, message);
+    }
+
     public sendHaloReachScreenshot = async (data: HaloReachScreenshotMessage) => {
         let message = {
             embeds: [{

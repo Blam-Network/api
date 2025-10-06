@@ -1220,6 +1220,15 @@ export class Halo3FileShareService {
             destinationFolder,
             screenshotData.id,
         ), file.buffer);
+
+        // Try to send a discord message, but dont wait on it.
+        this.discordWebhookService.sendHalo3Screenshot({
+            authorXuid: screenshot.chdr.metadata.author_id,
+            authorName: screenshot.chdr.metadata.author,
+            name: screenshot.chdr.metadata.name,
+            description: screenshot.chdr.metadata.description,
+            imageUrl: `https://halo3.blam.network/halo3/screenshots/${screenshotData.id}/view`
+        }).catch((err) => this.logger.error(`Failed to send screenshot to discord: ${err}`))
     }
 
     public handleBlindFileUpload = async (

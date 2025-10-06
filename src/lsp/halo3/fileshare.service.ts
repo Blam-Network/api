@@ -1233,7 +1233,7 @@ export class Halo3FileShareService {
 
     public handleBlindFileUpload = async (
         file: Express.Multer.File, 
-        uploaderXuid: number, 
+        uploaderXuid: BigInt, 
         gameId: bigint,
     ) => {
         if (!IS_FILESHARE_ENABLED) {
@@ -1243,6 +1243,7 @@ export class Halo3FileShareService {
         this.applyDebugMime(file);
 
         if (file.mimetype !== HALO3_SHAREDFILE_MIME) {
+            this.logger.warn(`[FileShare] Got a file with a bad mime ${file.mimetype}, rejecting.`)
             throw new BadRequestException('Invalid filetype.')
         }
 
@@ -1261,7 +1262,7 @@ export class Halo3FileShareService {
             process.cwd(),
             SCREENSHOTS_FOLDER,
             'halo3',
-            uploaderXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(uploaderXuid),
         );
         await mkdir(destinationFolder, { recursive: true })
         const screenshotData = await this.prisma.halo3_blind_screenshot.create({
@@ -1299,6 +1300,7 @@ export class Halo3FileShareService {
         });
         
         if (!screenshotData) {
+            this.logger.warn(`[FileShare] Failed to save screenshot to DB.`)
             throw new InternalServerErrorException('Failed to save screenshot.');
         }
 

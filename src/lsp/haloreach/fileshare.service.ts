@@ -329,7 +329,7 @@ export class HaloReachFileShareService {
             authorName: chdr.metadata.creator_name,
             name: chdr.metadata.name,
             description: chdr.metadata.description,
-            imageUrl: `http://xbl.lsp.blam.network:8080/haloreach/screenshots/${screenshotData.id}/view`
+            imageUrl: `https://halo3.blam.network/haloreach/screenshots/${screenshotData.id}/view`
         }).catch((err) => this.logger.error(`Failed to send screenshot to discord: ${err}`))
     }
 }

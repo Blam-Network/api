@@ -297,13 +297,25 @@ export class GameApiOmahaController {
   }
 
   @HttpCode(200)
-  @Get('/MachineUpdateNetworkStats.ashx')
+  @Post('/MachineUpdateNetworkStats.ashx')
   @ApiOperation({
     description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
   })
-  async machineUpdateNetworkStats() {
-    throw new NotImplementedException();
+  async machineUpdateNetworkStats(
+    @Headers() headers: Record<string, string>,
+    @UploadedFile() upload: Express.Multer.File | undefined,
+  ) {
+    if (!upload) throw new BadRequestException();
+
+    const { machineId } = z.object({
+      machineId: parseBungieHeader(hexStringXuidSchema),
+    }).parse(headers);
+
+    this.logger.log(`[MACHINE] Got machine network stats for machine ${machineId}`)
+    this.logger.log(`[MACHINE] Mime type = ${upload.mimetype}`)
+    
+    await this.uploadService.handleDebug(upload);
+    await this.uploadService.storeUploadedFile(upload);
   }
 
   @Post('/FilesUploadBlind.ashx')

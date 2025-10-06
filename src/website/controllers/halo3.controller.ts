@@ -360,7 +360,12 @@ export class Halo3Controller {
             map_variant_name: carnageReport.map_variant_name,
             migrated_to_group: carnageReport.migrated_to_group,
             simulation_aborted: carnageReport.simulation_aborted,
-            matchmaking_options: carnageReport.carnage_report_matchmaking_options,
+            matchmaking_options: {
+                ...carnageReport.carnage_report_matchmaking_options,
+                draw_probability: Number(carnageReport.carnage_report_matchmaking_options?.draw_probability),
+                experience_base_increment: Number(carnageReport.carnage_report_matchmaking_options?.draw_probability),
+                experience_penalty_decrement: Number(carnageReport.carnage_report_matchmaking_options?.draw_probability),
+            },
             player_interactions: playerInterractions,
             map_variant_unique_id: carnageReport.map_variant_unique_id,
             game_variant_unique_id: carnageReport.game_variant_unique_id,

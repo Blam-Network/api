@@ -28,6 +28,7 @@ import { hexStringXuidSchema } from 'src/xbox/xuid';
 import { z } from 'zod';
 import { ParseBigIntPipe } from 'src/utils/parse-big-int.pipe';
 import { dashedUuidFromHex } from 'src/utils/uuid';
+import { UuidWithoutDashesPipe } from 'src/utils/uuid-without-dashes.pipe';
 
 const TITLE_IDS = {
   LEGACY: 0,
@@ -321,7 +322,7 @@ export class GameApiController {
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('serverId') serverId: string,
+    @Query('serverId', UuidWithoutDashesPipe) serverId: string,
     @Query('startPosition', ParseIntPipe) startPosition: number,
     @Query('fromAutoQueue', ParseIntPipe) fromAutoQueue: number,
     @Query('view') view: number,
@@ -367,7 +368,7 @@ export class GameApiController {
     @Query('userId', ParseXUIDPipe) userid: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('serverId') serverId: string,
+    @Query('serverId', UuidWithoutDashesPipe) serverId: string,
     @Query('startPosition', ParseIntPipe) startPosition: number,
     @Res() res: Response,
   ) {
@@ -421,7 +422,7 @@ export class GameApiController {
     @Query('userId', ParseXUIDPipe) userid: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('serverId') serverId: string,
+    @Query('serverId', UuidWithoutDashesPipe) serverId: string,
     @Query('startPosition', ParseIntPipe) startPosition: number,
     @Res() res: Response,
   ) {
@@ -474,7 +475,7 @@ export class GameApiController {
     @Query('userId', ParseXUIDPipe) userid: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('serverId') serverId: string,
+    @Query('serverId', UuidWithoutDashesPipe) serverId: string,
   ) {
     switch (title) {
       case TITLE_IDS.HALO3:
@@ -506,8 +507,9 @@ export class GameApiController {
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('serverId') serverId: string,
+    @Query('serverId', UuidWithoutDashesPipe) serverId: string,
   ) {
+    serverId = dashedUuidFromHex.parse(serverId)
     switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:

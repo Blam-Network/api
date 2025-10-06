@@ -122,11 +122,24 @@ export class GameApiOmahaController {
   @HttpCode(200)
   @Post('/UserUpdateImage.ashx')
   @ApiOperation({
-    description: 'We dont know anything about this endpoint yet.',
-    deprecated: true // used to denote not-implemented.
+    description: 'When user image upload is enabled in network_configuration, images are uploaded here.',
   })
-  async userUpdateImage() {
-    throw new NotImplementedException();
+  async userUpdateImage(
+    @Headers() headers: Record<string, string>,
+    @UploadedFile() upload: Express.Multer.File | undefined,
+  ) {
+    if (!upload) throw new BadRequestException();
+
+    const { machineid, userid } = z.object({
+      machineid: parseBungieHeader(hexStringXuidSchema),
+      userid: parseBungieHeader(hexStringXuidSchema),
+    }).parse(headers);
+
+    this.logger.log(`[MACHINE] Got user image upload for user ${userid} / machine ${machineid}`)
+    this.logger.log(`[MACHINE] Mime type = ${upload.mimetype}`)
+
+    await this.uploadService.handleDebug(upload);
+    await this.uploadService.storeUploadedFile(upload);
   }
 
   @HttpCode(200)
@@ -298,22 +311,19 @@ export class GameApiOmahaController {
 
   @HttpCode(200)
   @Post('/MachineUpdateNetworkStats.ashx')
-  @ApiOperation({
-    description: 'Not yet implemented.',
-  })
   async machineUpdateNetworkStats(
     @Headers() headers: Record<string, string>,
     @UploadedFile() upload: Express.Multer.File | undefined,
   ) {
     if (!upload) throw new BadRequestException();
 
-    const { machineId } = z.object({
-      machineId: parseBungieHeader(hexStringXuidSchema),
+    const { machineid } = z.object({
+      machineid: parseBungieHeader(hexStringXuidSchema),
     }).parse(headers);
 
-    this.logger.log(`[MACHINE] Got machine network stats for machine ${machineId}`)
+    this.logger.log(`[MACHINE] Got machine network stats for machine ${machineid}`)
     this.logger.log(`[MACHINE] Mime type = ${upload.mimetype}`)
-    
+
     await this.uploadService.handleDebug(upload);
     await this.uploadService.storeUploadedFile(upload);
   }

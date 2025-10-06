@@ -25,7 +25,7 @@ export class UploadServerController {
     private readonly uploadService: UploadService,
     private readonly halo3UploadService: Halo3UploadService,
     private readonly compressionService: CompressionService,
-  ) {}
+  ) { }
 
   @ApiOperation({
     summary: 'Upload File',
@@ -56,7 +56,9 @@ export class UploadServerController {
 
     this.uploadService.handleDebug(upload);
 
-    await Promise.all([
+    // This endpoint wants a swift response,
+    // so we don't await this and respond while processing the uploaded data.
+    Promise.allSettled([
       this.uploadService.storeUploadedFile(upload),
 
       // TITLES:
@@ -95,13 +97,17 @@ export class UploadServerController {
   ) {
     if (!uploads) throw new BadRequestException();
 
-    uploads.forEach(upload => {
-      this.uploadService.handleDebug(upload);
-      this.uploadService.storeUploadedFile(upload);
+    // This endpoint wants a swift response,
+    // so we don't await this and respond while processing the uploaded data.
+    Promise.allSettled(uploads.map((upload) =>
+      Promise.allSettled([
+        this.uploadService.handleDebug(upload),
+        this.uploadService.storeUploadedFile(upload),
 
-      // TITLES:
-      this.halo3UploadService.handleUpload(upload);
-    })
+        // TITLES:
+        this.halo3UploadService.handleUpload(upload),
+      ])
+    ));
 
     res.status(200).send('');
   }

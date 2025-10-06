@@ -554,18 +554,22 @@ export class GameApiController {
       gameid: parseBungieHeader(z.coerce.bigint()),
     }).parse(headers);
 
-    switch (title) {
-      case TITLE_IDS.LEGACY:
-      case TITLE_IDS.HALO3:
-      case TITLE_IDS.HALO3_MYTHIC:
-        return await this.halo3FileShareService.handleBlindFileUpload(upload, uploaderXuid, gameid);
-      case TITLE_IDS.HALO3_ODST:
-        return await this.halo3FileShareService.handleBlindFileUploadODST(upload, uploaderXuid, gameid);
-      case TITLE_IDS.HALO_ONLINE:
-        throw new NotImplementedException("Twister you mad lad")
-      default:
-        throw new NotImplementedException();
-    }
+    // This endpoint wants a swift response,
+    // so we don't await this and respond while processing the uploaded data.
+    (async () => {
+      switch (title) {
+        case TITLE_IDS.LEGACY:
+        case TITLE_IDS.HALO3:
+        case TITLE_IDS.HALO3_MYTHIC:
+          return await this.halo3FileShareService.handleBlindFileUpload(upload, uploaderXuid, gameid);
+        case TITLE_IDS.HALO3_ODST:
+          return await this.halo3FileShareService.handleBlindFileUploadODST(upload, uploaderXuid, gameid);
+        case TITLE_IDS.HALO_ONLINE:
+          throw new NotImplementedException("Twister you mad lad")
+        default:
+          throw new NotImplementedException();
+      }
+    })().then(e => this.logger.error(e));
   }
 
   @Get('/UserBeginConsume.ashx')

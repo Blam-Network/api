@@ -54,13 +54,13 @@ export class AresUserService {
         );
     }
 
-    public getRecentPlayersFile = async (playerXuid: number) => {
+    public getRecentPlayersFile = async (playerXuid: BigInt) => {
         return BLF.ares_untracked.build_recent_players_file({
             players: []
         })
     }
 
-    public updateHighestSkill = async (xuid: number, highestSkill: number) => {
+    public updateHighestSkill = async (xuid: BigInt, highestSkill: number) => {
         if (highestSkill > 50 || highestSkill < 0) {
             throw new BadRequestException("Invalid highest skill.")
         }
@@ -68,9 +68,9 @@ export class AresUserService {
         this.logger.log(`[USER] Updating highest skill for user ${xuid} to ${highestSkill}`)
         
         await this.prisma.ares_player_data.upsert({
-            where: { player_xuid: xuid },
+            where: { player_xuid: xuid.toString() },
             create: {
-                player_xuid: xuid,
+                player_xuid: xuid.toString(),
                 highest_skill: highestSkill,
             },
             update: {

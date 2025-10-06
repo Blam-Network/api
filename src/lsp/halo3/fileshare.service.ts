@@ -972,7 +972,7 @@ export class Halo3FileShareService {
         return fileShareSlot.id;
     }
 
-    public deleteFile = async (userXuid: number, shareXuid, slot: number, serverId: string) => {
+    public deleteFile = async (userXuid: BigInt, shareXuid: BigInt, slot: number, serverId: string) => {
         if (!IS_FILESHARE_ENABLED) {
             return new ServiceUnavailableException();
         }
@@ -985,7 +985,7 @@ export class Halo3FileShareService {
         await this.prisma.halo3_file_share_slot.delete({
             where: {
                 share_id_slot: {
-                    share_id: shareXuid,
+                    share_id: shareXuid.toString(),
                     slot
                 }
             }

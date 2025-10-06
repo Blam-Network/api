@@ -133,13 +133,13 @@ export class AresFileShareService {
     }
 
     // If the fileshare subscription hash doesn't match the subscription hash, we refetch the subscription.
-    private getShareSubscriptionHash = async (response: 'subscription' | 'fileshare', shareXuid: number): Promise<{
+    private getShareSubscriptionHash = async (response: 'subscription' | 'fileshare', shareXuid: BigInt): Promise<{
         currentHash: number,
         isUnsubscribing: boolean,
     }> => {
         const fileShare = await this.prisma.ares_file_share.findUnique({
             where: {
-                share_id: shareXuid
+                share_id: shareXuid.toString()
             }
         })
 
@@ -205,7 +205,7 @@ export class AresFileShareService {
         
         await this.prisma.ares_file_share.update({
             where: {
-                share_id: shareXuid,
+                share_id: shareXuid.toString(),
             },
             data: {
                 lastHash: currentHash,
@@ -316,19 +316,19 @@ export class AresFileShareService {
         `);
     }
 
-    private getFileShare = async (viewerXuid: number, ownerXuid: number) => {
+    private getFileShare = async (viewerXuid: BigInt, ownerXuid: BigInt) => {
         const ownsFileshare = viewerXuid === ownerXuid;
 
         let fileShare = await this.prisma.ares_file_share.findUnique({
             where: {
-                share_id: ownerXuid,
+                share_id: ownerXuid.toString(),
             }
         })
 
         if (!fileShare && ownsFileshare) {
             fileShare = await this.prisma.ares_file_share.create({
                 data: {
-                    share_id: ownerXuid,
+                    share_id: ownerXuid.toString(),
                 }
             })
         }
@@ -336,7 +336,7 @@ export class AresFileShareService {
         return fileShare;
     }
 
-    public viewFileShare = async (viewerXuid: number, shareXuid: number, locale: string) => {
+    public viewFileShare = async (viewerXuid: BigInt, shareXuid: BigInt, locale: string) => {
         if (!IS_FILESHARE_ENABLED) {
             return this.fileshareUnavailableResponse();
         }
@@ -352,7 +352,7 @@ export class AresFileShareService {
 
         const fileShareSlots = await this.prisma.ares_file_share_slot.findMany({
             where: {
-                share_id: shareXuid
+                share_id: shareXuid.toString()
             }
         });
 
@@ -417,7 +417,7 @@ export class AresFileShareService {
                 // The user has seen the message, destroy it to prevent repeats.
                 await this.prisma.ares_file_share.update({
                     where: {
-                        share_id: shareXuid,
+                        share_id: shareXuid.toString(),
                     },
                     data: {
                         message: null
@@ -450,8 +450,8 @@ export class AresFileShareService {
     }
 
     public stageDownload = async (
-        downloaderXuid: number,
-        shareXuid: number,
+        downloaderXuid: BigInt,
+        shareXuid: BigInt,
         slot: number,
         serverId: string,
         startPosition: number,
@@ -466,7 +466,7 @@ export class AresFileShareService {
         const fileShareSlot = await this.prisma.ares_file_share_slot.findUnique({
             where: {
                 share_id_slot: {
-                    share_id: shareXuid,
+                    share_id: shareXuid.toString(),
                     slot,
                 }
             }
@@ -492,8 +492,8 @@ export class AresFileShareService {
     }
 
     public getDownloadStream = async (
-        downloaderXuid: number,
-        shareXuid: number,
+        downloaderXuid: BigInt,
+        shareXuid: BigInt,
         slot: number,
         serverId: string,
         startPosition: number,
@@ -524,8 +524,8 @@ export class AresFileShareService {
     }
 
     public getUploadProgress = async (
-        uploaderXuid: number,
-        shareXuid: number,
+        uploaderXuid: BigInt,
+        shareXuid: BigInt,
         slot: number,
         serverId: string,
     ) => {
@@ -548,7 +548,7 @@ export class AresFileShareService {
         }
     }
 
-    public getSubscription = async (userXuid: number, locale: string) => {
+    public getSubscription = async (userXuid: BigInt, locale: string) => {
         const subscriptionHash = await this.getShareSubscriptionHash('subscription', userXuid);
         
         if (subscriptionHash.currentHash || subscriptionHash.isUnsubscribing) {
@@ -574,8 +574,8 @@ export class AresFileShareService {
     }
 
     public initiateNewUpload = async (
-        uploaderXuid: number,
-        shareXuid: number,
+        uploaderXuid: BigInt,
+        shareXuid: BigInt,
         slot: number,
         uniqueId: number,
         fileType: number,
@@ -591,7 +591,7 @@ export class AresFileShareService {
         }
 
         // if the slot is already full they can't upload without first deleting.
-        if (await this.prisma.ares_file_share_slot.findUnique({ where: { share_id_slot: { share_id: shareXuid, slot } } })) {
+        if (await this.prisma.ares_file_share_slot.findUnique({ where: { share_id_slot: { share_id: shareXuid.toString(), slot } } })) {
             throw new BadRequestException('File share slot already full!');
         }
 
@@ -604,7 +604,7 @@ export class AresFileShareService {
 
         const usedSlots = await this.prisma.ares_file_share_slot.findMany({
             where: {
-                share_id: shareXuid
+                share_id: shareXuid.toString()
             },
             select: {
                 compressed_size: true,
@@ -618,7 +618,7 @@ export class AresFileShareService {
 
         const fileShareSlot = await this.prisma.ares_file_share_slot.create({
             data: {
-                share_id: shareXuid,
+                share_id: shareXuid.toString(),
                 slot,
                 compressed_size: compressedSize,
                 file_type: fileType,
@@ -632,7 +632,7 @@ export class AresFileShareService {
         return fileShareSlot.id;
     }
 
-    public deleteFile = async (userXuid: number, shareXuid, slot: number, serverId: string) => {
+    public deleteFile = async (userXuid: BigInt, shareXuid: BigInt, slot: number, serverId: string) => {
         if (!IS_FILESHARE_ENABLED) {
             return new ServiceUnavailableException();
         }
@@ -645,7 +645,7 @@ export class AresFileShareService {
         await this.prisma.ares_file_share_slot.delete({
             where: {
                 share_id_slot: {
-                    share_id: shareXuid,
+                    share_id: shareXuid.toString(),
                     slot
                 }
             }

@@ -130,12 +130,12 @@ export class Halo3UserService {
         );
     }
 
-    public getRecentPlayersFile = async (playerXuid: number) => {
+    public getRecentPlayersFile = async (playerXuid: BigInt) => {
         const carnageReports = await this.prisma.halo3_carnage_report.findMany({
             where: {
                 carnage_report_player: {
                     some: {
-                        player_xuid: playerXuid
+                        player_xuid: playerXuid.toString()
                     }
                 },
                 NOT: {
@@ -181,7 +181,7 @@ export class Halo3UserService {
         })
     }
 
-    public updateHighestSkill = async (xuid: number, highestSkill: number) => {
+    public updateHighestSkill = async (xuid: BigInt, highestSkill: number) => {
         if (highestSkill > 50 || highestSkill < 0) {
             throw new BadRequestException("Invalid highest skill.")
         }
@@ -189,9 +189,9 @@ export class Halo3UserService {
         this.logger.log(`[USER] Updating highest skill for user ${xuid} to ${highestSkill}`)
         
         await this.prisma.halo3_player_data.upsert({
-            where: { player_xuid: xuid },
+            where: { player_xuid: xuid.toString() },
             create: {
-                player_xuid: xuid,
+                player_xuid: xuid.toString(),
                 highest_skill: highestSkill,
             },
             update: {

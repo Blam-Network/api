@@ -72,7 +72,7 @@ export class GameApiController {
   @ApiQuery({ name: 'highestSkill', type: 'number' })
   async userUpdatePlayerStats(
     @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) title,
-    @Query('userId', ParseXUIDPipe) userId: number,
+    @Query('userId', ParseXUIDPipe) userId: BigInt,
     @Query('highestSkill', ParseIntPipe) highestSkill: number,
   ) {
     switch (title) {
@@ -467,8 +467,8 @@ export class GameApiController {
   @ApiQuery({ name: 'serverId' })
   async deleteFile(
     @Query('title', ParseIntPipe, new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
-    @Query('userId', ParseXUIDPipe) userid: number,
-    @Query('shareId', ParseXUIDPipe) shareID: number,
+    @Query('userId', ParseXUIDPipe) userid: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
     @Query('serverId') serverId: string,
   ) {
@@ -579,7 +579,7 @@ export class GameApiController {
   @ApiQuery({ name: 'consumableId' })
   async userBeginConsume(
     @Query('title', new ParseIntPipe({ optional: true }), new DefaultValuePipe(0)) title: number,
-    @Query('userId', ParseXUIDPipe) userID: number,
+    @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('consumableId') consumableId,
   ) {
     throw new NotImplementedException();
@@ -599,7 +599,7 @@ export class GameApiController {
   @ApiQuery({ name: 'consumableId' })
   async userCompleteConsume(
     @Query('title', new ParseIntPipe({ optional: true }), new DefaultValuePipe(0)) title: number,
-    @Query('userId', ParseXUIDPipe) userID: number,
+    @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('consumableId') consumableId,
   ) {
     throw new NotImplementedException();

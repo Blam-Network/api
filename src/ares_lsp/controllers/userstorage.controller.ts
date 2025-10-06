@@ -42,7 +42,7 @@ export class UserStorageController {
   @Get('/:unk1/:unk2/:unk3/:xuid/recent_players.bin')
   @ApiParam({ name: 'xuid', type: 'string', example: EXAMPLE_XUID })
   async getHalo3RecentPlayers(
-    @Param('xuid', ParseXUIDPipe) xuid: number,
+    @Param('xuid', ParseXUIDPipe) xuid: BigInt,
   ) {
     const blfFile = await this.halo3UserService.getRecentPlayersFile(xuid);
 

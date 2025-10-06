@@ -25,6 +25,7 @@ import { ParseXUIDPipe } from '../../xbox/parse-xuid.pipe';
 import { AresFileShareService } from '../ares/fileshare.service';
 import { hexStringXuidSchema } from 'src/xbox/xuid';
 import { z } from 'zod';
+import { ParseBigIntPipe } from 'src/utils/parse-big-int.pipe';
 
 const TITLE_IDS = {
   LEGACY: 0,
@@ -168,7 +169,7 @@ export class GameApiController {
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('uniqueId', ParseIntPipe) uniqueID: number,
+    @Query('uniqueId', new ParseBigIntPipe({hex: true})) uniqueID: number,
     @Query('fileType', ParseIntPipe) fileType: number,
     @Query('uncompressedSize', ParseIntPipe) uncompressedSize: number,
     @Query('compressedSize', ParseIntPipe) compressedSize: number,

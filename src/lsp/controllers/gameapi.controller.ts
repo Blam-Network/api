@@ -26,6 +26,7 @@ import { ParseXUIDPipe } from '../../xbox/parse-xuid.pipe';
 import { Halo3FileShareService } from '../halo3/fileshare.service';
 import { hexStringXuidSchema } from 'src/xbox/xuid';
 import { z } from 'zod';
+import { ParseBigIntPipe } from 'src/utils/parse-big-int.pipe';
 
 const TITLE_IDS = {
   LEGACY: 0,
@@ -177,17 +178,17 @@ export class GameApiController {
   @ApiQuery({ name: 'uncompressedSize' })
   @ApiQuery({ name: 'compressedSize' })
   async startFileUpload(
-    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) titleID,
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) title,
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('uniqueId', ParseIntPipe) uniqueID: number,
+    @Query('uniqueId', new ParseBigIntPipe({hex: true})) uniqueID: number,
     @Query('fileType', ParseIntPipe) fileType: number,
     @Query('uncompressedSize', ParseIntPipe) uncompressedSize: number,
     @Query('compressedSize', ParseIntPipe) compressedSize: number,
   ) {
     // This function returns a server ID, but we don't really use it so it's not important.
-    switch (titleID) {
+    switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
       case TITLE_IDS.HALO3_ODST:

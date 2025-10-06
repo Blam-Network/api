@@ -9,6 +9,13 @@
         ]
     },
     {
+        "name": "BlamNet Halo 3 Screenshots",
+        "url": "https://discord.com/api/webhooks/1330635107052290150/WGOPmyUeSYB9eYC5Q1eAf4R21yRHclK3QAqjP9IMXUSwsHUYlgsEqjNkLz2S1yHNWeXy",
+        "types": [
+            "HALO3_SCREENSHOTS"
+        ]
+    },
+    {
         "name": "Reach MM Testing",
         "url": "https://discord.com/api/webhooks/1423601882638848011/9iYz32OsI5djtmexThl-E5GHqjjtyLTr-486ZOd16Tt8Qs-xZmHhvml5YC4fhC9-VXHP",
         "types": [
@@ -20,6 +27,21 @@
         "url": "https://discord.com/api/webhooks/1423487979464425614/30FNPcfIKOVIf_V2qjEDnot4G0gNA9-3alsW0hIGXYRZYOXh406hTA_wLrirW94Uau0R",
         "types": [
             "HALOREACH_SCREENSHOTS"
+        ]
+    },
+    {
+        "name": "Halo Classic Hub",
+        "url": "https://discord.com/api/webhooks/1423487979464425614/30FNPcfIKOVIf_V2qjEDnot4G0gNA9-3alsW0hIGXYRZYOXh406hTA_wLrirW94Uau0R",
+        "types": [
+            "HALOREACH_SCREENSHOTS"
+        ]
+    },
+    {
+        "name": "Original Halo 3 Carnage Reports",
+        "url": "https://discord.com/api/webhooks/1324099441937879140/c1I9-vjtSvMlTamgSddP1W4b84GV7J5HbV3ieBbHVQwJQnL_GjIOqAvlPcrLC6Ao7aq7",
+        "type": [
+            "HALO3_CARNAGE_REPORTS",
+            "HALO3_SCREENSHOTS"
         ]
     }
 ]

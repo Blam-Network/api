@@ -1156,6 +1156,7 @@ export class Halo3FileShareService {
         this.applyDebugMime(file);
 
         if (file.mimetype !== HALO3ODST_SHAREDFILE_MIME) {
+            this.logger.warn(`[FileShare] Got a file with a bad mime ${file.mimetype}, rejecting.`)
             throw new BadRequestException('Invalid filetype.')
         }
 

@@ -27,6 +27,7 @@ import { Halo3FileShareService } from '../halo3/fileshare.service';
 import { hexStringXuidSchema } from 'src/xbox/xuid';
 import { z } from 'zod';
 import { ParseBigIntPipe } from 'src/utils/parse-big-int.pipe';
+import { dashedUuidFromHex } from 'src/utils/uuid';
 
 const TITLE_IDS = {
   LEGACY: 0,
@@ -194,7 +195,7 @@ export class GameApiController {
       case TITLE_IDS.HALO3_ODST:
       case TITLE_IDS.LEGACY:
       case TITLE_IDS.HALO_ONLINE:
-        return await this.halo3FileShareService.initiateNewUpload(
+        const uuid = await this.halo3FileShareService.initiateNewUpload(
           userID,
           shareID,
           slot,
@@ -203,6 +204,7 @@ export class GameApiController {
           uncompressedSize,
           compressedSize
         )
+        return uuid.replace('-', '');
       default:
         throw new NotImplementedException('Not implemented for provided title.');
     }
@@ -276,13 +278,13 @@ export class GameApiController {
     @Headers() headers: Record<string, string>,
   ) {
     if (!upload) throw new BadRequestException();
-
+    
     const { title, userid: uploaderXuid, shareid: shareXuid, slot, serverid } = z.object({
       title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
       userid: parseBungieHeader(hexStringXuidSchema),
       shareid: parseBungieHeader(hexStringXuidSchema),
       slot: parseBungieHeader(z.coerce.number()),
-      serverid: parseBungieHeader(z.string().uuid()),
+      serverid: parseBungieHeader(dashedUuidFromHex),
     }).parse(headers);
 
     switch (title) {

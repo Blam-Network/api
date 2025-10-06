@@ -21,7 +21,7 @@ export class Halo3ODSTController {
         @Param('id') id: string,
     ) {
         return new StreamableFile(
-            Uint8Array.from(await this.fileshareService.viewBlindScreenshot(id))
+            Uint8Array.from(await this.fileshareService.viewOdstBlindScreenshot(id))
         );
     }
 }

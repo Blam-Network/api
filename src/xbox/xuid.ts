@@ -13,6 +13,6 @@ export const hexStringXuidSchema = z.string()
     })
     .transform((val) => BigInt(`0x${val}`));
 
-export const xuidToHexString = (xuid: bigint) => {
+export const xuidToHexString = (xuid: BigInt) => {
   return xuid.toString(16).padStart(16, '0');
 }

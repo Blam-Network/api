@@ -13,6 +13,7 @@ import {
   NotImplementedException,
   ParseBoolPipe,
   BadRequestException,
+  HttpCode,
 } from '@nestjs/common';
 import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
@@ -516,6 +517,7 @@ export class GameApiController {
     }
   }
 
+  @HttpCode(200)
   @Post('/FilesUploadBlind.ashx')
   @ApiOperation({
     summary: 'Upload Halo 3 / ODST Screenshot',

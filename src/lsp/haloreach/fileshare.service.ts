@@ -231,8 +231,8 @@ export class HaloReachFileShareService {
 
     public handleBlindFileUpload = async (
         file: Express.Multer.File, 
-        uploaderXuid: bigint, 
-        machineId: bigint,
+        uploaderXuid: BigInt, 
+        machineId: BigInt,
     ) => {
         if (!IS_FILESHARE_ENABLED) {
             return new ServiceUnavailableException();

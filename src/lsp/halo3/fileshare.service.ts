@@ -12,6 +12,7 @@ import { URLSearchParams } from "url";
 import { h32 } from 'xxhashjs';
 import { createReadStream } from "fs";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
+import { xuidToHexString } from "src/xbox/xuid";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 
@@ -1146,8 +1147,8 @@ export class Halo3FileShareService {
 
     public handleBlindFileUploadODST = async (
         file: Express.Multer.File, 
-        uploaderXuid: number, 
-        gameId: bigint,
+        uploaderXuid: BigInt, 
+        gameId: BigInt,
     ) => {
         if (!IS_FILESHARE_ENABLED) {
             return new ServiceUnavailableException();
@@ -1172,7 +1173,7 @@ export class Halo3FileShareService {
             process.cwd(),
             SCREENSHOTS_FOLDER,
             'halo3odst',
-            uploaderXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(uploaderXuid),
         );
         await mkdir(destinationFolder, { recursive: true })
         const screenshotData = await this.prisma.odst_blind_screenshot.create({
@@ -1211,6 +1212,7 @@ export class Halo3FileShareService {
         });
         
         if (!screenshotData) {
+            this.logger.warn(`[FileShare] Failed to save screenshot to DB.`)
             throw new InternalServerErrorException('Failed to save screenshot.');
         }
 

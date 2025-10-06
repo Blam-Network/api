@@ -39,7 +39,7 @@
     {
         "name": "Original Halo 3 Carnage Reports",
         "url": "https://discord.com/api/webhooks/1324099441937879140/c1I9-vjtSvMlTamgSddP1W4b84GV7J5HbV3ieBbHVQwJQnL_GjIOqAvlPcrLC6Ao7aq7",
-        "type": [
+        "types": [
             "HALO3_CARNAGE_REPORTS",
             "HALO3_SCREENSHOTS"
         ]

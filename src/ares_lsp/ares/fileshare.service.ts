@@ -12,6 +12,7 @@ import { URLSearchParams } from "url";
 import { h32 } from 'xxhashjs';
 import { createReadStream } from "fs";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
+import { xuidToHexString } from "src/xbox/xuid";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 
@@ -477,11 +478,11 @@ export class AresFileShareService {
         }
 
         let downloadParams = new URLSearchParams({
-            userId: downloaderXuid.toString().padStart(16, '0'),
-            shareId: shareXuid.toString(16).padStart(16, '0'),
+            userId: xuidToHexString(downloaderXuid),
+            shareId: xuidToHexString(shareXuid),
             slot: slot.toString(),
             startPosition: startPosition.toString(),
-            serverId,
+            serverId: serverId.replace('-', ''),
         })
 
         return dedent(`

@@ -433,7 +433,7 @@ export class GameApiController {
     @Query('userId', ParseXUIDPipe) userid: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('serverId') serverId: string,
+    @Query('serverId', UuidWithoutDashesPipe) serverId: string,
   ) {
     switch (title) {
       case TITLE_IDS.HALO3:

@@ -248,6 +248,7 @@ export class GameApiController {
     }
   }
 
+  @HttpCode(200)
   @Post('/FilesUpload.ashx')
   @ApiOperation({
     summary: 'Upload Halo 3 / ODST File',
@@ -287,6 +288,8 @@ export class GameApiController {
       slot: parseBungieHeader(z.coerce.number()),
       serverid: parseBungieHeader(dashedUuidFromHex),
     }).parse(headers);
+
+    await this.uploadService.storeUploadedFile(upload);
 
     switch (title) {
       case TITLE_IDS.HALO3:

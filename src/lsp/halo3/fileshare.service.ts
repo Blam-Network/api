@@ -937,7 +937,7 @@ export class Halo3FileShareService {
         }
 
         // if the slot is already full they can't upload without first deleting.
-        if (await this.prisma.halo3_file_share_slot.findUnique({ where: { share_id_slot: { share_id: shareXuid.toString(), slot }, is_uploaded: false } })) {
+        if (await this.prisma.halo3_file_share_slot.findUnique({ where: { share_id_slot: { share_id: shareXuid.toString(), slot }, is_uploaded: true } })) {
             this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload into filled slot ${slot}`);
             throw new BadRequestException('File share slot already full!');
         }

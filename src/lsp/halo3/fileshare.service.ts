@@ -751,7 +751,7 @@ export class Halo3FileShareService {
             shareId: xuidToHexString(shareXuid),
             slot: slot.toString(),
             startPosition: startPosition.toString(),
-            serverId: serverId.replace('-', ''),
+            serverId: serverId.replaceAll('-', ''),
         })
 
         return dedent(`

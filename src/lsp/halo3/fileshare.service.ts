@@ -747,11 +747,11 @@ export class Halo3FileShareService {
         }
 
         let downloadParams = new URLSearchParams({
-            userId: downloaderXuid.toString().padStart(16, '0'),
-            shareId: shareXuid.toString(16).padStart(16, '0'),
+            userId: xuidToHexString(downloaderXuid),
+            shareId: xuidToHexString(shareXuid),
             slot: slot.toString(),
             startPosition: startPosition.toString(),
-            serverId,
+            serverId: serverId.replace('-', ''),
         })
 
         return dedent(`

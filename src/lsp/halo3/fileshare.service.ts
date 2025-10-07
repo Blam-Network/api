@@ -1209,6 +1209,20 @@ export class Halo3FileShareService {
             xuidToHexString(uploaderXuid),
         );
         await mkdir(destinationFolder, { recursive: true })
+
+        if (await this.prisma.odst_blind_screenshot.findUnique({
+            where: {
+                unique_id_date_game_id: {
+                  unique_id: screenshot.chdr.metadata.unique_id.toString(),
+                  date: screenshot.chdr.metadata.date,
+                  game_id: gameId.toString()
+                }
+            }
+        })) {
+            this.logger.log("Ignoring duplicate screenshot.")
+            return;
+        }
+
         const screenshotData = await this.prisma.odst_blind_screenshot.create({
             data: {
                 author: screenshot.chdr.metadata.author,
@@ -1299,6 +1313,20 @@ export class Halo3FileShareService {
             xuidToHexString(uploaderXuid),
         );
         await mkdir(destinationFolder, { recursive: true })
+
+        if (await this.prisma.halo3_blind_screenshot.findUnique({
+            where: {
+                unique_id_date_game_id: {
+                  unique_id: screenshot.chdr.metadata.unique_id.toString(),
+                  date: screenshot.chdr.metadata.date,
+                  game_id: gameId.toString()
+                }
+            }
+        })) {
+            this.logger.log("Ignoring duplicate screenshot.")
+            return;
+        }
+
         const screenshotData = await this.prisma.halo3_blind_screenshot.create({
             data: {
                 author: screenshot.chdr.metadata.author,

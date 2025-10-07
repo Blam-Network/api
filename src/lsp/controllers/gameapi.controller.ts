@@ -577,7 +577,7 @@ export class GameApiController {
         default:
           throw new NotImplementedException();
       }
-    })().then(e => this.logger.error(e));
+    })().catch(e => this.logger.error(e));
   }
 
   @Get('/UserBeginConsume.ashx')

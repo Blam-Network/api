@@ -281,7 +281,7 @@ export class Halo3FileShareService {
                 case 'Ready':
                     return dedent(`
                         StartSlot: ${slot.number}
-                          Guid: ${slot.id}
+                          Guid: ${slot.id.replaceAll('-', '')}
                           State: ${slot.state}
                           Name: ${slot.name}
                           Description: ${slot.description}
@@ -290,7 +290,7 @@ export class Halo3FileShareService {
                           AuthorXuidIsOnline: ${slot.authorXuidIsOnline ? 1 : 0}
                           SizeBytes: ${slot.sizeBytes}
                           FileType: ${slot.fileType}
-                          SecondsPast19700101: ${slot.timestampSeconds}
+                          SecondsPast19700101: ${slot.timestampSeconds.toString()}
                           LengthSeconds: ${slot.lengthSeconds}
                           CampaignID: ${slot.campaignId}
                           MapID: ${slot.mapId}
@@ -302,7 +302,7 @@ export class Halo3FileShareService {
                 case 'Partial':
                     return dedent(`
                         StartSlot: ${slot.number}
-                          Guid: ${slot.id}
+                          Guid: ${slot.id.replaceAll('-', '')}
                           State: ${slot.state}
                           SizeBytes: ${slot.sizeBytes}
                         EndSlot
@@ -311,7 +311,7 @@ export class Halo3FileShareService {
                 default:
                     return dedent(`
                         StartSlot: ${slot.number}
-                          Guid: ${slot.id}
+                          Guid: ${slot.id.replaceAll('-', '')}
                           State: ${slot.state}
                         EndSlot
                     `)
@@ -338,7 +338,7 @@ export class Halo3FileShareService {
                 case 'Ready':
                     return dedent(`
                         StartSlot: ${slot.number}
-                          Guid: ${slot.id}
+                          Guid: ${slot.id.replaceAll('-', '')}
                           State: ${slot.state}
                           Name: ${slot.name}
                           Description: ${slot.description}
@@ -348,7 +348,7 @@ export class Halo3FileShareService {
                           CampaignInsertionPoint: ${slot.campaignInsertionPoint ?? 0}
                           SizeBytes: ${slot.sizeBytes}
                           FileType: ${slot.fileType}
-                          SecondsPast19700101: ${slot.timestampSeconds}
+                          SecondsPast19700101: ${slot.timestampSeconds.toString()}
                           LengthSeconds: ${slot.lengthSeconds}
                           CampaignID: ${slot.campaignId}
                           MapID: ${slot.mapId}
@@ -361,7 +361,7 @@ export class Halo3FileShareService {
                 case 'Partial':
                     return dedent(`
                         StartSlot: ${slot.number}
-                          Guid: ${slot.id}
+                          Guid: ${slot.id.replaceAll('-', '')}
                           State: ${slot.state}
                           SizeBytes: ${slot.sizeBytes}
                         EndSlot
@@ -370,7 +370,7 @@ export class Halo3FileShareService {
                 default:
                     return dedent(`
                         StartSlot: ${slot.number}
-                          Guid: ${slot.id}
+                          Guid: ${slot.id.replaceAll('-', '')}
                           State: ${slot.state}
                         EndSlot
                     `)

@@ -630,7 +630,7 @@ export class AresFileShareService {
 
         this.logger.log(`[FileShare] User ${uploaderXuid} started uploading into slot ${slot}`);
 
-        return fileShareSlot.id;
+        return fileShareSlot.id.replaceAll('-', '');
     }
 
     public deleteFile = async (userXuid: BigInt, shareXuid: BigInt, slot: number, serverId: string) => {

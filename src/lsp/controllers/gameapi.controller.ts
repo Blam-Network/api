@@ -281,12 +281,13 @@ export class GameApiController {
   ) {
     if (!upload) throw new BadRequestException();
     
-    const { title, userid: uploaderXuid, shareid: shareXuid, slot, serverid } = z.object({
+    const { title, userid: uploaderXuid, shareid: shareXuid, slot, serverid, startposition } = z.object({
       title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
       userid: parseBungieHeader(hexStringXuidSchema),
       shareid: parseBungieHeader(hexStringXuidSchema),
       slot: parseBungieHeader(z.coerce.number()),
       serverid: parseBungieHeader(dashedUuidFromHex),
+      startposition: parseBungieHeader(z.coerce.number().optional())
     }).parse(headers);
 
     (async () => {

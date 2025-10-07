@@ -22,9 +22,9 @@ export class HaloReachUserService {
 
             if (playerData) {
                 let bungie_user_role = 0;
-                bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.is_bnet_user;
-                if (playerData.is_pro) bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.is_pro;
-                if (playerData.is_bungie) bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.is_bungie;
+                bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.registered;
+                if (playerData.is_pro) bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.pro_member;
+                if (playerData.is_bungie) bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.staff;
                 if (playerData.is_vip) bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.debug_enabled;
 
                 switch (playerData.nameplate) {

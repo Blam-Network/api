@@ -89,6 +89,7 @@ export class UploadServerController {
       },
     },
   })
+  @HttpCode(200)
   @Post('/upload.ashx')
   @UseInterceptors(FileInterceptor('upload'))
   async uploadDump(

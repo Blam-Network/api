@@ -11,16 +11,8 @@
 ALTER TABLE "halo3"."player_data" ADD COLUMN     "odst_extras_portal_debug" BOOLEAN DEFAULT false,
 ADD COLUMN     "odst_vidmaster_flag" INTEGER NOT NULL DEFAULT 0;
 
-ALTER TABLE "halo3"."service_record"
-    DROP COLUMN "unknown_insignia",
-    DROP COLUMN "unknown_insignia2",
-    ADD COLUMN "experience_base" INTEGER,
-    ADD COLUMN "games_completed" INTEGER;
-
-UPDATE "halo3"."service_record"
-SET "experience_base" = 0,
-    "games_completed" = 0;
-
-ALTER TABLE "halo3"."service_record"
-    ALTER COLUMN "experience_base" SET NOT NULL,
-    ALTER COLUMN "games_completed" SET NOT NULL;
+-- AlterTable
+ALTER TABLE "halo3"."service_record" DROP COLUMN "unknown_insignia",
+DROP COLUMN "unknown_insignia2",
+ADD COLUMN     "experience_base" INTEGER NOT NULL,
+ADD COLUMN     "games_completed" INTEGER NOT NULL;

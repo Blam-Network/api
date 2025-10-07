@@ -766,6 +766,7 @@ model halo3_file_share_slot {
   id                          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   share_id                    Decimal         @db.Decimal(20, 0)
   slot                        Int             @db.SmallInt
+  is_uploaded                 Boolean         @default(false)
 
   compressed_size             Int
 

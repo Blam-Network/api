@@ -500,7 +500,8 @@ export class Halo3FileShareService {
 
         const fileShareSlots = await this.prisma.halo3_file_share_slot.findMany({
             where: {
-                share_id: shareXuid.toString()
+                share_id: shareXuid.toString(),
+                is_uploaded: true,
             }
         });
 
@@ -626,7 +627,8 @@ export class Halo3FileShareService {
 
         const fileShareSlots = await this.prisma.halo3_file_share_slot.findMany({
             where: {
-                share_id: shareXuid.toString()
+                share_id: shareXuid.toString(),
+                is_uploaded: true,
             }
         });
 
@@ -1058,6 +1060,7 @@ export class Halo3FileShareService {
                 share_id: shareXuid.toString(),
                 slot,
                 compressed_size: file.buffer.length,
+                is_uploaded: true,
 
                 author: contentHeader.metadata.author,
                 author_id: contentHeader.metadata.author_id.toString(),
@@ -1129,6 +1132,7 @@ export class Halo3FileShareService {
                 share_id: shareXuid.toString(),
                 slot,
                 compressed_size: file.buffer.length,
+                is_uploaded: true,
 
                 author: contentHeader.metadata.author,
                 author_id: contentHeader.metadata.author_id.toString(),

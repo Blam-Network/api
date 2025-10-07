@@ -966,12 +966,10 @@ export class Halo3FileShareService {
         }
 
         return await this.prisma.$transaction(async (tx) => {
-            await tx.halo3_file_share_slot.delete({
+            await tx.halo3_file_share_slot.deleteMany({
                 where: {
-                    share_id_slot: {
-                        share_id: shareXuid.toString(),
-                        slot,
-                    },
+                    share_id: shareXuid.toString(),
+                    slot,
                     is_uploaded: false,
                 }
             })

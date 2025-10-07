@@ -965,20 +965,33 @@ export class Halo3FileShareService {
             throw new BadRequestException("This file is too large to store.");
         }
 
-        const fileShareSlot = await this.prisma.halo3_file_share_slot.create({
-            data: {
-                share_id: shareXuid.toString(),
-                slot,
-                compressed_size: compressedSize,
-                file_type: fileType,
-                size_in_bytes: uncompressedSize,
-                unique_id: uniqueId.toString(),
-            }
+        await this.prisma.$transaction(async (tx) => {
+            await tx.halo3_file_share_slot.delete({
+                where: {
+                    share_id_slot: {
+                        share_id: shareXuid.toString(),
+                        slot,
+                    },
+                    is_uploaded: false,
+                }
+            })
+            const fileShareSlot = await tx.halo3_file_share_slot.create({
+                data: {
+                    share_id: shareXuid.toString(),
+                    slot,
+                    compressed_size: compressedSize,
+                    file_type: fileType,
+                    size_in_bytes: uncompressedSize,
+                    unique_id: uniqueId.toString(),
+                }
+            });
+
+            this.logger.log(`[FileShare] User ${uploaderXuid} started uploading into slot ${slot}`);
+
+            return fileShareSlot.id;
         });
 
-        this.logger.log(`[FileShare] User ${uploaderXuid} started uploading into slot ${slot}`);
 
-        return fileShareSlot.id;
     }
 
     public deleteFile = async (userXuid: BigInt, shareXuid: BigInt, slot: number, serverId: string) => {

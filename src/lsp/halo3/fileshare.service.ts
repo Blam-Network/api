@@ -965,7 +965,7 @@ export class Halo3FileShareService {
             throw new BadRequestException("This file is too large to store.");
         }
 
-        await this.prisma.$transaction(async (tx) => {
+        return await this.prisma.$transaction(async (tx) => {
             await tx.halo3_file_share_slot.delete({
                 where: {
                     share_id_slot: {

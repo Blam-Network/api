@@ -41,3 +41,4 @@ lerna-debug.log*
 /title_storage
 
 src/generated/prisma/
+.npmrc

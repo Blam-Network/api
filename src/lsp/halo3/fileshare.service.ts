@@ -1002,6 +1002,18 @@ export class Halo3FileShareService {
             throw new UnauthorizedException();
         }
 
+        if (!await this.prisma.halo3_file_share_slot.findUnique( {
+            where: {
+                share_id_slot: {
+                    share_id: shareXuid.toString(),
+                    slot
+                }
+            }
+        })) {
+            // Sometimes the game send delete requests twice, so we need to handle that gracefully.
+            return;
+        }
+
         await this.prisma.halo3_file_share_slot.delete({
             where: {
                 share_id_slot: {

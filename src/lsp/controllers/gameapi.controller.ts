@@ -14,6 +14,7 @@ import {
   ParseBoolPipe,
   BadRequestException,
   HttpCode,
+  Req,
 } from '@nestjs/common';
 import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
@@ -21,7 +22,7 @@ import { Halo3UserService } from '../halo3/user.service';
 import { EXAMPLE_XUID } from '../../constants';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from '../services/upload.service';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { ParseXUIDPipe } from '../../xbox/parse-xuid.pipe';
 import { Halo3FileShareService } from '../halo3/fileshare.service';
 import { hexStringXuidSchema } from 'src/xbox/xuid';
@@ -276,10 +277,13 @@ export class GameApiController {
   @ApiHeader({ name: 'serverid' })
   @UseInterceptors(FileInterceptor('upload'))
   async uploadFile(
+    @Req() req: Request,
     @UploadedFile() upload: Express.Multer.File | undefined,
     @Headers() headers: Record<string, string>,
   ) {
     if (!upload) throw new BadRequestException();
+
+    req.setTimeout(1 * 60 * 1000); // 10 minutes in ms
     
     const { title, userid: uploaderXuid, shareid: shareXuid, slot, serverid, startposition } = z.object({
       title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),

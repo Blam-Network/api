@@ -274,7 +274,7 @@ export class GameApiController {
         throw new NotImplementedException();
     }
   
-    res.status(200).send('')
+    res.status(200).write('')
   }
 
   @Get('/FilesStageForDownload.ashx')

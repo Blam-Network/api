@@ -284,6 +284,9 @@ export class GameApiController {
     if (!upload) throw new BadRequestException();
 
     req.setTimeout(1 * 60 * 1000); // 10 minutes in ms
+
+    console.log({upload})
+    console.log(upload.buffer.length)
     
     const { title, userid: uploaderXuid, shareid: shareXuid, slot, serverid, startposition } = z.object({
       title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
@@ -299,19 +302,17 @@ export class GameApiController {
       return;
     }
 
-    (async () => {
-      switch (title) {
-        case TITLE_IDS.HALO3:
-        case TITLE_IDS.HALO3_MYTHIC:
-        case TITLE_IDS.LEGACY:
-          return await this.halo3FileShareService.handleFileUpload(upload, uploaderXuid, shareXuid, slot, serverid)
-        case TITLE_IDS.HALO3_ODST:
-        case TITLE_IDS.HALO_ONLINE:
-          return await this.halo3FileShareService.handleFileUploadODST(upload, uploaderXuid, shareXuid, slot, serverid)
-        default:
-          throw new NotImplementedException();
-      }
-    })().catch(e => this.logger.error(e));
+    switch (title) {
+      case TITLE_IDS.HALO3:
+      case TITLE_IDS.HALO3_MYTHIC:
+      case TITLE_IDS.LEGACY:
+        return await this.halo3FileShareService.handleFileUpload(upload, uploaderXuid, shareXuid, slot, serverid)
+      case TITLE_IDS.HALO3_ODST:
+      case TITLE_IDS.HALO_ONLINE:
+        return await this.halo3FileShareService.handleFileUploadODST(upload, uploaderXuid, shareXuid, slot, serverid)
+      default:
+        throw new NotImplementedException();
+    }
   }
 
   @Get('/FilesStageForDownload.ashx')

@@ -518,7 +518,7 @@ export class Halo3FileShareService {
                             number: slot.slot,
                             state: 'Partial',
                             id: slot.id,
-                            sizeBytes: BigInt(String(slot.compressed_size))
+                            sizeBytes: BigInt(String(slot.size_in_bytes))
                         })
 
                         return
@@ -549,7 +549,7 @@ export class Halo3FileShareService {
                             author: slot.author,
                             authorXuid: BigInt(String(slot.author_id)),
                             authorXuidIsOnline: slot.author_is_xuid_online,
-                            sizeBytes: BigInt(String(slot.compressed_size)),
+                            sizeBytes: BigInt(String(slot.size_in_bytes)),
                             fileType: Object.values(FileShareSlotFileTypeSchema.Values)[slot.file_type - 1],
                             timestampSeconds: Number(slot.date) / 1000,
                             lengthSeconds: slot.length_seconds,
@@ -655,7 +655,7 @@ export class Halo3FileShareService {
                             number: slot.slot,
                             state: 'Partial',
                             id: slot.id,
-                            sizeBytes: BigInt(String(slot.compressed_size))
+                            sizeBytes: BigInt(String(slot.size_in_bytes))
                         })
 
                         return
@@ -686,7 +686,7 @@ export class Halo3FileShareService {
                             author: slot.author,
                             authorXuid: BigInt(String(slot.author_id)),
                             authorXuidIsOnline: slot.author_is_xuid_online,
-                            sizeBytes: BigInt(String(slot.compressed_size)),
+                            sizeBytes: BigInt(String(slot.size_in_bytes)),
                             fileType: Object.values(FileShareSlotFileTypeSchema.Values)[slot.file_type - 1],
                             timestampSeconds: Number(slot.date) / 1000,
                             lengthSeconds: slot.length_seconds,

@@ -16,12 +16,6 @@ export const createLSPServer = async () => {
         new ExpressAdapter(server),
     );
 
-    // temp debugging
-    app.use((req, _res, next) => {
-        req.setTimeout(1 * 60 * 1000);
-        next();
-    });
-
     const config = new DocumentBuilder()
         .setTitle('Blam Network LSP')
         .setDescription('LSP Server for Halo 3, Halo 3: ODST and Halo: Reach')

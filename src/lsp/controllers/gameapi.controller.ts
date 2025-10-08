@@ -282,8 +282,6 @@ export class GameApiController {
     @Headers() headers: Record<string, string>,
   ) {
     if (!upload) throw new BadRequestException();
-
-    req.setTimeout(1 * 60 * 1000); // 10 minutes in ms
     
     const { title, userid: uploaderXuid, shareid: shareXuid, slot, serverid, startposition } = z.object({
       title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),

@@ -51,7 +51,7 @@ export class UploadServerController {
 
     this.uploadService.handleDebug(upload);
 
-    await Promise.all([
+    Promise.allSettled([
       this.uploadService.storeUploadedFile(upload),
 
       // TITLES:

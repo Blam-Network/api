@@ -284,9 +284,6 @@ export class GameApiController {
     if (!upload) throw new BadRequestException();
 
     req.setTimeout(1 * 60 * 1000); // 10 minutes in ms
-
-    console.log({upload})
-    console.log(upload.buffer.length)
     
     const { title, userid: uploaderXuid, shareid: shareXuid, slot, serverid, startposition } = z.object({
       title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
@@ -306,13 +303,17 @@ export class GameApiController {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
       case TITLE_IDS.LEGACY:
-        return await this.halo3FileShareService.handleFileUpload(upload, uploaderXuid, shareXuid, slot, serverid)
+        await this.halo3FileShareService.handleFileUpload(upload, uploaderXuid, shareXuid, slot, serverid)
+        break;
       case TITLE_IDS.HALO3_ODST:
       case TITLE_IDS.HALO_ONLINE:
-        return await this.halo3FileShareService.handleFileUploadODST(upload, uploaderXuid, shareXuid, slot, serverid)
+        await this.halo3FileShareService.handleFileUploadODST(upload, uploaderXuid, shareXuid, slot, serverid)
+        break;
       default:
         throw new NotImplementedException();
     }
+
+    return "ok"
   }
 
   @Get('/FilesStageForDownload.ashx')
@@ -497,10 +498,13 @@ export class GameApiController {
       case TITLE_IDS.HALO3_ODST:
       case TITLE_IDS.HALO_ONLINE:
       case TITLE_IDS.LEGACY:
-        return await this.halo3FileShareService.deleteFile(userid, shareID, slot, serverId);
+        await this.halo3FileShareService.deleteFile(userid, shareID, slot, serverId);
+        break;
       default:
         throw new NotImplementedException();
     }
+    
+    return "ok";
   }
 
   @Get('/FilesGetUploadProgress.ashx')

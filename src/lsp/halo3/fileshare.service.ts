@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, InternalServerErrorException, 
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blam-network/blf_lsp'
 import { PrismaService } from "src/db/prisma.service";
-import { HALO3_BUILD_NUMBER, HALO3_ODST_BUILD_NUMBER, HALO3_TU1_BUILD_NUMBER, HALO3_TU2_BUILD_NUMBER } from "./constants";
+import { HALO3_BUILD_NUMBER, HALO3_EPSILON_BUILD_NUMBER, HALO3_ODST_BUILD_NUMBER, HALO3_TU1_BUILD_NUMBER, HALO3_TU2_BUILD_NUMBER } from "./constants";
 import { access, mkdir, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
 import { FILESHARE_FOLDER, SCREENSHOTS_FOLDER } from "../../constants";
@@ -1058,6 +1058,7 @@ export class Halo3FileShareService {
         if (!contentHeader) throw new BadRequestException('No header found for upload.');
 
         if (contentHeader.build_number !== HALO3_BUILD_NUMBER
+            && contentHeader.build_number !== HALO3_EPSILON_BUILD_NUMBER
             && contentHeader.build_number !== HALO3_TU1_BUILD_NUMBER
             && contentHeader.build_number !== HALO3_TU2_BUILD_NUMBER
             && contentHeader.build_number !== HALO3_ODST_BUILD_NUMBER) {

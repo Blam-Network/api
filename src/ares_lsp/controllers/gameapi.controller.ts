@@ -273,8 +273,9 @@ export class GameApiController {
       default:
         throw new NotImplementedException();
     }
-  
-    res.status(200).write('')
+    res.setHeader('Content-Length', size);
+    res.writeHead(200)
+    res.write('')
   }
 
   @Get('/FilesStageForDownload.ashx')

@@ -94,7 +94,6 @@ export class UploadServerController {
   @UseInterceptors(FileInterceptor('upload'))
   async uploadDump(
     @UploadedFiles() uploads: Express.Multer.File[] | undefined,
-    @Res({ passthrough: true }) res: Response,
   ) {
     if (!uploads) throw new BadRequestException();
 
@@ -110,6 +109,6 @@ export class UploadServerController {
       ])
     ));
 
-    res.status(200).send('');
+    return 'ok';
   }
 }

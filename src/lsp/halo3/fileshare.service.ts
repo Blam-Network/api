@@ -70,7 +70,7 @@ type PartialFileShareSlot = {
     number: number,
     id: string,
     state: 'Partial'
-    sizeBytes: number
+    sizeBytes: BigInt
 }
 
 type ReadyFileShareSlot = {
@@ -501,7 +501,6 @@ export class Halo3FileShareService {
         const fileShareSlots = await this.prisma.halo3_file_share_slot.findMany({
             where: {
                 share_id: shareXuid.toString(),
-                is_uploaded: true,
             }
         });
 
@@ -509,11 +508,22 @@ export class Halo3FileShareService {
             const fileshareFolder = join(
                 process.cwd(),
                 HALO3_FILESHARE_FOLDER,
-                shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+                xuidToHexString(shareXuid),
             );
 
             await Promise.all(fileShareSlots.map(async slot => {
                 try {
+                    if (!slot.is_uploaded) {
+                        slots.push({
+                            number: slot.slot,
+                            state: 'Partial',
+                            id: slot.id,
+                            sizeBytes: BigInt(String(slot.compressed_size))
+                        })
+
+                        return
+                    }
+
                     await access(join(fileshareFolder, slot.slot.toString()))
 
                     // These fields are unavailable for some files still being uploaded.
@@ -628,7 +638,6 @@ export class Halo3FileShareService {
         const fileShareSlots = await this.prisma.halo3_file_share_slot.findMany({
             where: {
                 share_id: shareXuid.toString(),
-                is_uploaded: true,
             }
         });
 
@@ -636,11 +645,22 @@ export class Halo3FileShareService {
             const fileshareFolder = join(
                 process.cwd(),
                 HALO3_FILESHARE_FOLDER,
-                shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+                xuidToHexString(shareXuid),
             );
 
             await Promise.all(fileShareSlots.map(async slot => {
                 try {
+                    if (!slot.is_uploaded) {
+                        slots.push({
+                            number: slot.slot,
+                            state: 'Partial',
+                            id: slot.id,
+                            sizeBytes: BigInt(String(slot.compressed_size))
+                        })
+
+                        return
+                    }
+
                     await access(join(fileshareFolder, slot.slot.toString()))
 
                     // These fields are unavailable for some files still being uploaded.
@@ -775,7 +795,7 @@ export class Halo3FileShareService {
         const filePath = join(
             process.cwd(),
             HALO3_FILESHARE_FOLDER,
-            shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(shareXuid),
             slot.toString(),
         );
 
@@ -806,7 +826,7 @@ export class Halo3FileShareService {
         const filePath = join(
             process.cwd(),
             HALO3_FILESHARE_FOLDER,
-            shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(shareXuid),
             slot.toString(),
         );
 
@@ -1026,7 +1046,7 @@ export class Halo3FileShareService {
         const filePath = join(
             process.cwd(),
             HALO3_FILESHARE_FOLDER,
-            shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(shareXuid),
             slot.toString(),
         )
 
@@ -1069,7 +1089,7 @@ export class Halo3FileShareService {
         const destinationFolder = join(
             process.cwd(),
             HALO3_FILESHARE_FOLDER,
-            shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(shareXuid),
         );
         await mkdir(destinationFolder, { recursive: true })
         await writeFile(join(
@@ -1141,7 +1161,7 @@ export class Halo3FileShareService {
         const destinationFolder = join(
             process.cwd(),
             HALO3_FILESHARE_FOLDER,
-            shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(shareXuid),
         );
         await mkdir(destinationFolder, { recursive: true })
         await writeFile(join(

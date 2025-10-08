@@ -273,7 +273,7 @@ export class GameApiController {
       default:
         throw new NotImplementedException();
     }
-    res.setHeader('Content-Length', size);
+    res.setHeader('Content-Length', 0);
     res.writeHead(200)
     res.write('')
   }

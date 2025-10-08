@@ -590,6 +590,8 @@ export class GameApiController {
           throw new NotImplementedException();
       }
     })().catch(e => this.logger.error(e));
+
+    return "ok";
   }
 
   @Get('/UserBeginConsume.ashx')

@@ -75,7 +75,7 @@ export class GameApiController {
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'highestSkill', type: 'number' })
   async userUpdatePlayerStats(
-    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) title,
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), new ParseIntPipe({optional: true})) title,
     @Query('userId', ParseXUIDPipe) userId: BigInt,
     @Query('highestSkill', ParseIntPipe) highestSkill: number,
   ) {
@@ -145,7 +145,7 @@ export class GameApiController {
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'locale', example: 'en' })
   async getFileshare(
-    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) titleID,
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), new ParseIntPipe({optional: true})) titleID,
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('locale', new DefaultValuePipe('en')) locale,
@@ -180,7 +180,7 @@ export class GameApiController {
   @ApiQuery({ name: 'uncompressedSize' })
   @ApiQuery({ name: 'compressedSize' })
   async startFileUpload(
-    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) title,
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), new ParseIntPipe({optional: true})) title,
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
@@ -227,7 +227,7 @@ export class GameApiController {
   @ApiQuery({ name: 'profileRegion', example: '100', description: 'ODST only', required: false })
   @ApiQuery({ name: 'isDebug', example: 'false', description: 'ODST only', required: false })
   async getBnetSubscription(
-    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) title: number,
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), new ParseIntPipe({optional: true})) title: number,
     @Query('userId', ParseXUIDPipe) userId: BigInt,
     @Query('locale') locale: string,
     @Query('gameRegion', new ParseIntPipe({ optional: true })) gameRegion?: number,
@@ -290,6 +290,11 @@ export class GameApiController {
       startposition: parseBungieHeader(z.coerce.number().optional())
     }).parse(headers);
 
+    if (upload.buffer.length == 0 && startposition) {
+      // it's probably finished so let's return OK.
+      return;
+    }
+
     (async () => {
       switch (title) {
         case TITLE_IDS.HALO3:
@@ -322,14 +327,14 @@ export class GameApiController {
   @ApiQuery({ name: 'fromAutoQueue' })
   @ApiQuery({ name: 'view' })
   async stageFileDownload(
-    @Query('title', ParseIntPipe, new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
+    @Query('title', new ParseIntPipe({optional: true}), new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
     @Query('serverId', UuidWithoutDashesPipe) serverId: string,
     @Query('startPosition', ParseIntPipe) startPosition: number,
     @Query('fromAutoQueue', ParseIntPipe) fromAutoQueue: number,
-    @Query('view') view: number,
+    @Query('view', new ParseIntPipe({optional: true})) view: number,
     @Query('preview', ParseIntPipe) preview: number,
   ) {
     switch (title) {
@@ -475,7 +480,7 @@ export class GameApiController {
   @ApiQuery({ name: 'slot', example: 1 })
   @ApiQuery({ name: 'serverId' })
   async deleteFile(
-    @Query('title', ParseIntPipe, new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
+    @Query('title', new ParseIntPipe({optional: true}), new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
     @Query('userId', ParseXUIDPipe) userid: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
@@ -507,7 +512,7 @@ export class GameApiController {
   @ApiQuery({ name: 'slot', example: 1 })
   @ApiQuery({ name: 'serverId' })
   async getUploadProgress(
-    @Query('title', ParseIntPipe, new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
+    @Query('title', new ParseIntPipe({optional: true}), new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,

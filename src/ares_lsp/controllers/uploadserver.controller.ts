@@ -46,7 +46,6 @@ export class UploadServerController {
   @UseInterceptors(FileInterceptor('upload'))
   async uploadStats(
     @UploadedFile() upload: Express.Multer.File | undefined,
-    @Res({ passthrough: true }) res: Response,
   ) {
     if (!upload) throw new BadRequestException();
 
@@ -59,7 +58,7 @@ export class UploadServerController {
       this.halo3UploadService.handleUpload(upload),
     ]);
 
-    res.status(200).send('');
+    return 'ok';
   }
 
   @ApiOperation({

@@ -252,6 +252,7 @@ export class GameApiController {
   async uploadFile(
     @UploadedFile() upload: Express.Multer.File | undefined,
     @Headers() headers: Record<string, string>,
+    @Res({ passthrough: true }) res: Response,
   ) {
     if (!upload) throw new BadRequestException();
 
@@ -267,10 +268,13 @@ export class GameApiController {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
       case TITLE_IDS.LEGACY:
-        return await this.halo3FileShareService.handleFileUpload(upload, uploaderXuid, shareXuid, slot, serverid)
+        await this.halo3FileShareService.handleFileUpload(upload, uploaderXuid, shareXuid, slot, serverid)
+        break;
       default:
         throw new NotImplementedException();
     }
+  
+    res.status(200).send('')
   }
 
   @Get('/FilesStageForDownload.ashx')

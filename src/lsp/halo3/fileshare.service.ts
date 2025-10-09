@@ -384,7 +384,7 @@ export class Halo3FileShareService {
                 QuotaSlots: ${options.quotaSlots ?? 0}
                 SlotCount: ${options.slots.length ?? 0}
                 VisibleSlots: ${options.visibleSlots ?? 0}
-                SubscriptionHash: ${options.subscriptionHash}
+                SubscriptionHash: ${options.subscriptionHash || 1}
                 Message: ${options.message ?? ''}
             `)
 
@@ -420,7 +420,7 @@ export class Halo3FileShareService {
                 CurrentlySubscribedMessage: ${subscription.currentlySubscribedMessage}
                 OverQuotaMessage: ${subscription.overQuotaMessage}
                 SubscriptionSecondsPast19700101: ${subscription.subscriptionEndTimestamp}
-                SubscriptionHash: ${subscription.subscriptionHash}
+                SubscriptionHash: ${subscription.subscriptionHash || 1}
             `);
         }
 

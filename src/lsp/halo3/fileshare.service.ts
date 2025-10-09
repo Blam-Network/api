@@ -213,8 +213,8 @@ export class Halo3FileShareService {
         ) {
             const hasher = h32().init(0);
             hasher.update(JSON.stringify({
-                quotaSlots: fileShare?.quota_slots || UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
-                quotaBytes: fileShare?.quota_bytes || UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+                quotaSlots: fileShare?.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                quotaBytes: fileShare?.quota_bytes ?? UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
                 message: fileShare?.message
             }))
     
@@ -321,12 +321,12 @@ export class Halo3FileShareService {
         const shareResponse = dedent.withOptions({
             trimWhitespace: false,
         })(`\
-                QuotaBytes: ${options.quotaBytes || 0}
-                QuotaSlots: ${options.quotaSlots || 0}
-                SlotCount: ${options.slots.length || 0}
-                VisibleSlots: ${options.visibleSlots || 0}
-                SubscriptionHash: ${options.subscriptionHash || 0}
-                Message: ${options.message || ''}
+                QuotaBytes: ${options.quotaBytes ?? 0}
+                QuotaSlots: ${options.quotaSlots ?? 0}
+                SlotCount: ${options.slots.length ?? 0}
+                VisibleSlots: ${options.visibleSlots ?? 0}
+                SubscriptionHash: ${options.subscriptionHash}
+                Message: ${options.message ?? ''}
             `)
 
         return `${shareResponse}${slotsResponse}\0`;
@@ -380,12 +380,12 @@ export class Halo3FileShareService {
         const shareResponse = dedent.withOptions({
             trimWhitespace: false,
         })(`\
-                QuotaBytes: ${options.quotaBytes || 0}
-                QuotaSlots: ${options.quotaSlots || 0}
-                SlotCount: ${options.slots.length || 0}
-                VisibleSlots: ${options.visibleSlots || 0}
-                SubscriptionHash: ${options.subscriptionHash || 0}
-                Message: ${options.message || ''}
+                QuotaBytes: ${options.quotaBytes ?? 0}
+                QuotaSlots: ${options.quotaSlots ?? 0}
+                SlotCount: ${options.slots.length ?? 0}
+                VisibleSlots: ${options.visibleSlots ?? 0}
+                SubscriptionHash: ${options.subscriptionHash}
+                Message: ${options.message ?? ''}
             `)
 
         return `${shareResponse}${slotsResponse}\0`;
@@ -410,7 +410,7 @@ export class Halo3FileShareService {
                 trimWhitespace: false,
             })(`\
                 Status: ${subscription.status}
-                NextOfferID: ${subscription.nextOfferId || 0}
+                NextOfferID: ${subscription.nextOfferId ?? 0}
                 HQButton: ${subscription.hqButton}
                 HQMessage: ${subscription.hqMessage}
                 FileShareButton: ${subscription.fileShareButton}
@@ -437,7 +437,7 @@ export class Halo3FileShareService {
                 trimWhitespace: false,
             })(`\
                 Status: ${subscription.status}
-                NextOfferID: ${subscription.nextOfferId || 0}
+                NextOfferID: ${subscription.nextOfferId ?? 0}
                 HQButton: ${subscription.hqButton}
                 HQMessage: ${subscription.hqMessage}
                 FileShareButton: ${subscription.fileShareButton}
@@ -592,15 +592,15 @@ export class Halo3FileShareService {
 
         // If the user has been downgraded, we allow their visible slots to exceed quota.
         // This allows them to delete over quota slots.
-        let visibleSlots = fileShare.quota_slots || UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
+        let visibleSlots = fileShare.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
         let highestSlot = fileShareSlots.sort((left, right) => left.slot - right.slot)[0]
         if (highestSlot && highestSlot.slot > visibleSlots) {
             visibleSlots = highestSlot.slot;
         }
 
         return this.fileCatalogResponse({
-            quotaBytes: fileShare.quota_bytes || UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
-            quotaSlots: fileShare.quota_slots || UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+            quotaBytes: fileShare.quota_bytes ?? UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+            quotaSlots: fileShare.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
             visibleSlots,
             subscriptionHash: subscriptionHash.currentHash,
             message: fileShare.message ?? undefined,
@@ -730,9 +730,9 @@ export class Halo3FileShareService {
         let subscriptionHash = await this.getShareSubscriptionHash('fileshare', shareXuid);
 
         return this.fileCatalogResponseODST({
-            quotaBytes: fileShare.quota_bytes || UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
-            quotaSlots: fileShare.quota_slots || UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
-            visibleSlots: fileShare.quota_slots || UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+            quotaBytes: fileShare.quota_bytes ?? UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+            quotaSlots: fileShare.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+            visibleSlots: fileShare.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
             subscriptionHash: subscriptionHash.currentHash,
             message: fileShare.message ?? undefined,
             slots,

@@ -677,12 +677,10 @@ export class Halo3CarnageReportService {
             return;
         }
 
-        const playerCount = campaign.gmop.options.players.filter(p => p.valid).length;
-
         await this.prisma.$transaction(async (tx) => {
             // If we have a carnage report submission with an earlier finish time, the host probs dropped.
             // Delete & reinsert with newer data.
-            const existingReport = await tx.halo3_carnage_report.findFirst({
+            const existingReport = await tx.halo3_campaign_carnage_report.findFirst({
                 where: {
                     game_id: campaign.gmop.options.game_instance.toString(),
                     map_id: campaign.gmop.options.map_id,
@@ -738,14 +736,6 @@ export class Halo3CarnageReportService {
                         createMany: { 
                             data: players.map((p) => {
                                 const campaign_results = campaign.cmrp.results.stats.filter(stats => stats.player_identifier === p.player_identifier)[0];
-
-                         const kills = Object.entries(campaign_results.kill_counts).map(
-                            ([enemy_type, data]) => ({ 
-                                enemy_type, ...data,
-                                player_xuid: p.configuration.client.player_xuid
-                            })
-                        ) as ({ enemy_type: string } & BLF.halo3_12070_08_09_05_2031_halo3_ship.s_metagame_state_class_kill_counts)[];
-
 
                                 return {
                                     player_identifier: p.player_identifier.toString(),
@@ -852,11 +842,6 @@ export class Halo3CarnageReportService {
                                     style_total_count: campaign_results.style_total_count,
                                     finalized: campaign_results.finalized,
                                     player_final_score: campaign_results.player_final_score,
-                                    kills: {
-                                        createMany: {
-                                            data: kills
-                                        }
-                                    }
                                 }
                             })
                         },
@@ -866,6 +851,29 @@ export class Halo3CarnageReportService {
                     id: true,
                 }
             });
+
+            const kills = campaign.gmop.options.players
+                .filter(p => p.valid)
+                .reduce((acc, p) => {
+                    const campaign_results = campaign.cmrp.results.stats.find(
+                        p2 => p2.player_identifier === p.player_identifier
+                    );
+                    if (campaign_results) {
+                        acc.push(
+                            ...Object.entries(campaign_results.kill_counts).map(
+                                ([enemy_type, data]) => ({
+                                    carnage_report_id: carnageReportId,
+                                    player_xuid: p.configuration.client.player_xuid.toString(),
+                                    enemy_type,
+                                    ...data,
+                                })
+                            ) as ({ player_xuid: string, enemy_type: string, carnage_report_id: string } & BLF.halo3_12070_08_09_05_2031_halo3_ship.s_metagame_state_class_kill_counts)[]
+                        );
+                    }
+                    return acc;
+                }, [] as ({ player_xuid: string, enemy_type: string, carnage_report_id: string } & BLF.halo3_12070_08_09_05_2031_halo3_ship.s_metagame_state_class_kill_counts)[]);
+
+            await tx.halo3_campaign_carnage_report_player_kills.createMany({ data: kills});
 
             await tx.halo3_service_record.deleteMany({
                 where: {

@@ -149,7 +149,7 @@ export class Halo3UserService {
                         player_xuid: BigInt(transfer.file.share_id.toFixed(0)),
                         slot: transfer.file.slot,
                         title_index: transfer.is_odst ? 3 : 0,
-                        server_id: 0n,
+                        server_id: 1n,
                         file_name: transfer.file.name ?? '',
                         file_type: transfer.file.file_type,
                         campaign_id: transfer.file.campaign_id ?? 0,

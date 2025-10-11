@@ -37,12 +37,14 @@ export class Halo3UploadService {
             case HALO3_UPLOAD_MIME_TYPES.MULTI:
                 await this.halo3CarnageReportService.handleHalo3MultiUpload(upload)
                 return;
+            case HALO3_UPLOAD_MIME_TYPES.CAMPAIGN:
+                await this.halo3CarnageReportService.handleHalo3CampaignUpload(upload)
+                return;
             case HALO3_UPLOAD_MIME_TYPES.UPLOAD:
             case HALO3_UPLOAD_MIME_TYPES.EVENT:
             case HALO3_UPLOAD_MIME_TYPES.BAD_THING:
             case HALO3_UPLOAD_MIME_TYPES.QOS:
             case HALO3_UPLOAD_MIME_TYPES.TEST:
-            case HALO3_UPLOAD_MIME_TYPES.CAMPAIGN:
                 return;
             default:
                 this.logger.log(`[Upload] Received unsupported Halo 3 upload type. Skipping.`)

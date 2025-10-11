@@ -1,5 +1,5 @@
 model ares_player_data {
-  player_xuid               Decimal  @db.Decimal(20, 0)   @id
+  player_xuid               Decimal  @id @db.Decimal(20, 0)
   hopper_access             Int?     @default(0)
   highest_skill             Int?     @default(0)
   is_bungie                 Boolean? @default(false)
@@ -12,41 +12,41 @@ model ares_player_data {
 }
 
 model ares_file_share {
-  share_id                  Decimal          @id @db.Decimal(20, 0)
-  quota_slots               Int?             @db.SmallInt
-  quota_bytes               Int?             
-  message                   String?
-  lastHash                  Int              @default(0)
-  unsubscribe_stage         Int?              @db.SmallInt
+  share_id          Decimal @id @db.Decimal(20, 0)
+  quota_slots       Int?    @db.SmallInt
+  quota_bytes       Int?
+  message           String?
+  lastHash          Int     @default(0)
+  unsubscribe_stage Int?    @db.SmallInt
 
   @@map("file_share")
   @@schema("ares")
 }
 
 model ares_file_share_slot {
-  id                          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  share_id                    Decimal         @db.Decimal(20, 0)
-  slot                        Int             @db.SmallInt
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  share_id Decimal @db.Decimal(20, 0)
+  slot     Int     @db.SmallInt
 
-  compressed_size             Int
+  compressed_size Int
 
-  unique_id                   Decimal         @db.Decimal(20, 0)
-  name                        String?          @db.VarChar(16)
-  description                 String?          @db.VarChar(128)
-  author                      String?          @db.VarChar(16)
-  file_type                   Int
-  author_is_xuid_online       Boolean?
-  author_id                   Decimal?         @db.Decimal(20, 0)
-  size_in_bytes               Decimal         @db.Decimal(20, 0)
-  date                        DateTime?        @db.Timestamp(6)
-  length_seconds              Int?
-  map_id                      Int?            
-  game_engine_type            Int?            
-  campaign_id                 Int?            
-  campaign_difficulty         Int?            
-  campaign_insertion_point    Int?             @db.SmallInt
-  hopper_id                   Int?             @db.SmallInt
-  game_id                     Decimal?         @db.Decimal(20, 0)
+  unique_id                Decimal   @db.Decimal(20, 0)
+  name                     String?   @db.VarChar(16)
+  description              String?   @db.VarChar(128)
+  author                   String?   @db.VarChar(16)
+  file_type                Int
+  author_is_xuid_online    Boolean?
+  author_id                Decimal?  @db.Decimal(20, 0)
+  size_in_bytes            Decimal   @db.Decimal(20, 0)
+  date                     DateTime? @db.Timestamp(6)
+  length_seconds           Int?
+  map_id                   Int?
+  game_engine_type         Int?
+  campaign_id              Int?
+  campaign_difficulty      Int?
+  campaign_insertion_point Int?      @db.SmallInt
+  hopper_id                Int?      @db.SmallInt
+  game_id                  Decimal?  @db.Decimal(20, 0)
 
   @@unique([share_id, slot], map: "unique_share_id_slot")
   @@map("file_share_slot")
@@ -61,8 +61,8 @@ model ares_blind_screenshot {
   author                String   @db.VarChar(16)
   file_type             Int
   author_is_xuid_online Boolean
-  author_id             Decimal @db.Decimal(20, 0)
-  size_in_bytes         Decimal @db.Decimal(20, 0)
+  author_id             Decimal  @db.Decimal(20, 0)
+  size_in_bytes         Decimal  @db.Decimal(20, 0)
   date                  DateTime @db.Timestamp(6)
   length_seconds        Int
   campaign_id           Int
@@ -70,7 +70,7 @@ model ares_blind_screenshot {
   game_engine_type      Int
   campaign_difficulty   Int
   hopper_id             Int      @db.SmallInt
-  game_id               Decimal @db.Decimal(20, 0)
+  game_id               Decimal  @db.Decimal(20, 0)
   game_tick             Int
   film_tick             Int
   jpeg_length           Int
@@ -83,25 +83,24 @@ model ares_blind_screenshot {
   @@schema("ares")
 }
 
-
 model ares_carnage_report {
-  id                                 String                              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                                 String                                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   team_game                          Boolean
-  game_id                            Decimal @db.Decimal(20, 0)
+  game_id                            Decimal                                  @db.Decimal(20, 0)
   map_id                             Int
   scenario_path                      String
-  map_variant_name                   String                              @db.VarChar(32)
-  game_variant_unique_id             Decimal @db.Decimal(20, 0)
-  map_variant_unique_id              Decimal @db.Decimal(20, 0)
+  map_variant_name                   String                                   @db.VarChar(32)
+  game_variant_unique_id             Decimal                                  @db.Decimal(20, 0)
+  map_variant_unique_id              Decimal                                  @db.Decimal(20, 0)
   started                            Boolean
-  start_time                         DateTime                            @db.Timestamp(6)
+  start_time                         DateTime                                 @db.Timestamp(6)
   finished                           Boolean
-  finish_time                        DateTime                            @db.Timestamp(6)
+  finish_time                        DateTime                                 @db.Timestamp(6)
   migrated_to_group                  Boolean
   migrated_solo                      Boolean
   simulation_aborted                 Boolean
-  in_group_session                   Boolean                             @default(false)
-  in_squad_session                   Boolean                             @default(false)
+  in_group_session                   Boolean                                  @default(false)
+  in_squad_session                   Boolean                                  @default(false)
   carnage_report_event_carry         ares_carnage_report_event_carry[]
   carnage_report_event_kill          ares_carnage_report_event_kill[]
   carnage_report_event_score         ares_carnage_report_event_score[]
@@ -113,31 +112,31 @@ model ares_carnage_report {
   carnage_report_team                ares_carnage_report_team[]
 
   @@unique([start_time, finish_time, game_id], map: "unique_start_finish_game")
-  @@schema("ares")
   @@map("carnage_report")
+  @@schema("ares")
 }
 
 model ares_carnage_report_event_carry {
-  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  carnage_report_id     String?                @db.Uuid
-  time                  Decimal @db.Decimal(20, 0)
-  carry_player_index    Int                    @db.SmallInt
+  id                    String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  carnage_report_id     String?                     @db.Uuid
+  time                  Decimal                     @db.Decimal(20, 0)
+  carry_player_index    Int                         @db.SmallInt
   position              Float[]
   weapon_index          Int
   carry_type            Int
   carnage_report_player ares_carnage_report_player? @relation(fields: [carnage_report_id, carry_player_index], references: [carnage_report_id, player_index], onDelete: Cascade, onUpdate: NoAction)
   carnage_report        ares_carnage_report?        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@schema("ares")
   @@map("carnage_report_event_carry")
+  @@schema("ares")
 }
 
 model ares_carnage_report_event_kill {
-  id                                                                                                           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  carnage_report_id                                                                                            String?                @db.Uuid
-  time                                                                                                         Decimal @db.Decimal(20, 0)
-  killer_player_index                                                                                          Int                    @db.SmallInt
-  dead_player_index                                                                                            Int                    @db.SmallInt
+  id                                                                                                           String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  carnage_report_id                                                                                            String?                     @db.Uuid
+  time                                                                                                         Decimal                     @db.Decimal(20, 0)
+  killer_player_index                                                                                          Int                         @db.SmallInt
+  dead_player_index                                                                                            Int                         @db.SmallInt
   killer_position                                                                                              Float[]
   dead_position                                                                                                Float[]
   kill_type                                                                                                    Int
@@ -145,46 +144,46 @@ model ares_carnage_report_event_kill {
   carnage_report                                                                                               ares_carnage_report?        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade)
   carnage_report_player_carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player ares_carnage_report_player? @relation("carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player", fields: [carnage_report_id, killer_player_index], references: [carnage_report_id, player_index], onDelete: Cascade, onUpdate: NoAction)
 
-  @@schema("ares")
   @@map("carnage_report_event_kill")
+  @@schema("ares")
 }
 
 model ares_carnage_report_event_score {
-  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  carnage_report_id     String?                @db.Uuid
-  time                  Decimal @db.Decimal(20, 0)
-  score_player_index    Int                    @db.SmallInt
+  id                    String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  carnage_report_id     String?                     @db.Uuid
+  time                  Decimal                     @db.Decimal(20, 0)
+  score_player_index    Int                         @db.SmallInt
   position              Float[]
   weapon_index          Int
   score_type            Int
   carnage_report        ares_carnage_report?        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   carnage_report_player ares_carnage_report_player? @relation(fields: [carnage_report_id, score_player_index], references: [carnage_report_id, player_index], onDelete: Cascade, onUpdate: NoAction)
 
-  @@schema("ares")
   @@map("carnage_report_event_score")
+  @@schema("ares")
 }
 
 model ares_carnage_report_game_variant {
-  id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  game_engine           Int            @db.SmallInt
-  unique_id             Decimal @db.Decimal(20, 0)
-  name                  String         @db.VarChar(16)
-  description           String         @db.VarChar(128)
-  author                String         @db.VarChar(16)
+  id                    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  game_engine           Int                 @db.SmallInt
+  unique_id             Decimal             @db.Decimal(20, 0)
+  name                  String              @db.VarChar(16)
+  description           String              @db.VarChar(128)
+  author                String              @db.VarChar(16)
   file_type             Int
   author_is_xuid_online Boolean
-  author_id             Decimal @db.Decimal(20, 0)
-  size_in_bytes         Decimal @db.Decimal(20, 0)
-  date                  DateTime       @db.Timestamp(6)
+  author_id             Decimal             @db.Decimal(20, 0)
+  size_in_bytes         Decimal             @db.Decimal(20, 0)
+  date                  DateTime            @db.Timestamp(6)
   carnage_report        ares_carnage_report @relation(fields: [id], references: [id], onDelete: Cascade, map: "fk_carnage_report")
 
-  @@schema("ares")
   @@map("carnage_report_game_variant")
+  @@schema("ares")
 }
 
 model ares_carnage_report_machine {
-  carnage_report_id                               String                  @db.Uuid
-  machine_index                                   Int                     @db.SmallInt
+  carnage_report_id                               String                       @db.Uuid
+  machine_index                                   Int                          @db.SmallInt
   machine_identifier                              Bytes
   machine_exists                                  Boolean?
   machine_connected_to_host                       Boolean?
@@ -198,7 +197,7 @@ model ares_carnage_report_machine {
   machine_bandwidth_events_4                      Int?
   session_exists                                  Boolean?
   session_has_hard_drive                          Boolean?
-  session_party_nonce                             Decimal? @db.Decimal(20, 0)
+  session_party_nonce                             Decimal?                     @db.Decimal(20, 0)
   session_secure_address                          Bytes?
   session_network_version_number                  Int?
   session_peer_estimated_downstream_bandwidth_bps Int?
@@ -212,34 +211,34 @@ model ares_carnage_report_machine {
   carnage_report_player                           ares_carnage_report_player[]
 
   @@id([carnage_report_id, machine_index])
-  @@schema("ares")
   @@map("carnage_report_machine")
+  @@schema("ares")
 }
 
 model ares_carnage_report_matchmaking_options {
-  id                           String         @id(map: "pk_carnage_report_matchmaking_options") @db.Uuid
+  id                           String              @id(map: "pk_carnage_report_matchmaking_options") @db.Uuid
   hopper_identifier            Int
-  hopper_name                  String         @db.VarChar(32)
+  hopper_name                  String              @db.VarChar(32)
   hopper_ranked                Boolean
   hopper_team_based            Boolean
   xlast_index                  Int
-  draw_probability             Decimal @db.Decimal(20, 0)
+  draw_probability             Decimal             @db.Decimal(20, 0)
   beta                         Float
   tau                          Float
-  experience_base_increment    Decimal @db.Decimal(20, 0)
-  experience_penalty_decrement Decimal @db.Decimal(20, 0)
+  experience_base_increment    Decimal             @db.Decimal(20, 0)
+  experience_penalty_decrement Decimal             @db.Decimal(20, 0)
   carnage_report               ares_carnage_report @relation(fields: [id], references: [id], onDelete: Cascade)
 
-  @@schema("ares")
   @@map("carnage_report_matchmaking_options")
+  @@schema("ares")
 }
 
 model ares_carnage_report_player {
-  carnage_report_id                                                                                                               String                                    @db.Uuid
-  player_identifier                                                                                                               Decimal @db.Decimal(20, 0)
-  player_index                                                                                                                    Int                                       @db.SmallInt
-  machine_index                                                                                                                   Int?                                      @db.SmallInt
-  player_name                                                                                                                     String                                    @db.VarChar(16)
+  carnage_report_id                                                                                                               String                                         @db.Uuid
+  player_identifier                                                                                                               Decimal                                        @db.Decimal(20, 0)
+  player_index                                                                                                                    Int                                            @db.SmallInt
+  machine_index                                                                                                                   Int?                                           @db.SmallInt
+  player_name                                                                                                                     String                                         @db.VarChar(16)
   appearance_flags                                                                                                                Int
   primary_color                                                                                                                   Int
   secondary_color                                                                                                                 Int
@@ -259,8 +258,8 @@ model ares_carnage_report_player {
   elite_model_area_1                                                                                                              Int
   elite_model_area_2                                                                                                              Int
   elite_model_area_3                                                                                                              Int
-  service_tag                                                                                                                     String                                    @db.VarChar(4)
-  player_xuid                                                                                                                     Decimal @db.Decimal(20, 0)
+  service_tag                                                                                                                     String                                         @db.VarChar(4)
+  player_xuid                                                                                                                     Decimal                                        @db.Decimal(20, 0)
   is_silver_or_gold_live                                                                                                          Boolean
   is_online_enabled                                                                                                               Boolean
   is_controller_attached                                                                                                          Boolean
@@ -271,35 +270,35 @@ model ares_carnage_report_player {
   is_free_live_gold_account                                                                                                       Boolean
   is_user_created_content_allowed                                                                                                 Boolean
   is_friend_created_content_allowed                                                                                               Boolean
-  is_griefer                                                                                                                      Int                                       @db.SmallInt
+  is_griefer                                                                                                                      Int                                            @db.SmallInt
   campaign_difficulty_completed                                                                                                   Int
-  bungienet_user_flags                                                                                                            Decimal @db.Decimal(20, 0)
+  bungienet_user_flags                                                                                                            Decimal                                        @db.Decimal(20, 0)
   gamer_region                                                                                                                    Int
   gamer_zone                                                                                                                      Int
-  cheat_flags                                                                                                                     Decimal @db.Decimal(20, 0)
-  ban_flags                                                                                                                       Decimal @db.Decimal(20, 0)
+  cheat_flags                                                                                                                     Decimal                                        @db.Decimal(20, 0)
+  ban_flags                                                                                                                       Decimal                                        @db.Decimal(20, 0)
   repeated_play_coefficient                                                                                                       Int
   experience_growth_banned                                                                                                        Boolean
-  matchmade_ranked_games_played                                                                                                   Decimal @db.Decimal(20, 0)
-  matchmade_ranked_games_completed                                                                                                Decimal @db.Decimal(20, 0)
-  matchmade_ranked_games_won                                                                                                      Decimal @db.Decimal(20, 0)
-  matchmade_unranked_games_played                                                                                                 Decimal @db.Decimal(20, 0)
-  matchmade_unranked_games_completed                                                                                              Decimal @db.Decimal(20, 0)
-  hopper_experience_base                                                                                                          Decimal @db.Decimal(20, 0)
-  custom_games_completed                                                                                                          Decimal @db.Decimal(20, 0)
-  hopper_experience_penalty                                                                                                       Decimal @db.Decimal(20, 0)
-  first_played                                                                                                                    DateTime                                  @db.Timestamp(6)
-  last_played                                                                                                                     DateTime                                  @db.Timestamp(6)
-  global_statistics_valid                                                                                                         Int                                       @db.SmallInt
-  global_statistics_highest_skill                                                                                                 Decimal @db.Decimal(20, 0)
-  global_statistics_experience_base                                                                                               Decimal @db.Decimal(20, 0)
-  global_statistics_experience_penalty                                                                                            Decimal @db.Decimal(20, 0)
-  hopper_statistics_valid                                                                                                         Int                                       @db.SmallInt
+  matchmade_ranked_games_played                                                                                                   Decimal                                        @db.Decimal(20, 0)
+  matchmade_ranked_games_completed                                                                                                Decimal                                        @db.Decimal(20, 0)
+  matchmade_ranked_games_won                                                                                                      Decimal                                        @db.Decimal(20, 0)
+  matchmade_unranked_games_played                                                                                                 Decimal                                        @db.Decimal(20, 0)
+  matchmade_unranked_games_completed                                                                                              Decimal                                        @db.Decimal(20, 0)
+  hopper_experience_base                                                                                                          Decimal                                        @db.Decimal(20, 0)
+  custom_games_completed                                                                                                          Decimal                                        @db.Decimal(20, 0)
+  hopper_experience_penalty                                                                                                       Decimal                                        @db.Decimal(20, 0)
+  first_played                                                                                                                    DateTime                                       @db.Timestamp(6)
+  last_played                                                                                                                     DateTime                                       @db.Timestamp(6)
+  global_statistics_valid                                                                                                         Int                                            @db.SmallInt
+  global_statistics_highest_skill                                                                                                 Decimal                                        @db.Decimal(20, 0)
+  global_statistics_experience_base                                                                                               Decimal                                        @db.Decimal(20, 0)
+  global_statistics_experience_penalty                                                                                            Decimal                                        @db.Decimal(20, 0)
+  hopper_statistics_valid                                                                                                         Int                                            @db.SmallInt
   hopper_statistics_identifier                                                                                                    Int
-  hopper_statistics_hopper_skill                                                                                                  Decimal @db.Decimal(20, 0)
-  hopper_statistics_games_won                                                                                                     Decimal @db.Decimal(20, 0)
-  hopper_statistics_games_played                                                                                                  Decimal @db.Decimal(20, 0)
-  hopper_statistics_games_completed                                                                                               Decimal @db.Decimal(20, 0)
+  hopper_statistics_hopper_skill                                                                                                  Decimal                                        @db.Decimal(20, 0)
+  hopper_statistics_games_won                                                                                                     Decimal                                        @db.Decimal(20, 0)
+  hopper_statistics_games_played                                                                                                  Decimal                                        @db.Decimal(20, 0)
+  hopper_statistics_games_completed                                                                                               Decimal                                        @db.Decimal(20, 0)
   hopper_statistics_mu                                                                                                            Float?
   hopper_statistics_sigma                                                                                                         Float?
   player_team                                                                                                                     Int
@@ -312,9 +311,9 @@ model ares_carnage_report_player {
   host_stats_hopper_skill                                                                                                         Int
   host_stats_hopper_skill_display                                                                                                 Int
   host_stats_hopper_skill_update_weight                                                                                           Int
-  standing                                                                                                                        Int                                       @db.SmallInt
-  result                                                                                                                          Int                                       @db.SmallInt
-  score                                                                                                                           Int                                       @db.SmallInt
+  standing                                                                                                                        Int                                            @db.SmallInt
+  result                                                                                                                          Int                                            @db.SmallInt
+  score                                                                                                                           Int                                            @db.SmallInt
   carnage_report_event_carry                                                                                                      ares_carnage_report_event_carry[]
   carnage_report_event_kill_carnage_report_event_kill_carnage_report_id_dead_player_indexTocarnage_report_player                  ares_carnage_report_event_kill[]               @relation("carnage_report_event_kill_carnage_report_id_dead_player_indexTocarnage_report_player")
   carnage_report_event_kill_carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player                ares_carnage_report_event_kill[]               @relation("carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player")
@@ -331,305 +330,305 @@ model ares_carnage_report_player {
   @@id([carnage_report_id, player_index])
   @@index([player_name], map: "idx_player_name")
   @@index([player_xuid], map: "idx_player_xuid")
-  @@schema("ares")
   @@map("carnage_report_player")
+  @@schema("ares")
 }
 
 model ares_carnage_report_player_achievements {
-  carnage_report_id           String                @db.Uuid
-  player_index                Int                   @db.SmallInt
-  landfall                    Int                   @db.SmallInt
-  holdout                     Int                   @db.SmallInt
-  the_road                    Int                   @db.SmallInt
-  assault                     Int                   @db.SmallInt
-  cleansing                   Int                   @db.SmallInt
-  refuge                      Int                   @db.SmallInt
-  last_stand                  Int                   @db.SmallInt
-  the_key                     Int                   @db.SmallInt
-  return                      Int                   @map("_return") @db.SmallInt
-  campaign_complete_normal    Int                   @db.SmallInt
-  campaign_complete_heroic    Int                   @db.SmallInt
-  campaign_complete_legendary Int                   @db.SmallInt
-  iron                        Int                   @db.SmallInt
-  black_eye                   Int                   @db.SmallInt
-  tough_luck                  Int                   @db.SmallInt
-  catch                       Int                   @db.SmallInt
-  fog                         Int                   @db.SmallInt
-  famine                      Int                   @db.SmallInt
-  thunderstorm                Int                   @db.SmallInt
-  tilt                        Int                   @db.SmallInt
-  mythic                      Int                   @db.SmallInt
-  marathon_man                Int                   @db.SmallInt
-  guerilla                    Int                   @db.SmallInt
-  demon                       Int                   @db.SmallInt
-  cavalier                    Int                   @db.SmallInt
-  askar                       Int                   @db.SmallInt
-  exterminator                Int                   @db.SmallInt
-  ranger                      Int                   @db.SmallInt
-  vanguard                    Int                   @db.SmallInt
-  orpheus                     Int                   @db.SmallInt
-  reclaimer                   Int                   @db.SmallInt
-  graduate                    Int                   @db.SmallInt
-  unsc_spartan                Int                   @db.SmallInt
-  spartan_officer             Int                   @db.SmallInt
-  two_for_one                 Int                   @db.SmallInt
-  triple_kill                 Int                   @db.SmallInt
-  overkill                    Int                   @db.SmallInt
-  lee_r_wilson_memorial       Int                   @db.SmallInt
-  killing_frenzy              Int                   @db.SmallInt
-  steppin_razor               Int                   @db.SmallInt
-  mongoose_mowdown            Int                   @db.SmallInt
-  up_close_and_personal       Int                   @db.SmallInt
-  mvp                         Int                   @db.SmallInt
-  maybe_next_time_buddy       Int                   @db.SmallInt
-  too_close_to_the_sun        Int                   @db.SmallInt
-  we_re_in_for_some_chop      Int                   @db.SmallInt
-  fear_the_pink_mist          Int                   @db.SmallInt
-  headshot_honcho             Int                   @db.SmallInt
-  used_car_salesman           Int                   @db.SmallInt
+  carnage_report_id           String                     @db.Uuid
+  player_index                Int                        @db.SmallInt
+  landfall                    Int                        @db.SmallInt
+  holdout                     Int                        @db.SmallInt
+  the_road                    Int                        @db.SmallInt
+  assault                     Int                        @db.SmallInt
+  cleansing                   Int                        @db.SmallInt
+  refuge                      Int                        @db.SmallInt
+  last_stand                  Int                        @db.SmallInt
+  the_key                     Int                        @db.SmallInt
+  return                      Int                        @map("_return") @db.SmallInt
+  campaign_complete_normal    Int                        @db.SmallInt
+  campaign_complete_heroic    Int                        @db.SmallInt
+  campaign_complete_legendary Int                        @db.SmallInt
+  iron                        Int                        @db.SmallInt
+  black_eye                   Int                        @db.SmallInt
+  tough_luck                  Int                        @db.SmallInt
+  catch                       Int                        @db.SmallInt
+  fog                         Int                        @db.SmallInt
+  famine                      Int                        @db.SmallInt
+  thunderstorm                Int                        @db.SmallInt
+  tilt                        Int                        @db.SmallInt
+  mythic                      Int                        @db.SmallInt
+  marathon_man                Int                        @db.SmallInt
+  guerilla                    Int                        @db.SmallInt
+  demon                       Int                        @db.SmallInt
+  cavalier                    Int                        @db.SmallInt
+  askar                       Int                        @db.SmallInt
+  exterminator                Int                        @db.SmallInt
+  ranger                      Int                        @db.SmallInt
+  vanguard                    Int                        @db.SmallInt
+  orpheus                     Int                        @db.SmallInt
+  reclaimer                   Int                        @db.SmallInt
+  graduate                    Int                        @db.SmallInt
+  unsc_spartan                Int                        @db.SmallInt
+  spartan_officer             Int                        @db.SmallInt
+  two_for_one                 Int                        @db.SmallInt
+  triple_kill                 Int                        @db.SmallInt
+  overkill                    Int                        @db.SmallInt
+  lee_r_wilson_memorial       Int                        @db.SmallInt
+  killing_frenzy              Int                        @db.SmallInt
+  steppin_razor               Int                        @db.SmallInt
+  mongoose_mowdown            Int                        @db.SmallInt
+  up_close_and_personal       Int                        @db.SmallInt
+  mvp                         Int                        @db.SmallInt
+  maybe_next_time_buddy       Int                        @db.SmallInt
+  too_close_to_the_sun        Int                        @db.SmallInt
+  we_re_in_for_some_chop      Int                        @db.SmallInt
+  fear_the_pink_mist          Int                        @db.SmallInt
+  headshot_honcho             Int                        @db.SmallInt
+  used_car_salesman           Int                        @db.SmallInt
   carnage_report_player       ares_carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: Cascade, map: "fk_achievements_carnage_report_player")
 
   @@id([carnage_report_id, player_index])
-  @@schema("ares")
   @@map("carnage_report_player_achievements")
+  @@schema("ares")
 }
 
 model ares_carnage_report_player_damage_statistics {
-  carnage_report_id     String                @db.Uuid
-  player_index          Int                   @db.SmallInt
-  damage_source         String                @db.VarChar
-  kills                 Int                   @db.SmallInt
-  deaths                Int                   @db.SmallInt
-  betrayals             Int                   @db.SmallInt
-  suicides              Int                   @db.SmallInt
-  headshots             Int                   @db.SmallInt
+  carnage_report_id     String                     @db.Uuid
+  player_index          Int                        @db.SmallInt
+  damage_source         String                     @db.VarChar
+  kills                 Int                        @db.SmallInt
+  deaths                Int                        @db.SmallInt
+  betrayals             Int                        @db.SmallInt
+  suicides              Int                        @db.SmallInt
+  headshots             Int                        @db.SmallInt
   carnage_report_player ares_carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: Cascade, map: "fk_damage_statistics_carnage_report_player")
 
   @@id([carnage_report_id, player_index, damage_source])
-  @@schema("ares")
   @@map("carnage_report_player_damage_statistics")
+  @@schema("ares")
 }
 
 model ares_carnage_report_player_interaction {
-  carnage_report_id                                                                                                   String                @db.Uuid
-  left_player_index                                                                                                   Int                   @db.SmallInt
-  right_player_index                                                                                                  Int                   @db.SmallInt
-  killed                                                                                                              Int                   @db.SmallInt
-  killed_by                                                                                                           Int                   @db.SmallInt
+  carnage_report_id                                                                                                   String                     @db.Uuid
+  left_player_index                                                                                                   Int                        @db.SmallInt
+  right_player_index                                                                                                  Int                        @db.SmallInt
+  killed                                                                                                              Int                        @db.SmallInt
+  killed_by                                                                                                           Int                        @db.SmallInt
   carnage_report_player_carnage_report_player_interaction_left_player_index_carnage_report_idTocarnage_report_player  ares_carnage_report_player @relation("carnage_report_player_interaction_left_player_index_carnage_report_idTocarnage_report_player", fields: [left_player_index, carnage_report_id], references: [player_index, carnage_report_id], onDelete: Cascade, onUpdate: NoAction, map: "carnage_report_player_interac_left_player_index_carnage_re_fkey")
   carnage_report_player_carnage_report_player_interaction_right_player_index_carnage_report_idTocarnage_report_player ares_carnage_report_player @relation("carnage_report_player_interaction_right_player_index_carnage_report_idTocarnage_report_player", fields: [right_player_index, carnage_report_id], references: [player_index, carnage_report_id], onDelete: Cascade, onUpdate: NoAction, map: "carnage_report_player_interac_right_player_index_carnage_r_fkey")
 
   @@id([carnage_report_id, left_player_index, right_player_index])
-  @@schema("ares")
   @@map("carnage_report_player_interaction")
+  @@schema("ares")
 }
 
 model ares_carnage_report_player_medals {
-  carnage_report_id                 String                @db.Uuid
-  player_index                      Int                   @db.SmallInt
-  extermination                     Int                   @db.SmallInt
-  perfection                        Int                   @db.SmallInt
-  multiple_kill_2                   Int                   @db.SmallInt
-  multiple_kill_3                   Int                   @db.SmallInt
-  multiple_kill_4                   Int                   @db.SmallInt
-  multiple_kill_5                   Int                   @db.SmallInt
-  multiple_kill_6                   Int                   @db.SmallInt
-  multiple_kill_7                   Int                   @db.SmallInt
-  multiple_kill_8                   Int                   @db.SmallInt
-  multiple_kill_9                   Int                   @db.SmallInt
-  multiple_kill_10                  Int                   @db.SmallInt
-  kills_in_a_row_5                  Int                   @db.SmallInt
-  kills_in_a_row_10                 Int                   @db.SmallInt
-  kills_in_a_row_15                 Int                   @db.SmallInt
-  kills_in_a_row_20                 Int                   @db.SmallInt
-  kills_in_a_row_25                 Int                   @db.SmallInt
-  kills_in_a_row_30                 Int                   @db.SmallInt
-  sniper_kill_5                     Int                   @db.SmallInt
-  sniper_kill_10                    Int                   @db.SmallInt
-  shotgun_kill_5                    Int                   @db.SmallInt
-  shotgun_kill_10                   Int                   @db.SmallInt
-  collision_kill_5                  Int                   @db.SmallInt
-  collision_kill_10                 Int                   @db.SmallInt
-  sword_kill_5                      Int                   @db.SmallInt
-  sword_kill_10                     Int                   @db.SmallInt
-  juggernaut_kill_5                 Int                   @db.SmallInt
-  juggernaut_kill_10                Int                   @db.SmallInt
-  zombie_kill_5                     Int                   @db.SmallInt
-  zombie_kill_10                    Int                   @db.SmallInt
-  human_kill_5                      Int                   @db.SmallInt
-  human_kill_10                     Int                   @db.SmallInt
-  human_kill_15                     Int                   @db.SmallInt
-  koth_kill_5                       Int                   @db.SmallInt
-  shotgun_kill_sword                Int                   @db.SmallInt
-  vehicle_impact_kill               Int                   @db.SmallInt
-  vehicle_hijack                    Int                   @db.SmallInt
-  aircraft_hijack                   Int                   @db.SmallInt
-  deadplayer_kill                   Int                   @db.SmallInt
-  player_kill_spreeplayer           Int                   @db.SmallInt
-  spartanlaser_kill                 Int                   @db.SmallInt
-  stickygrenade_kill                Int                   @db.SmallInt
-  sniper_kill                       Int                   @db.SmallInt
-  bashbehind_kill                   Int                   @db.SmallInt
-  bash_kill                         Int                   @db.SmallInt
-  flame_kill                        Int                   @db.SmallInt
-  driver_assist_gunner              Int                   @db.SmallInt
-  assault_bomb_planted              Int                   @db.SmallInt
-  assault_player_kill_carrier       Int                   @db.SmallInt
-  vip_player_kill_vip               Int                   @db.SmallInt
-  juggernaut_player_kill_juggernaut Int                   @db.SmallInt
-  oddball_carrier_kill_player       Int                   @db.SmallInt
-  ctf_flag_captured                 Int                   @db.SmallInt
-  ctf_flag_player_kill_carrier      Int                   @db.SmallInt
-  ctf_flag_carrier_kill_player      Int                   @db.SmallInt
-  infection_survive                 Int                   @db.SmallInt
-  nemesis                           Int                   @db.SmallInt
-  avenger                           Int                   @db.SmallInt
-  unused3                           Int                   @db.SmallInt
+  carnage_report_id                 String                     @db.Uuid
+  player_index                      Int                        @db.SmallInt
+  extermination                     Int                        @db.SmallInt
+  perfection                        Int                        @db.SmallInt
+  multiple_kill_2                   Int                        @db.SmallInt
+  multiple_kill_3                   Int                        @db.SmallInt
+  multiple_kill_4                   Int                        @db.SmallInt
+  multiple_kill_5                   Int                        @db.SmallInt
+  multiple_kill_6                   Int                        @db.SmallInt
+  multiple_kill_7                   Int                        @db.SmallInt
+  multiple_kill_8                   Int                        @db.SmallInt
+  multiple_kill_9                   Int                        @db.SmallInt
+  multiple_kill_10                  Int                        @db.SmallInt
+  kills_in_a_row_5                  Int                        @db.SmallInt
+  kills_in_a_row_10                 Int                        @db.SmallInt
+  kills_in_a_row_15                 Int                        @db.SmallInt
+  kills_in_a_row_20                 Int                        @db.SmallInt
+  kills_in_a_row_25                 Int                        @db.SmallInt
+  kills_in_a_row_30                 Int                        @db.SmallInt
+  sniper_kill_5                     Int                        @db.SmallInt
+  sniper_kill_10                    Int                        @db.SmallInt
+  shotgun_kill_5                    Int                        @db.SmallInt
+  shotgun_kill_10                   Int                        @db.SmallInt
+  collision_kill_5                  Int                        @db.SmallInt
+  collision_kill_10                 Int                        @db.SmallInt
+  sword_kill_5                      Int                        @db.SmallInt
+  sword_kill_10                     Int                        @db.SmallInt
+  juggernaut_kill_5                 Int                        @db.SmallInt
+  juggernaut_kill_10                Int                        @db.SmallInt
+  zombie_kill_5                     Int                        @db.SmallInt
+  zombie_kill_10                    Int                        @db.SmallInt
+  human_kill_5                      Int                        @db.SmallInt
+  human_kill_10                     Int                        @db.SmallInt
+  human_kill_15                     Int                        @db.SmallInt
+  koth_kill_5                       Int                        @db.SmallInt
+  shotgun_kill_sword                Int                        @db.SmallInt
+  vehicle_impact_kill               Int                        @db.SmallInt
+  vehicle_hijack                    Int                        @db.SmallInt
+  aircraft_hijack                   Int                        @db.SmallInt
+  deadplayer_kill                   Int                        @db.SmallInt
+  player_kill_spreeplayer           Int                        @db.SmallInt
+  spartanlaser_kill                 Int                        @db.SmallInt
+  stickygrenade_kill                Int                        @db.SmallInt
+  sniper_kill                       Int                        @db.SmallInt
+  bashbehind_kill                   Int                        @db.SmallInt
+  bash_kill                         Int                        @db.SmallInt
+  flame_kill                        Int                        @db.SmallInt
+  driver_assist_gunner              Int                        @db.SmallInt
+  assault_bomb_planted              Int                        @db.SmallInt
+  assault_player_kill_carrier       Int                        @db.SmallInt
+  vip_player_kill_vip               Int                        @db.SmallInt
+  juggernaut_player_kill_juggernaut Int                        @db.SmallInt
+  oddball_carrier_kill_player       Int                        @db.SmallInt
+  ctf_flag_captured                 Int                        @db.SmallInt
+  ctf_flag_player_kill_carrier      Int                        @db.SmallInt
+  ctf_flag_carrier_kill_player      Int                        @db.SmallInt
+  infection_survive                 Int                        @db.SmallInt
+  nemesis                           Int                        @db.SmallInt
+  avenger                           Int                        @db.SmallInt
+  unused3                           Int                        @db.SmallInt
   carnage_report                    ares_carnage_report        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade)
   carnage_report_player             ares_carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([carnage_report_id, player_index])
-  @@schema("ares")
   @@map("carnage_report_player_medals")
+  @@schema("ares")
 }
 
 model ares_carnage_report_player_statistics {
-  carnage_report_id              String                @db.Uuid
-  player_index                   Int                   @db.SmallInt
-  games_played                   Int                   @db.SmallInt
-  games_completed                Int                   @db.SmallInt
-  games_won                      Int                   @db.SmallInt
-  games_tied                     Int                   @db.SmallInt
-  rounds_completed               Int                   @db.SmallInt
-  rounds_won                     Int                   @db.SmallInt
-  in_round_score                 Int                   @db.SmallInt
-  in_game_total_score            Int                   @db.SmallInt
-  kills                          Int                   @db.SmallInt
-  assists                        Int                   @db.SmallInt
-  deaths                         Int                   @db.SmallInt
-  betrayals                      Int                   @db.SmallInt
-  suicides                       Int                   @db.SmallInt
-  most_kills_in_a_row            Int                   @db.SmallInt
-  seconds_alive                  Int                   @db.SmallInt
-  ctf_flag_scores                Int                   @db.SmallInt
-  ctf_flag_grabs                 Int                   @db.SmallInt
-  ctf_flag_carrier_kills         Int                   @db.SmallInt
-  ctf_flag_returns               Int                   @db.SmallInt
-  assault_bomb_arms              Int                   @db.SmallInt
-  assault_bomb_grabs             Int                   @db.SmallInt
-  assault_bomb_disarms           Int                   @db.SmallInt
-  assault_bomb_detonations       Int                   @db.SmallInt
-  oddball_time_with_ball         Int                   @db.SmallInt
-  oddball_unused                 Int                   @db.SmallInt
-  oddball_kills_as_carrier       Int                   @db.SmallInt
-  oddball_ball_carrier_kills     Int                   @db.SmallInt
-  king_time_on_hill              Int                   @db.SmallInt
-  king_total_control_time        Int                   @db.SmallInt
-  king_unused0                   Int                   @db.SmallInt
-  king_unused1                   Int                   @db.SmallInt
-  unused0                        Int                   @db.SmallInt
-  unused1                        Int                   @db.SmallInt
-  unused2                        Int                   @db.SmallInt
-  vip_takedowns                  Int                   @db.SmallInt
-  vip_kills_as_vip               Int                   @db.SmallInt
-  vip_guard_time                 Int                   @db.SmallInt
-  vip_time_as_vip                Int                   @db.SmallInt
-  vip_lives_as_vip               Int                   @db.SmallInt
-  juggernaut_kills               Int                   @db.SmallInt
-  juggernaut_kills_as_juggernaut Int                   @db.SmallInt
-  juggernaut_total_control_time  Int                   @db.SmallInt
-  total_wp                       Int                   @db.SmallInt
-  juggernaut_unused              Int                   @db.SmallInt
-  territories_owned              Int                   @db.SmallInt
-  territories_captures           Int                   @db.SmallInt
-  territories_ousts              Int                   @db.SmallInt
-  territories_time_in_territory  Int                   @db.SmallInt
-  infection_zombie_kills         Int                   @db.SmallInt
-  infection_infections           Int                   @db.SmallInt
-  infection_time_as_human        Int                   @db.SmallInt
+  carnage_report_id              String                     @db.Uuid
+  player_index                   Int                        @db.SmallInt
+  games_played                   Int                        @db.SmallInt
+  games_completed                Int                        @db.SmallInt
+  games_won                      Int                        @db.SmallInt
+  games_tied                     Int                        @db.SmallInt
+  rounds_completed               Int                        @db.SmallInt
+  rounds_won                     Int                        @db.SmallInt
+  in_round_score                 Int                        @db.SmallInt
+  in_game_total_score            Int                        @db.SmallInt
+  kills                          Int                        @db.SmallInt
+  assists                        Int                        @db.SmallInt
+  deaths                         Int                        @db.SmallInt
+  betrayals                      Int                        @db.SmallInt
+  suicides                       Int                        @db.SmallInt
+  most_kills_in_a_row            Int                        @db.SmallInt
+  seconds_alive                  Int                        @db.SmallInt
+  ctf_flag_scores                Int                        @db.SmallInt
+  ctf_flag_grabs                 Int                        @db.SmallInt
+  ctf_flag_carrier_kills         Int                        @db.SmallInt
+  ctf_flag_returns               Int                        @db.SmallInt
+  assault_bomb_arms              Int                        @db.SmallInt
+  assault_bomb_grabs             Int                        @db.SmallInt
+  assault_bomb_disarms           Int                        @db.SmallInt
+  assault_bomb_detonations       Int                        @db.SmallInt
+  oddball_time_with_ball         Int                        @db.SmallInt
+  oddball_unused                 Int                        @db.SmallInt
+  oddball_kills_as_carrier       Int                        @db.SmallInt
+  oddball_ball_carrier_kills     Int                        @db.SmallInt
+  king_time_on_hill              Int                        @db.SmallInt
+  king_total_control_time        Int                        @db.SmallInt
+  king_unused0                   Int                        @db.SmallInt
+  king_unused1                   Int                        @db.SmallInt
+  unused0                        Int                        @db.SmallInt
+  unused1                        Int                        @db.SmallInt
+  unused2                        Int                        @db.SmallInt
+  vip_takedowns                  Int                        @db.SmallInt
+  vip_kills_as_vip               Int                        @db.SmallInt
+  vip_guard_time                 Int                        @db.SmallInt
+  vip_time_as_vip                Int                        @db.SmallInt
+  vip_lives_as_vip               Int                        @db.SmallInt
+  juggernaut_kills               Int                        @db.SmallInt
+  juggernaut_kills_as_juggernaut Int                        @db.SmallInt
+  juggernaut_total_control_time  Int                        @db.SmallInt
+  total_wp                       Int                        @db.SmallInt
+  juggernaut_unused              Int                        @db.SmallInt
+  territories_owned              Int                        @db.SmallInt
+  territories_captures           Int                        @db.SmallInt
+  territories_ousts              Int                        @db.SmallInt
+  territories_time_in_territory  Int                        @db.SmallInt
+  infection_zombie_kills         Int                        @db.SmallInt
+  infection_infections           Int                        @db.SmallInt
+  infection_time_as_human        Int                        @db.SmallInt
   carnage_report_player          ares_carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: Cascade, map: "fk_statistics_carnage_report_player")
 
   @@id([carnage_report_id, player_index])
-  @@schema("ares")
   @@map("carnage_report_player_statistics")
+  @@schema("ares")
 }
 
 model ares_carnage_report_team {
   team_index                     Int
-  carnage_report_id              String                          @db.Uuid
-  standing                       Int                             @db.SmallInt
-  score                          Int                             @db.SmallInt
+  carnage_report_id              String                               @db.Uuid
+  standing                       Int                                  @db.SmallInt
+  score                          Int                                  @db.SmallInt
   carnage_report                 ares_carnage_report                  @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   carnage_report_team_statistics ares_carnage_report_team_statistics?
 
   @@id([team_index, carnage_report_id])
-  @@schema("ares")
   @@map("carnage_report_team")
+  @@schema("ares")
 }
 
 model ares_carnage_report_team_statistics {
-  carnage_report_id              String              @db.Uuid
-  team_index                     Int                 @db.SmallInt
-  games_played                   Int                 @db.SmallInt
-  games_completed                Int                 @db.SmallInt
-  games_won                      Int                 @db.SmallInt
-  games_tied                     Int                 @db.SmallInt
-  rounds_completed               Int                 @db.SmallInt
-  rounds_won                     Int                 @db.SmallInt
-  in_round_score                 Int                 @db.SmallInt
-  in_game_total_score            Int                 @db.SmallInt
-  kills                          Int                 @db.SmallInt
-  assists                        Int                 @db.SmallInt
-  deaths                         Int                 @db.SmallInt
-  betrayals                      Int                 @db.SmallInt
-  suicides                       Int                 @db.SmallInt
-  most_kills_in_a_row            Int                 @db.SmallInt
-  seconds_alive                  Int                 @db.SmallInt
-  ctf_flag_scores                Int                 @db.SmallInt
-  ctf_flag_grabs                 Int                 @db.SmallInt
-  ctf_flag_carrier_kills         Int                 @db.SmallInt
-  ctf_flag_returns               Int                 @db.SmallInt
-  assault_bomb_arms              Int                 @db.SmallInt
-  assault_bomb_grabs             Int                 @db.SmallInt
-  assault_bomb_disarms           Int                 @db.SmallInt
-  assault_bomb_detonations       Int                 @db.SmallInt
-  oddball_time_with_ball         Int                 @db.SmallInt
-  oddball_unused                 Int                 @db.SmallInt
-  oddball_kills_as_carrier       Int                 @db.SmallInt
-  oddball_ball_carrier_kills     Int                 @db.SmallInt
-  king_time_on_hill              Int                 @db.SmallInt
-  king_total_control_time        Int                 @db.SmallInt
-  king_unused0                   Int                 @db.SmallInt
-  king_unused1                   Int                 @db.SmallInt
-  unused0                        Int                 @db.SmallInt
-  unused1                        Int                 @db.SmallInt
-  unused2                        Int                 @db.SmallInt
-  vip_takedowns                  Int                 @db.SmallInt
-  vip_kills_as_vip               Int                 @db.SmallInt
-  vip_guard_time                 Int                 @db.SmallInt
-  vip_time_as_vip                Int                 @db.SmallInt
-  vip_lives_as_vip               Int                 @db.SmallInt
-  juggernaut_kills               Int                 @db.SmallInt
-  juggernaut_kills_as_juggernaut Int                 @db.SmallInt
-  juggernaut_total_control_time  Int                 @db.SmallInt
-  total_wp                       Int                 @db.SmallInt
-  juggernaut_unused              Int                 @db.SmallInt
-  territories_owned              Int                 @db.SmallInt
-  territories_captures           Int                 @db.SmallInt
-  territories_ousts              Int                 @db.SmallInt
-  territories_time_in_territory  Int                 @db.SmallInt
-  infection_zombie_kills         Int                 @db.SmallInt
-  infection_infections           Int                 @db.SmallInt
-  infection_time_as_human        Int                 @db.SmallInt
+  carnage_report_id              String                   @db.Uuid
+  team_index                     Int                      @db.SmallInt
+  games_played                   Int                      @db.SmallInt
+  games_completed                Int                      @db.SmallInt
+  games_won                      Int                      @db.SmallInt
+  games_tied                     Int                      @db.SmallInt
+  rounds_completed               Int                      @db.SmallInt
+  rounds_won                     Int                      @db.SmallInt
+  in_round_score                 Int                      @db.SmallInt
+  in_game_total_score            Int                      @db.SmallInt
+  kills                          Int                      @db.SmallInt
+  assists                        Int                      @db.SmallInt
+  deaths                         Int                      @db.SmallInt
+  betrayals                      Int                      @db.SmallInt
+  suicides                       Int                      @db.SmallInt
+  most_kills_in_a_row            Int                      @db.SmallInt
+  seconds_alive                  Int                      @db.SmallInt
+  ctf_flag_scores                Int                      @db.SmallInt
+  ctf_flag_grabs                 Int                      @db.SmallInt
+  ctf_flag_carrier_kills         Int                      @db.SmallInt
+  ctf_flag_returns               Int                      @db.SmallInt
+  assault_bomb_arms              Int                      @db.SmallInt
+  assault_bomb_grabs             Int                      @db.SmallInt
+  assault_bomb_disarms           Int                      @db.SmallInt
+  assault_bomb_detonations       Int                      @db.SmallInt
+  oddball_time_with_ball         Int                      @db.SmallInt
+  oddball_unused                 Int                      @db.SmallInt
+  oddball_kills_as_carrier       Int                      @db.SmallInt
+  oddball_ball_carrier_kills     Int                      @db.SmallInt
+  king_time_on_hill              Int                      @db.SmallInt
+  king_total_control_time        Int                      @db.SmallInt
+  king_unused0                   Int                      @db.SmallInt
+  king_unused1                   Int                      @db.SmallInt
+  unused0                        Int                      @db.SmallInt
+  unused1                        Int                      @db.SmallInt
+  unused2                        Int                      @db.SmallInt
+  vip_takedowns                  Int                      @db.SmallInt
+  vip_kills_as_vip               Int                      @db.SmallInt
+  vip_guard_time                 Int                      @db.SmallInt
+  vip_time_as_vip                Int                      @db.SmallInt
+  vip_lives_as_vip               Int                      @db.SmallInt
+  juggernaut_kills               Int                      @db.SmallInt
+  juggernaut_kills_as_juggernaut Int                      @db.SmallInt
+  juggernaut_total_control_time  Int                      @db.SmallInt
+  total_wp                       Int                      @db.SmallInt
+  juggernaut_unused              Int                      @db.SmallInt
+  territories_owned              Int                      @db.SmallInt
+  territories_captures           Int                      @db.SmallInt
+  territories_ousts              Int                      @db.SmallInt
+  territories_time_in_territory  Int                      @db.SmallInt
+  infection_zombie_kills         Int                      @db.SmallInt
+  infection_infections           Int                      @db.SmallInt
+  infection_time_as_human        Int                      @db.SmallInt
   carnage_report_team            ares_carnage_report_team @relation(fields: [carnage_report_id, team_index], references: [carnage_report_id, team_index], onDelete: Cascade, onUpdate: NoAction, map: "fk_statistics_carnage_report_team")
 
   @@id([carnage_report_id, team_index])
-  @@schema("ares")
   @@map("carnage_report_team_statistics")
+  @@schema("ares")
 }
 
 model ares_service_record {
-  player_xuid                        Decimal @db.Decimal(20, 0)   @id
+  player_xuid                        Decimal  @id @db.Decimal(20, 0)
   player_name                        String   @db.VarChar(16)
   appearance_flags                   Int      @db.SmallInt
   primary_color                      Int      @db.SmallInt
@@ -660,18 +659,18 @@ model ares_service_record {
   games_completed                    Int
   first_played                       DateTime @db.Timestamp(6)
   last_played                        DateTime @db.Timestamp(6)
-  bungienet_user_flags               Decimal @db.Decimal(20, 0)
+  bungienet_user_flags               Decimal  @db.Decimal(20, 0)
   is_silver_or_gold_live             Boolean
   is_online_enabled                  Boolean
   gamer_region                       Int
-  cheat_flags                        Decimal @db.Decimal(20, 0)
-  ban_flags                          Decimal @db.Decimal(20, 0)
-  matchmade_ranked_games_played      Decimal @db.Decimal(20, 0)
-  matchmade_ranked_games_completed   Decimal @db.Decimal(20, 0)
-  matchmade_ranked_games_won         Decimal @db.Decimal(20, 0)
-  matchmade_unranked_games_played    Decimal @db.Decimal(20, 0)
-  matchmade_unranked_games_completed Decimal @db.Decimal(20, 0)
-  custom_games_completed             Decimal @db.Decimal(20, 0)
+  cheat_flags                        Decimal  @db.Decimal(20, 0)
+  ban_flags                          Decimal  @db.Decimal(20, 0)
+  matchmade_ranked_games_played      Decimal  @db.Decimal(20, 0)
+  matchmade_ranked_games_completed   Decimal  @db.Decimal(20, 0)
+  matchmade_ranked_games_won         Decimal  @db.Decimal(20, 0)
+  matchmade_unranked_games_played    Decimal  @db.Decimal(20, 0)
+  matchmade_unranked_games_completed Decimal  @db.Decimal(20, 0)
+  custom_games_completed             Decimal  @db.Decimal(20, 0)
 
   @@index([player_name], map: "idx_service_record_player_name")
   @@map("service_record")

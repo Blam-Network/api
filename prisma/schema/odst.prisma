@@ -6,8 +6,8 @@ model odst_blind_screenshot {
   author                    String   @db.VarChar(16)
   file_type                 Int
   author_is_xuid_online     Boolean
-  author_id                 Decimal @db.Decimal(20, 0)
-  size_in_bytes             Decimal @db.Decimal(20, 0)
+  author_id                 Decimal  @db.Decimal(20, 0)
+  size_in_bytes             Decimal  @db.Decimal(20, 0)
   date                      DateTime @db.Timestamp(6)
   length_seconds            Int
   campaign_id               Int
@@ -16,7 +16,7 @@ model odst_blind_screenshot {
   campaign_difficulty       Int
   campaign_insertion_point  Int      @db.SmallInt
   campaign_survival_enabled Boolean
-  game_id                   Decimal @db.Decimal(20, 0)
+  game_id                   Decimal  @db.Decimal(20, 0)
   game_tick                 Int
   film_tick                 Int
   jpeg_length               Int

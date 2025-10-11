@@ -63,7 +63,7 @@ export class Halo3CarnageReportService {
             return false;
         }
 
-        if (!campaign.cmrp.valid) {
+        if (!campaign.cmrp.valid || !campaign.cmrs.valid) {
             this.logger.warn(`[UPLOAD] Received campaign carnage report with invalid stats.`)
             return false;
         }
@@ -627,6 +627,259 @@ export class Halo3CarnageReportService {
 
         const playerCount = campaign.gmop.options.players.filter(p => p.valid).length;
 
-    }
+        await this.prisma.$transaction(async (tx) => {
+            // If we have a carnage report submission with an earlier finish time, the host probs dropped.
+            // Delete & reinsert with newer data.
+            const existingReport = await tx.halo3_carnage_report.findFirst({
+                where: {
+                    game_id: campaign.gmop.options.game_instance.toString(),
+                    map_id: campaign.gmop.options.map_id,
+                },
+                select: {
+                    id: true
+                }
+            })
 
+            let existingCarnageReportId = existingReport
+                ? existingReport.id
+                : undefined;
+
+            // We don't seem to get start and end times in campaign reports,
+            // but bungie used to show them on bnet somehow
+            // so we get rough values based on current time and ticks.
+            let endTime = new Date();
+            let startTime = new Date(endTime.getTime() - ((campaign.cmrs.results.total_elapsed_tick_count / campaign.gmop.options.game_tick_rate) * 1000));
+
+            if (existingCarnageReportId) {
+                await tx.halo3_campaign_carnage_report.delete({
+                    where: {
+                        id: existingCarnageReportId
+                    }
+                })
+            }
+
+            const players = campaign.gmop.options.players.filter(p => p.valid);
+
+            const {id: carnageReportId} = await tx.halo3_campaign_carnage_report.create({
+                data: {
+                    id: existingCarnageReportId,
+                    finish_time: endTime,
+                    game_id: campaign.gmop.options.game_instance.toString(),
+                    map_id: campaign.gmop.options.map_id,
+                    scenario_path: campaign.gmop.options.scenario_path,
+                    start_time: startTime,
+                    language: campaign.gmop.options.language,
+                    simulation: campaign.gmop.options.game_simulation,
+                    network_type: campaign.gmop.options.game_network_type,
+                    campaign_id: campaign.gmop.options.campaign_id,
+                    campaign_insertion_point: campaign.gmop.options.campaign_insertion_point,
+                    campaign_metagame_scoring: campaign.gmop.options.campaign_metagame_scoring,
+                    campaign_metagame_enabled: campaign.gmop.options.campaign_metagame_enabled,
+                    metagame_runtime_flags: campaign.cmrp.results.flags,
+                    campaign_difficulty: campaign.gmop.options.campaign_difficulty,
+                    campaign_active_primary_skulls: campaign.gmop.options.campaign_active_primary_skulls,
+                    campaign_active_secondary_skulls: campaign.gmop.options.campaign_active_secondary_skulls,
+                    total_elapsed_tick_count: campaign.cmrs.results.total_elapsed_tick_count,
+                    time_bonus: campaign.cmrp.results.time_bonus,
+                    final_total_score: campaign.cmrp.results.final_total_score,
+                    players: { 
+                        createMany: { 
+                            data: players.map((p) => {
+                                const campaign_results = campaign.cmrp.results.stats.filter(stats => stats.player_identifier === p.player_identifier)[0];
+
+                         const kills = Object.entries(campaign_results.kill_counts).map(
+                            ([enemy_type, data]) => ({ 
+                                enemy_type, ...data,
+                                player_xuid: p.configuration.client.player_xuid
+                            })
+                        ) as ({ enemy_type: string } & BLF.halo3_12070_08_09_05_2031_halo3_ship.s_metagame_state_class_kill_counts)[];
+
+
+                                return {
+                                    player_identifier: p.player_identifier.toString(),
+                                    player_name: p.configuration.host.player_name,
+                                    appearance_flags: p.configuration.client.appearance.appearance_flags,
+                                    primary_color: p.configuration.client.appearance.primary_color,
+                                    secondary_color: p.configuration.client.appearance.secondary_color,
+                                    tertiary_color: p.configuration.client.appearance.tertiary_color,
+                                    player_model_choice: p.configuration.client.appearance.player_model_choice,
+                                    foreground_emblem: p.configuration.client.appearance.foreground_emblem,
+                                    background_emblem: p.configuration.client.appearance.background_emblem,
+                                    emblem_flags: p.configuration.client.appearance.emblem_flags,
+                                    emblem_primary_color: p.configuration.client.appearance.emblem_primary_color,
+                                    emblem_secondary_color: p.configuration.client.appearance.emblem_secondary_color,
+                                    emblem_background_color: p.configuration.client.appearance.emblem_background_color,
+                                    spartan_model_area_0: p.configuration.client.appearance.spartan_model_area_0,
+                                    spartan_model_area_1: p.configuration.client.appearance.spartan_model_area_1,
+                                    spartan_model_area_2: p.configuration.client.appearance.spartan_model_area_2,
+                                    spartan_model_area_3: p.configuration.client.appearance.spartan_model_area_3,
+                                    elite_model_area_0: p.configuration.client.appearance.elite_model_area_0,
+                                    elite_model_area_1: p.configuration.client.appearance.elite_model_area_1,
+                                    elite_model_area_2: p.configuration.client.appearance.elite_model_area_2,
+                                    elite_model_area_3: p.configuration.client.appearance.elite_model_area_3,
+                                    service_tag: p.configuration.client.appearance.service_tag,
+                                    player_xuid: p.configuration.client.player_xuid.toString(),
+                                    is_silver_or_gold_live: p.configuration.client.is_silver_or_gold_live,
+                                    is_online_enabled: p.configuration.client.is_online_enabled,
+                                    is_controller_attached: p.configuration.client.is_controller_attached,
+                                    user_selected_team_index: p.configuration.client.user_selected_team_index,
+                                    desires_veto: p.configuration.client.desires_veto,
+                                    desires_rematch: p.configuration.client.desires_rematch,
+                                    hopper_access_flags: p.configuration.client.hopper_access_flags,
+                                    is_free_live_gold_account: p.configuration.client.is_free_live_gold_account,
+                                    is_user_created_content_allowed: p.configuration.client.is_user_created_content_allowed,
+                                    is_friend_created_content_allowed: p.configuration.client.is_friend_created_content_allowed,
+                                    is_griefer: p.configuration.client.is_griefer,
+                                    campaign_difficulty_completed: p.configuration.client.campaign_difficulty_completed,
+                                    bungienet_user_flags: p.configuration.client.bungienet_user_flags,
+                                    gamer_region: p.configuration.client.gamer_region,
+                                    gamer_zone: p.configuration.client.gamer_zone,
+                                    cheat_flags: p.configuration.client.cheat_flags,
+                                    ban_flags: p.configuration.client.ban_flags,
+                                    repeated_play_coefficient: p.configuration.client.repeated_play_coefficient,
+                                    experience_growth_banned: p.configuration.client.experience_growth_banned,
+                                    matchmade_ranked_games_played: p.configuration.client.queried_player_statistics.queried_player_displayed_statistics.matchmade_ranked_games_played,
+                                    matchmade_ranked_games_completed: p.configuration.client.queried_player_statistics.queried_player_displayed_statistics.matchmade_ranked_games_completed,
+                                    matchmade_ranked_games_won: p.configuration.client.queried_player_statistics.queried_player_displayed_statistics.matchmade_ranked_games_won,
+                                    matchmade_unranked_games_played: p.configuration.client.queried_player_statistics.queried_player_displayed_statistics.matchmade_unranked_games_played,
+                                    matchmade_unranked_games_completed: p.configuration.client.queried_player_statistics.queried_player_displayed_statistics.matchmade_unranked_games_completed,
+                                    hopper_experience_base: p.configuration.client.queried_player_statistics.queried_player_displayed_statistics.hopper_experience_base,
+                                    custom_games_completed: p.configuration.client.queried_player_statistics.queried_player_displayed_statistics.custom_games_completed,
+                                    hopper_experience_penalty: p.configuration.client.queried_player_statistics.queried_player_displayed_statistics.hopper_experience_penalty,
+                                    first_played: p.configuration.client.queried_player_statistics.queried_player_displayed_statistics.first_played,
+                                    last_played: p.configuration.client.queried_player_statistics.queried_player_displayed_statistics.last_played,
+                                    global_statistics_valid: p.configuration.client.queried_player_statistics.queried_player_global_statistics.valid,
+                                    global_statistics_highest_skill: p.configuration.client.queried_player_statistics.queried_player_global_statistics.highest_skill,
+                                    global_statistics_experience_base: p.configuration.client.queried_player_statistics.queried_player_global_statistics.experience_base,
+                                    global_statistics_experience_penalty: p.configuration.client.queried_player_statistics.queried_player_global_statistics.experience_penalty,
+                                    hopper_statistics_valid: p.configuration.client.queried_player_statistics.queried_player_hopper_statistics.stats_valid,
+                                    hopper_statistics_identifier: p.configuration.client.queried_player_statistics.queried_player_hopper_statistics.identifier,
+                                    hopper_statistics_hopper_skill: p.configuration.client.queried_player_statistics.queried_player_hopper_statistics.hopper_skill,
+                                    hopper_statistics_games_won: p.configuration.client.queried_player_statistics.queried_player_hopper_statistics.games_won,
+                                    hopper_statistics_games_played: p.configuration.client.queried_player_statistics.queried_player_hopper_statistics.games_played,
+                                    hopper_statistics_games_completed: p.configuration.client.queried_player_statistics.queried_player_hopper_statistics.games_completed,
+                                    hopper_statistics_mu: p.configuration.client.queried_player_statistics.queried_player_hopper_statistics.mu,
+                                    hopper_statistics_sigma: p.configuration.client.queried_player_statistics.queried_player_hopper_statistics.sigma,
+                                    player_team: p.configuration.host.player_team,
+                                    player_assigned_team: p.configuration.host.player_assigned_team,
+                                    host_stats_global_valid: p.configuration.host.stats_global_valid,
+                                    host_stats_global_experience: p.configuration.host.stats_global_experience,
+                                    host_stats_global_rank: p.configuration.host.stats_global_rank,
+                                    host_stats_global_grade: p.configuration.host.stats_global_grade,
+                                    host_stats_hopper_valid: p.configuration.host.stats_hopper_valid,
+                                    host_stats_hopper_skill: p.configuration.host.stats_hopper_skill,
+                                    host_stats_hopper_skill_display: p.configuration.host.stats_hopper_skill_display,
+                                    host_stats_hopper_skill_update_weight: p.configuration.host.stats_hopper_skill_update_weight,
+                                    
+                                    transient_subtotal: campaign_results.transient_subtotal,
+                                    subtotal: campaign_results.subtotal,
+                                    medal_points: campaign_results.medal_points,
+                                    scripted_points: campaign_results.scripted_points,
+                                    grenade_sticky_kills: campaign_results.grenade_stick_kills,
+                                    headshot_kills: campaign_results.headshot_kills,
+                                    assassination_kills: campaign_results.assassination_kills,
+                                    splatter_kills: campaign_results.splatter_kills,
+                                    multi_kills: campaign_results.multi_kills,
+                                    needler_supercombine_kills: campaign_results.needler_supercombine_kills,
+                                    emp_kills: campaign_results.emp_kills,
+                                    ai_betrayal_count: campaign_results.ai_betrayal_count,
+                                    multikill_display_timer: campaign_results.multikill_display_timer,
+                                    negative_toast_amount: campaign_results.negative_toast_amount,
+                                    negative_toast_timer: campaign_results.negative_toast_timer,
+                                    transient_scripted_points_amount: campaign_results.transient_scripted_points_amount,
+                                    transient_scripted_points_timer: campaign_results.transient_scripted_points_timer,
+                                    infantry_kills: campaign_results.infantry_kills,
+                                    leader_kills: campaign_results.leader_kills,
+                                    hero_kills: campaign_results.hero_kills,
+                                    specialist_kills: campaign_results.specialist_kills,
+                                    light_vehicle_kills: campaign_results.light_vehicle_kills,
+                                    heavy_vehicle_kills: campaign_results.heavy_vehicle_kills,
+                                    giant_vehicle_kills: campaign_results.giant_vehicle_kills,
+                                    standard_vehicle_kills: campaign_results.standard_vehicle_kills,
+                                    kill_total_count: campaign_results.kill_total_count,
+                                    style_total_count: campaign_results.style_total_count,
+                                    finalized: campaign_results.finalized,
+                                    player_final_score: campaign_results.player_final_score,
+                                    kills: {
+                                        createMany: {
+                                            data: kills
+                                        }
+                                    }
+                                }
+                            })
+                        },
+                    },
+                },
+                select: {
+                    id: true,
+                }
+            });
+
+            await tx.halo3_service_record.deleteMany({
+                where: {
+                    player_xuid: {
+                        in: campaign.gmop.options.players
+                            .filter(player => player.valid)
+                            .map(player => player.configuration.client.player_xuid.toString())
+                    }
+                }
+            })
+
+            await tx.halo3_service_record.createMany({
+                data: campaign.gmop.options.players
+                    .filter(player => player.valid)
+                    .map(player => {
+                        const config = player.configuration.client;
+                        return {
+                            player_xuid: config.player_xuid.toString(),
+                            player_name: config.player_name,
+                            appearance_flags: config.appearance.appearance_flags,
+                            primary_color: config.appearance.primary_color,
+                            secondary_color: config.appearance.secondary_color,
+                            tertiary_color: config.appearance.tertiary_color,
+                            is_elite: config.appearance.player_model_choice,
+                            foreground_emblem: config.appearance.foreground_emblem,
+                            background_emblem: config.appearance.background_emblem,
+                            emblem_flags: config.appearance.emblem_flags,
+                            emblem_primary_color: config.appearance.emblem_primary_color,
+                            emblem_secondary_color: config.appearance.emblem_secondary_color,
+                            emblem_background_color: config.appearance.emblem_background_color,
+                            spartan_helmet: config.appearance.spartan_model_area_0,
+                            spartan_left_shoulder: config.appearance.spartan_model_area_1,
+                            spartan_right_shoulder: config.appearance.spartan_model_area_2,
+                            spartan_body: config.appearance.spartan_model_area_3,
+                            elite_helmet: config.appearance.elite_model_area_0,
+                            elite_left_shoulder: config.appearance.elite_model_area_1,
+                            elite_right_shoulder: config.appearance.elite_model_area_2,
+                            elite_body: config.appearance.elite_model_area_3,
+                            service_tag: config.appearance.service_tag,
+                            campaign_progress: config.campaign_difficulty_completed,
+                            highest_skill: config.queried_player_statistics.queried_player_global_statistics.highest_skill,
+                            total_exp: player.configuration.host.stats_global_experience,
+                            experience_base: player.configuration.client.queried_player_statistics.queried_player_global_statistics.experience_base,
+                            rank: player.configuration.host.stats_global_rank,
+                            grade: player.configuration.host.stats_global_grade,
+                            games_completed: player.configuration.client.queried_player_statistics.queried_player_displayed_statistics.custom_games_completed
+                                + player.configuration.client.queried_player_statistics.queried_player_displayed_statistics.matchmade_ranked_games_played
+                                + player.configuration.client.queried_player_statistics.queried_player_displayed_statistics.matchmade_unranked_games_played,
+                            first_played: config.queried_player_statistics.queried_player_displayed_statistics.first_played,
+                            last_played: config.queried_player_statistics.queried_player_displayed_statistics.last_played,
+                            bungienet_user_flags: config.bungienet_user_flags,
+                            is_silver_or_gold_live: config.is_silver_or_gold_live,
+                            is_online_enabled: config.is_online_enabled,
+                            gamer_region: config.gamer_region,
+                            cheat_flags: config.cheat_flags,
+                            ban_flags: config.ban_flags,
+                            matchmade_ranked_games_played: config.queried_player_statistics.queried_player_displayed_statistics.matchmade_ranked_games_played,
+                            matchmade_ranked_games_won: config.queried_player_statistics.queried_player_displayed_statistics.matchmade_ranked_games_won,
+                            matchmade_ranked_games_completed: config.queried_player_statistics.queried_player_displayed_statistics.matchmade_ranked_games_completed,
+                            matchmade_unranked_games_played: config.queried_player_statistics.queried_player_displayed_statistics.matchmade_unranked_games_played,
+                            matchmade_unranked_games_completed: config.queried_player_statistics.queried_player_displayed_statistics.matchmade_unranked_games_completed,
+                            custom_games_completed: config.queried_player_statistics.queried_player_displayed_statistics.custom_games_completed,
+                        };
+                    }
+                )
+            });
+        });
+    }
 }

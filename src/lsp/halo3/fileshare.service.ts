@@ -498,7 +498,7 @@ export class Halo3FileShareService {
 
         let slots: FileShareSlot[] = [];
 
-        const fileShareSlots = await this.prisma.halo3_file_share_slot.findMany({
+        const fileShareSlots = await this.prisma.halo3_file_share_file.findMany({
             where: {
                 share_id: shareXuid.toString(),
             }
@@ -635,7 +635,7 @@ export class Halo3FileShareService {
 
         let slots: ODSTFileShareSlot[] = [];
 
-        const fileShareSlots = await this.prisma.halo3_file_share_slot.findMany({
+        const fileShareSlots = await this.prisma.halo3_file_share_file.findMany({
             where: {
                 share_id: shareXuid.toString(),
             }
@@ -753,7 +753,7 @@ export class Halo3FileShareService {
             return new ServiceUnavailableException();
         }
 
-        const fileShareSlot = await this.prisma.halo3_file_share_slot.findUnique({
+        const fileShareSlot = await this.prisma.halo3_file_share_file.findUnique({
             where: {
                 share_id_slot: {
                     share_id: shareXuid.toString(),
@@ -957,7 +957,7 @@ export class Halo3FileShareService {
         }
 
         // if the slot is already full they can't upload without first deleting.
-        if (await this.prisma.halo3_file_share_slot.findUnique({ where: { share_id_slot: { share_id: shareXuid.toString(), slot }, is_uploaded: true } })) {
+        if (await this.prisma.halo3_file_share_file.findUnique({ where: { share_id_slot: { share_id: shareXuid.toString(), slot }, is_uploaded: true } })) {
             this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload into filled slot ${slot}`);
             throw new BadRequestException('File share slot already full!');
         }
@@ -970,7 +970,7 @@ export class Halo3FileShareService {
             throw new BadRequestException("This slot is unavailable.")
         }
 
-        const usedSlots = await this.prisma.halo3_file_share_slot.findMany({
+        const usedSlots = await this.prisma.halo3_file_share_file.findMany({
             where: {
                 share_id: shareXuid.toString()
             },
@@ -986,14 +986,14 @@ export class Halo3FileShareService {
         }
 
         return await this.prisma.$transaction(async (tx) => {
-            await tx.halo3_file_share_slot.deleteMany({
+            await tx.halo3_file_share_file.deleteMany({
                 where: {
                     share_id: shareXuid.toString(),
                     slot,
                     is_uploaded: false,
                 }
             })
-            const fileShareSlot = await tx.halo3_file_share_slot.create({
+            const fileShareSlot = await tx.halo3_file_share_file.create({
                 data: {
                     share_id: shareXuid.toString(),
                     slot,
@@ -1022,7 +1022,7 @@ export class Halo3FileShareService {
             throw new UnauthorizedException();
         }
 
-        if (!await this.prisma.halo3_file_share_slot.findUnique( {
+        if (!await this.prisma.halo3_file_share_file.findUnique( {
             where: {
                 share_id_slot: {
                     share_id: shareXuid.toString(),
@@ -1034,7 +1034,7 @@ export class Halo3FileShareService {
             return;
         }
 
-        await this.prisma.halo3_file_share_slot.delete({
+        await this.prisma.halo3_file_share_file.delete({
             where: {
                 share_id_slot: {
                     share_id: shareXuid.toString(),
@@ -1096,7 +1096,7 @@ export class Halo3FileShareService {
             destinationFolder,
             slot.toString(),
         ), file.buffer, { flag: 'a+' });
-        await this.prisma.halo3_file_share_slot.update({
+        await this.prisma.halo3_file_share_file.update({
             where: {
                 id: serverId,
             },
@@ -1168,7 +1168,7 @@ export class Halo3FileShareService {
             destinationFolder,
             slot.toString(),
         ), file.buffer, { flag: 'a+' });
-        await this.prisma.halo3_file_share_slot.update({
+        await this.prisma.halo3_file_share_file.update({
             where: {
                 id: serverId
             },

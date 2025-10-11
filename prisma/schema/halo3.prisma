@@ -761,7 +761,7 @@ model halo3_service_record {
   @@schema("halo3")
 }
 
-model halo3_file_share_slot {
+model halo3_file_share_file {
   id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   share_id    Decimal @db.Decimal(20, 0)
   slot        Int     @db.SmallInt
@@ -769,24 +769,25 @@ model halo3_file_share_slot {
 
   compressed_size Int
 
-  unique_id                 Decimal   @db.Decimal(20, 0)
-  name                      String?   @db.VarChar(16)
-  description               String?   @db.VarChar(128)
-  author                    String?   @db.VarChar(16)
+  unique_id                 Decimal                     @db.Decimal(20, 0)
+  name                      String?                     @db.VarChar(16)
+  description               String?                     @db.VarChar(128)
+  author                    String?                     @db.VarChar(16)
   file_type                 Int
   author_is_xuid_online     Boolean?
-  author_id                 Decimal?  @db.Decimal(20, 0)
-  size_in_bytes             Decimal   @db.Decimal(20, 0)
-  date                      DateTime? @db.Timestamp(6)
+  author_id                 Decimal?                    @db.Decimal(20, 0)
+  size_in_bytes             Decimal                     @db.Decimal(20, 0)
+  date                      DateTime?                   @db.Timestamp(6)
   length_seconds            Int?
   map_id                    Int?
   game_engine_type          Int?
   campaign_id               Int?
   campaign_difficulty       Int?
   campaign_survival_enabled Boolean?
-  campaign_insertion_point  Int?      @db.SmallInt
-  hopper_id                 Int?      @db.SmallInt
-  game_id                   Decimal?  @db.Decimal(20, 0)
+  campaign_insertion_point  Int?                        @db.SmallInt
+  hopper_id                 Int?                        @db.SmallInt
+  game_id                   Decimal?                    @db.Decimal(20, 0)
+  halo3_file_share_transfer halo3_file_share_transfer[]
 
   @@unique([share_id, slot], map: "unique_share_id_slot")
   @@map("file_share_slot")
@@ -955,18 +956,30 @@ model halo3_campaign_carnage_report_player_kills {
   player_xuid       Decimal @db.Decimal(20, 0)
   carnage_report_id String  @db.Uuid
 
-  enemy_type                                            String
-  infantry                                              Int
-  leader                                                Int
-  hero                                                  Int
-  specialist                                            Int
-  light_vehicle                                         Int
-  heavy_vehicle                                         Int
-  giant_vehicle                                         Int
-  standard_vehicle                                      Int
-  halo3_campaign_carnage_report_player                  halo3_campaign_carnage_report_player? @relation(fields: [carnage_report_id, player_xuid], references: [carnage_report_id, player_xuid])
+  enemy_type                           String
+  infantry                             Int
+  leader                               Int
+  hero                                 Int
+  specialist                           Int
+  light_vehicle                        Int
+  heavy_vehicle                        Int
+  giant_vehicle                        Int
+  standard_vehicle                     Int
+  halo3_campaign_carnage_report_player halo3_campaign_carnage_report_player? @relation(fields: [carnage_report_id, player_xuid], references: [carnage_report_id, player_xuid])
 
   @@unique([player_xuid, carnage_report_id, enemy_type], map: "unique_player_carnage_report_enemy_type")
   @@map("campaign_carnage_report_player_kills")
+  @@schema("halo3")
+}
+
+model halo3_file_share_transfer {
+  player_xuid Decimal @db.Decimal(20, 0)
+  file_id     String  @db.Uuid
+  is_odst     Boolean
+
+  file halo3_file_share_file @relation(fields: [file_id], references: [id])
+
+  @@unique([player_xuid, file_id])
+  @@map("file_share_transfer")
   @@schema("halo3")
 }

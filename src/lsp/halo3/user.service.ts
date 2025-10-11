@@ -117,7 +117,51 @@ export class Halo3UserService {
             }
         })
 
-        await Promise.allSettled([serviceRecordPromise, playerDataPromise, odstServiceRecordPromise]);
+        const activeTransfersPromise = this.prisma.$transaction(async (prisma) => {
+            const transfers = await prisma.halo3_file_share_transfer.findMany({
+                where: {
+                    player_xuid,
+                    file: {
+                        is_uploaded: true,
+                    }
+                },
+                include: {
+                    file: {
+                        select: {
+                            slot: true,
+                            share_id: true,
+                            name: true,
+                            description: true,
+                            file_type: true,
+                            campaign_id: true,
+                            map_id: true,
+                            game_engine_type: true,
+                            size_in_bytes: true
+                        }
+                    }
+                },
+                take: 8, // max filq can handle.
+            })
+
+            if (transfers.length > 0) {
+                filq = {
+                    transfers: transfers.map(transfer => ({
+                        player_xuid: BigInt(transfer.file.share_id.toFixed(0)),
+                        slot: transfer.file.slot,
+                        title_index: transfer.is_odst ? 3 : 0,
+                        server_id: 0n,
+                        file_name: transfer.file.name ?? '',
+                        file_type: transfer.file.file_type,
+                        campaign_id: transfer.file.campaign_id ?? 0,
+                        map_id: transfer.file.map_id ?? 0,
+                        game_engine_type: transfer.file.game_engine_type ?? 0,
+                        size_bytes: BigInt(transfer.file.size_in_bytes.toFixed(0)),
+                    } satisfies BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_file_transfers['transfers'][0]))
+                }
+            }
+        })
+
+        await Promise.allSettled([serviceRecordPromise, playerDataPromise, odstServiceRecordPromise, activeTransfersPromise]);
 
         // Typescript is dumb
         // @ts-ignore

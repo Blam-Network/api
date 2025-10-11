@@ -127,8 +127,8 @@ export class Halo3UserService {
         return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_user_file(
             fupd,
             srid,
-            osri,
-            filq
+            filq,
+            osri
         );
     }
 

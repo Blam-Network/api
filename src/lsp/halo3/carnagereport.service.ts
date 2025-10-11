@@ -697,8 +697,13 @@ export class Halo3CarnageReportService {
             // We don't seem to get start and end times in campaign reports,
             // but bungie used to show them on bnet somehow
             // so we get rough values based on current time and ticks.
+            let elapsedTickCount = campaign.cmrs.results.total_elapsed_tick_count || campaign.cmrp.results.saved_secondary_globals.total_elapsed_tick_count;
+            if (!elapsedTickCount) {
+                return;
+            }
+            
             let endTime = new Date();
-            let startTime = new Date(endTime.getTime() - ((campaign.cmrs.results.total_elapsed_tick_count / campaign.gmop.options.game_tick_rate) * 1000));
+            let startTime = new Date(endTime.getTime() - ((elapsedTickCount / campaign.gmop.options.game_tick_rate) * 1000));
 
             if (existingCarnageReportId) {
                 await tx.halo3_campaign_carnage_report.delete({
@@ -729,7 +734,7 @@ export class Halo3CarnageReportService {
                     campaign_difficulty: campaign.gmop.options.campaign_difficulty,
                     campaign_active_primary_skulls: campaign.gmop.options.campaign_active_primary_skulls,
                     campaign_active_secondary_skulls: campaign.gmop.options.campaign_active_secondary_skulls,
-                    total_elapsed_tick_count: campaign.cmrs.results.total_elapsed_tick_count,
+                    total_elapsed_tick_count: elapsedTickCount,
                     time_bonus: campaign.cmrp.results.time_bonus,
                     final_total_score: campaign.cmrp.results.final_total_score,
                     players: { 

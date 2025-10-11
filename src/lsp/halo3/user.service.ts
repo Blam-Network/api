@@ -19,6 +19,7 @@ export class Halo3UserService {
         let srid: undefined | BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_service_record = undefined;
         let fupd: undefined | BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_player_data = undefined;
         let osri: undefined | BLF.halo3odst_13895_09_04_27_2201_atlas_release.s_blf_chunk_odst_service_record = undefined;
+        let filq: undefined | BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_file_transfers = undefined;
         
         const serviceRecordPromise = this.prisma.$transaction(async (prisma) => {
             const serviceRecord = await prisma.halo3_service_record.findUnique({
@@ -126,7 +127,8 @@ export class Halo3UserService {
         return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_user_file(
             fupd,
             srid,
-            osri
+            osri,
+            filq
         );
     }
 

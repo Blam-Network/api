@@ -49,20 +49,39 @@ export class Halo3CarnageReportService {
         return true;
     }
 
+    private isValidCampaignCarnageReport = (campaign: BLF.halo3_12070_08_09_05_2031_halo3_ship.campaign) => {
+        if (campaign.athr.build_string !== '12070.08.09.05.2031.halo3_s') {
+            this.logger.warn(`[UPLOAD] Received campaign carnage report from unsupported build '${campaign.athr.build_string}', skipping.`)
+            return false;
+        }
+
+        if (!campaign.gmop.options.players
+            .filter(player => player.valid)
+            .every(player => VALID_GAMERTAG_REGEX.test(player.configuration.client.player_name))
+        ) {
+            this.logger.warn(`[UPLOAD] Received campaign carnage report with an invalid gamertag, skipping.`)
+            return false;
+        }
+
+        if (!campaign.cmrp.valid) {
+            this.logger.warn(`[UPLOAD] Received campaign carnage report with invalid stats.`)
+            return false;
+        }
+
+        return true;
+    }
+
     public handleHalo3MultiUpload = async (upload: Express.Multer.File) => {
         const buffer = ALLOW_UNCOMPRESSED_CARNAGE_REPORTS 
             ? this.compressionService.inflateIfCompressed(upload)
             : this.compressionService.inflate(upload);
 
-        this.logger.log('[PGCR] Reading Carnage Report...')
         const multi = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_webstats(buffer);
 
         if (!multi) {
-            this.logger.log('[PGCR] got nothing.')
             return;
         }
         if (!this.isValidCarnageReport(multi)) {
-            this.logger.log('[PGCR] Invalid PGCR.')
             return;
         }
 
@@ -589,6 +608,25 @@ export class Halo3CarnageReportService {
                 )
             });
         }, { timeout: 15_000 });
+    }
+
+    public handleHalo3CampaignUpload = async (upload: Express.Multer.File) => {
+        const buffer = ALLOW_UNCOMPRESSED_CARNAGE_REPORTS 
+            ? this.compressionService.inflateIfCompressed(upload)
+            : this.compressionService.inflate(upload);
+
+        this.logger.log('[PGCR] Reading Campaign Carnage Report...')
+        const campaign = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_campaign_pgcr(buffer);
+
+        if (!campaign) {
+            return;
+        }
+        if (!this.isValidCampaignCarnageReport(campaign)) {
+            return;
+        }
+
+        const playerCount = campaign.gmop.options.players.filter(p => p.valid).length;
+
     }
 
 }

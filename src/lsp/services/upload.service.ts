@@ -9,6 +9,11 @@ const ENABLE_DEBUG_MIME = false;
 const DEBUG_MIME = 'application/x-halo3-multi'
 const STORE_ALL_UPLOADS = true;
 
+const SKIP_STORE_MIMES = [
+    'application/x-halo3-multi',
+    'application/x-halo3-campaign'
+]
+
 @Injectable()
 export class UploadService {
     constructor(
@@ -24,6 +29,7 @@ export class UploadService {
 
     public storeUploadedFile = async (upload: Express.Multer.File) => {
         if (!STORE_ALL_UPLOADS) return;
+        if (SKIP_STORE_MIMES.includes(upload.mimetype)) return;
         
         const buffer = this.compressionService.inflateIfCompressed(upload);
         const uploadFolder = join(

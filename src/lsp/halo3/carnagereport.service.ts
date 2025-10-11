@@ -860,20 +860,38 @@ export class Halo3CarnageReportService {
                     );
                     if (campaign_results) {
                         acc.push(
-                            ...Object.entries(campaign_results.kill_counts).map(
-                                ([enemy_type, data]) => ({
-                                    carnage_report_id: carnageReportId,
-                                    player_xuid: p.configuration.client.player_xuid.toString(),
-                                    enemy_type,
-                                    ...data,
-                                })
-                            ) as ({ player_xuid: string, enemy_type: string, carnage_report_id: string } & BLF.halo3_12070_08_09_05_2031_halo3_ship.s_metagame_state_class_kill_counts)[]
+                            ...Object.entries(campaign_results.kill_counts)
+                                .filter(
+                                    ([enemy_type, data]) => {
+                                        const kills = data as BLF.halo3_12070_08_09_05_2031_halo3_ship.s_metagame_state_class_kill_counts;
+                                        if (
+                                            kills.giant_vehicle == 0 
+                                            && kills.heavy_vehicle == 0 
+                                            && kills.hero == 0 
+                                            && kills.infantry == 0
+                                            && kills.leader == 0
+                                            && kills.light_vehicle == 0
+                                            && kills.specialist == 0
+                                            && kills.standard_vehicle == 0
+                                        ) return false;
+
+                                        return true;
+                                    }
+                                )
+                                .map(
+                                    ([enemy_type, data]) => ({
+                                        carnage_report_id: carnageReportId,
+                                        player_xuid: p.configuration.client.player_xuid.toString(),
+                                        enemy_type,
+                                        ...data,
+                                    })
+                                ) as ({ player_xuid: string, enemy_type: string, carnage_report_id: string } & BLF.halo3_12070_08_09_05_2031_halo3_ship.s_metagame_state_class_kill_counts)[]
                         );
                     }
                     return acc;
                 }, [] as ({ player_xuid: string, enemy_type: string, carnage_report_id: string } & BLF.halo3_12070_08_09_05_2031_halo3_ship.s_metagame_state_class_kill_counts)[]);
 
-            await tx.halo3_campaign_carnage_report_player_kills.createMany({ data: kills});
+            await tx.halo3_campaign_carnage_report_player_kills.createMany({ data: kills });
 
             await tx.halo3_service_record.deleteMany({
                 where: {

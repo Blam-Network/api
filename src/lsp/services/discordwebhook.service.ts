@@ -103,14 +103,16 @@ export class DiscordWebhookService {
 
     private formatDuration(startTime: Date, finishTime: Date): string {
         const d = intervalToDuration(interval(startTime, finishTime));
-        const formatted = formatDuration(d, {
-            format: d.hours && d.hours > 0 
-            ? ['hours', 'minutes', 'seconds'] 
-            : ['minutes', 'seconds'],
-            zero: true,
-            delimiter: ':',
-        });
-        return formatted.replace(/\s+/g, ':');
+
+        const h = d.hours ?? 0;
+        const m = d.minutes ?? 0;
+        const s = d.seconds ?? 0;
+
+        const pad = (n: number) => n.toString().padStart(2, '0');
+
+        return h > 0
+            ? `${h}:${pad(m)}:${pad(s)}`
+            : `${pad(m)}:${pad(s)}`;
     }
 
     private sendWebhookMessage = async (type: WebhookType, message: Object) => {

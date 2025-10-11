@@ -61,6 +61,7 @@ import { HaloReachFileShareService } from './haloreach/fileshare.service';
 })
 export class LSPModule implements NestModule {
     configure(consumer: MiddlewareConsumer): void {
+        consumer.apply(HTTP1_0Middleware).forRoutes('*');
         consumer    
             .apply(AppLoggerMiddleware)
             .exclude(
@@ -68,6 +69,5 @@ export class LSPModule implements NestModule {
                 { path: '/ReachPresenceApi/heartbeat.ashx', method: RequestMethod.POST }
             )
             .forRoutes('*');
-        consumer.apply(HTTP1_0Middleware).forRoutes('*');
     }
 }

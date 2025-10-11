@@ -34,6 +34,6 @@ import { HaloReachFileShareService } from './services/haloreachfileshare.service
 })
 export class WebsiteModule implements NestModule {
     configure(consumer: MiddlewareConsumer): void {
-        consumer.apply(AppLoggerMiddleware).forRoutes('*');
+        // consumer.apply(AppLoggerMiddleware).forRoutes('*');
     }
 }

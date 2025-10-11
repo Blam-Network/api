@@ -959,17 +959,19 @@ export class Halo3CarnageReportService {
                 )
             });
 
-            this.discordWebhookService.sendHalo3CampaignCarnageReport({
-                carnageReportId,
-                startTime,
-                finishTime: endTime,
-                mission: getMissionName(campaign.gmop.options.map_id),
-                rallyPoint: getRallyPointName(campaign.gmop.options.campaign_insertion_point),
-                mapId: campaign.gmop.options.map_id,
-                players: campaign.gmop.options.players.filter(p => p.valid).map(p => p.configuration.client.player_name),
-                score: campaign.cmrp.results.final_total_score,
-                difficulty: DIFFICULTY_NAMES[campaign.gmop.options.campaign_difficulty]
-            }).catch((err) => this.logger.error(`Failed to send carnage report to discord: ${err}`))
+            if (!existingCarnageReportId) {
+                this.discordWebhookService.sendHalo3CampaignCarnageReport({
+                    carnageReportId,
+                    startTime,
+                    finishTime: endTime,
+                    mission: getMissionName(campaign.gmop.options.map_id),
+                    rallyPoint: getRallyPointName(campaign.gmop.options.campaign_insertion_point),
+                    mapId: campaign.gmop.options.map_id,
+                    players: campaign.gmop.options.players.filter(p => p.valid).map(p => p.configuration.client.player_name),
+                    score: campaign.cmrp.results.final_total_score,
+                    difficulty: DIFFICULTY_NAMES[campaign.gmop.options.campaign_difficulty]
+                }).catch((err) => this.logger.error(`Failed to send carnage report to discord: ${err}`))
+            }
         });
     }
 }

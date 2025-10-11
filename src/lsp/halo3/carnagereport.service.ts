@@ -24,6 +24,58 @@ const TEAM_NAMES = [
     'Unknown'
 ]
 
+const getMissionName = (mapId: number) => {
+    switch (mapId) {
+        case 3005:
+            return 'Arrival'
+        case 3010:
+            return 'Sierra 117'
+        case 3020:
+            return 'Crow\'s nest'
+        case 3030:
+            return 'Tsavo Highway'
+        case 3040:
+            return 'The Storm'
+        case 3050:
+            return 'Floodgate'
+        case 3070:
+            return 'The Ark'
+        case 3100:
+            return 'The Covenant'
+        case 3110:
+            return 'Cortana'
+        case 3120:
+            return 'Halo'
+        case 3130:
+            return 'Epilogue'
+
+        default:
+            return 'Unknown Mission'
+    }
+}
+
+const DIFFICULTY_NAMES = [
+    'Easy',
+    'Normal',
+    'Heroic',
+    'Legendary',
+]
+
+const getRallyPointName = (rallyPoint: number) => {
+    switch (rallyPoint) {
+        case 0:
+            return 'Mission Start';
+        case 1:
+            return 'Rally Point Alpha';
+        case 2:
+            return 'Rally Point Bravo';
+        case 3:
+            return 'Rally Point Charlie';
+        default:
+            return `Rally Point ${rallyPoint}`;
+    }
+}
+
 export class Halo3CarnageReportService {
     constructor(
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
@@ -880,6 +932,18 @@ export class Halo3CarnageReportService {
                     }
                 )
             });
+
+            this.discordWebhookService.sendHalo3CampaignCarnageReport({
+                carnageReportId,
+                startTime,
+                finishTime: endTime,
+                mission: getMissionName(campaign.gmop.options.map_id),
+                rallyPoint: getRallyPointName(campaign.gmop.options.campaign_insertion_point),
+                mapId: campaign.gmop.options.map_id,
+                players: campaign.gmop.options.players.filter(p => p.valid).map(p => p.configuration.client.player_name),
+                score: campaign.cmrp.results.final_total_score,
+                difficulty: DIFFICULTY_NAMES[campaign.gmop.options.campaign_difficulty]
+            }).catch((err) => this.logger.error(`Failed to send carnage report to discord: ${err}`))
         });
     }
 }

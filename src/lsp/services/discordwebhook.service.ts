@@ -40,6 +40,18 @@ type Halo3CarnageReportMessage = {
     winner?: string,
 }
 
+type Halo3CampaignCarnageReportMessage = {
+    carnageReportId: string,
+    mission: string,
+    difficulty: string,
+    rallyPoint: string,
+    mapId: number,
+    players: string[],
+    startTime: Date,
+    finishTime: Date,
+    score: number,
+}
+
 type Halo3ScreenshotMessage = {
     name: string,
     description: string,
@@ -134,6 +146,42 @@ export class DiscordWebhookService {
                     "icon_url": "https://cdn.discordapp.com/icons/1287731261993127977/be1cefaceefbb03879db1c47ea0cfcb7.webp?size=64"
                 },
                 url: `https://blam.network/halo3/carnage-report/${data.carnageReportId}`,
+                "thumbnail": {
+                    "url": `https://blam.network/img/largemaps/${data.mapId}.jpg` // Adding map image URL here
+                }
+            }]
+        }
+
+        await this.sendWebhookMessage(WebhookType.HALO3_CARNAGE_REPORTS, message);
+    }
+
+    public sendHalo3CampaignCarnageReport = async (data: Halo3CampaignCarnageReportMessage) => {
+        let message = {
+            embeds: [{
+                title: `${data.mission} on ${data.difficulty}`,
+                description: `at ${data.rallyPoint}`,
+                fields: [
+                    {
+                        name: "Score",
+                        value: data.score,
+                        inline: true
+                    },
+                    {
+                        name: "Duration",
+                        value: formatDuration(intervalToDuration(interval(data.startTime, data.finishTime))),
+                        inline: true
+                    },
+                    {
+                        name: "Players",
+                        value: data.players.join(', '),
+                        inline: true
+                    }
+                ],
+                footer: {
+                    "text": "Halo 3 Webstats - Blam Network",
+                    "icon_url": "https://cdn.discordapp.com/icons/1287731261993127977/be1cefaceefbb03879db1c47ea0cfcb7.webp?size=64"
+                },
+                //url: `https://blam.network/halo3/carnage-report/${data.carnageReportId}`, // Not Yet Implemented
                 "thumbnail": {
                     "url": `https://blam.network/img/largemaps/${data.mapId}.jpg` // Adding map image URL here
                 }

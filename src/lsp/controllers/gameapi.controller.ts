@@ -335,12 +335,22 @@ export class GameApiController {
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('serverId', UuidWithoutDashesPipe) serverId: string,
+    @Query('serverId') serverId: string | undefined,
     @Query('startPosition', ParseIntPipe) startPosition: number,
     @Query('fromAutoQueue', ParseIntPipe) fromAutoQueue: number,
     @Query('view', new ParseIntPipe({optional: true})) view: number,
     @Query('preview', ParseIntPipe) preview: number,
   ) {
+
+    // downloads fromAutoQueue pass a 64 bit int id. We don't use these.
+    if (serverId) {
+      if (serverId.length < 32) {
+        serverId = undefined;
+      } else {
+        serverId = new UuidWithoutDashesPipe().transform(serverId, { type: 'custom' });
+      }
+    }
+
     switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:

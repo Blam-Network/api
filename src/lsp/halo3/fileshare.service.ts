@@ -743,7 +743,7 @@ export class Halo3FileShareService {
         downloaderXuid: BigInt,
         shareXuid: BigInt,
         slot: number,
-        serverId: string,
+        serverId: string | undefined,
         startPosition: number,
         fromAutoqueue: number,
         view: number,
@@ -771,7 +771,7 @@ export class Halo3FileShareService {
             shareId: xuidToHexString(shareXuid),
             slot: slot.toString(),
             startPosition: startPosition.toString(),
-            serverId: serverId.replaceAll('-', ''),
+            serverId: fileShareSlot.id.replaceAll('-', ''),
         })
 
         return dedent(`

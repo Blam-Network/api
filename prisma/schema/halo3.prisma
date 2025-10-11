@@ -977,7 +977,7 @@ model halo3_file_share_transfer {
   file_id     String  @db.Uuid
   is_odst     Boolean
 
-  file halo3_file_share_file @relation(fields: [file_id], references: [id])
+  file halo3_file_share_file @relation(fields: [file_id], references: [id], onDelete: Cascade)
 
   @@unique([player_xuid, file_id])
   @@map("file_share_transfer")

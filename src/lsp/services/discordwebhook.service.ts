@@ -101,6 +101,18 @@ export class DiscordWebhookService {
         }
     }
 
+    private formatDuration(startTime: Date, finishTime: Date): string {
+        const d = intervalToDuration(interval(startTime, finishTime));
+        const formatted = formatDuration(d, {
+            format: d.hours && d.hours > 0 
+            ? ['hours', 'minutes', 'seconds'] 
+            : ['minutes', 'seconds'],
+            zero: true,
+            delimiter: ':',
+        });
+        return formatted.replace(/\s+/g, ':');
+    }
+
     private sendWebhookMessage = async (type: WebhookType, message: Object) => {
         await this.loadWebhookConfig();
         if (!this.config) return;
@@ -132,7 +144,7 @@ export class DiscordWebhookService {
                     },
                     {
                         name: "Duration",
-                        value: formatDuration(intervalToDuration(interval(data.startTime, data.finishTime))),
+                        value: this.formatDuration(data.startTime, data.finishTime),
                         inline: true
                     },
                     {
@@ -168,7 +180,7 @@ export class DiscordWebhookService {
                     },
                     {
                         name: "Duration",
-                        value: formatDuration(intervalToDuration(interval(data.startTime, data.finishTime))),
+                        value: this.formatDuration(data.startTime, data.finishTime),
                         inline: true
                     },
                     {

@@ -799,6 +799,14 @@ export class Halo3FileShareService {
             slot.toString(),
         );
 
+        // if this download started from an active transfer, delete it.
+        await this.prisma.halo3_file_share_transfer.deleteMany({
+            where: {
+                player_xuid: downloaderXuid.toString(),
+                file_id: serverId,
+            }
+        })
+
         try {
             await access(filePath);
             const size = (await stat(filePath)).size;

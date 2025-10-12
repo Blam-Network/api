@@ -678,22 +678,6 @@ export class Halo3CarnageReportService {
         }
 
         await this.prisma.$transaction(async (tx) => {
-            // If we have a carnage report submission with an earlier finish time, the host probs dropped.
-            // Delete & reinsert with newer data.
-            const existingReport = await tx.halo3_campaign_carnage_report.findFirst({
-                where: {
-                    game_id: campaign.gmop.options.game_instance.toString(),
-                    map_id: campaign.gmop.options.map_id,
-                },
-                select: {
-                    id: true
-                }
-            })
-
-            let existingCarnageReportId = existingReport
-                ? existingReport.id
-                : undefined;
-
             // We don't seem to get start and end times in campaign reports,
             // but bungie used to show them on bnet somehow
             // so we get rough values based on current time and ticks.
@@ -704,6 +688,23 @@ export class Halo3CarnageReportService {
             
             let endTime = new Date();
             let startTime = new Date(endTime.getTime() - ((elapsedTickCount / campaign.gmop.options.game_tick_rate) * 1000));
+
+            // If we have a carnage report submission with an earlier finish time, the host probs dropped.
+            // Delete & reinsert with newer data.
+            const existingReport = await tx.halo3_campaign_carnage_report.findFirst({
+                where: {
+                    game_id: campaign.gmop.options.game_instance.toString(),
+                    map_id: campaign.gmop.options.map_id,
+                    total_elapsed_tick_count: elapsedTickCount,
+                },
+                select: {
+                    id: true
+                }
+            })
+
+            let existingCarnageReportId = existingReport
+                ? existingReport.id
+                : undefined;
 
             if (existingCarnageReportId) {
                 await tx.halo3_campaign_carnage_report.delete({

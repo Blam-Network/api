@@ -36,6 +36,7 @@ const OFFER_IDS = {
     HALO3ODST_BUNGIE_PRO: 0x4D5308770CCF0001n,
     HALO3ODST_SGT_JOHNSON: 0x4D5308770CCF0002n,
     HALO3ODST_REACH_BETA: 0x4D5308770CCF0004n,
+    CRACKDOWN_HALO3_BETA: 0x4D5307DC00000001n,
 }
 
 const PACKAGE_NAMES = {
@@ -1075,7 +1076,7 @@ export class Halo3FileShareService {
         this.applyDebugMime(file);
 
         if (file.mimetype !== HALO3_SHAREDFILE_MIME) {
-            throw new BadRequestException('Invalid filetype.')
+            throw new BadRequestException(`Invalid filetype ${file.mimetype}`)
         }
 
         if (uploaderXuid !== shareXuid) {

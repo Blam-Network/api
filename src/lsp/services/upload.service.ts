@@ -11,7 +11,7 @@ const STORE_ALL_UPLOADS = true;
 
 const SKIP_STORE_MIMES = [
     'application/x-halo3-multi',
-    // 'application/x-halo3-campaign'
+    'application/x-halo3-campaign'
 ]
 
 @Injectable()

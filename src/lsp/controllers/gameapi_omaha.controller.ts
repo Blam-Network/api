@@ -12,6 +12,7 @@ import {
   NotImplementedException,
   Headers,
   BadRequestException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
@@ -76,7 +77,7 @@ export class GameApiOmahaController {
   @UseInterceptors(FileInterceptor('upload'))
   async getRewards(
     @UploadedFile() upload: Express.Multer.File,
-    @Query('getDailyChallenges') getDailyChallenges,
+    @Query('getDailyChallenges', ParseIntPipe) getDailyChallenges: number,
     @Query('userId') userId,
     @Query('machineId') machineId,
   ) {
@@ -93,8 +94,24 @@ export class GameApiOmahaController {
       unknown7: 0,
     }
 
+    let dcha: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_daily_challenges | undefined = undefined;
+    if (getDailyChallenges) {
+      // dcha = {
+      //   unknown1: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      //   unknown2: 0,
+      //   daily_challenges: [
+      //     {
+      //       category: 1,
+      //       index: 1,
+      //       reward_credits: 3000,
+      //       unknown1: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      //     }
+      //   ]
+      // }
+    }
+
     const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_rewards_file(
-      rdpl, undefined
+      rdpl, dcha
     )
 
     return new StreamableFile(blfFile);

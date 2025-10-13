@@ -289,7 +289,7 @@ export class GameApiController {
       shareid: parseBungieHeader(hexStringXuidSchema),
       slot: parseBungieHeader(z.coerce.number()),
       serverid: parseBungieHeader(dashedUuidFromHex),
-      startposition: parseBungieHeader(z.coerce.number().optional())
+      startposition: parseBungieHeader(z.coerce.number().default(0))
     }).parse(headers);
 
     if (upload.buffer.length == 0 && startposition) {

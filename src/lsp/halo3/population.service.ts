@@ -76,7 +76,7 @@ export class Halo3PopulationService {
             SELECT DISTINCT crm.inaddr_online
             FROM "halo3"."carnage_report_machine" crm
             INNER JOIN "halo3"."carnage_report" cr ON cr.id = crm.carnage_report_id
-            WHERE cr.finish_time >= NOW() AT TIME ZONE 'UTC' - INTERVAL '12 hours'
+            WHERE cr.finish_time >= NOW() AT TIME ZONE 'UTC' - INTERVAL '6 hours'
         `;
 
         for (const { inaddr_online } of rawIps) {

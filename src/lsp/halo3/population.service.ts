@@ -22,11 +22,11 @@ export class Halo3PopulationService {
     ) { }
 
     public getHopperStatistics = async () => {
-        const hopperStats: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_matchmaking_hopper_statistics['data'] = [];
+        let hopperStats: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_matchmaking_hopper_statistics['data'] = [];
 
         await Promise.allSettled([this.prisma.$transaction(async () => {
             const hopperPopulationResponse = await this.prisma.$queryRaw`
-                SELECT COUNT(player_xuid) AS player_count, hopper_identifier
+                SELECT COUNT(player_xuid)::int AS player_count, hopper_identifier
                 FROM (
                     SELECT DISTINCT ON (crp.player_xuid)
                         crp.player_xuid,
@@ -42,11 +42,10 @@ export class Halo3PopulationService {
                 LIMIT 32;
             `;
 
-            hopperStats.concat(z.object({
+            hopperStats = z.object({
                 player_count: z.number(),
                 hopper_identifier: z.number()
-            }).array().parse(hopperPopulationResponse));
-
+            }).array().parse(hopperPopulationResponse);
         }, { timeout: 5000 })]);
 
         return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_hopper_statistics_file({

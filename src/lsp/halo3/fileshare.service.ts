@@ -494,7 +494,13 @@ export class Halo3FileShareService {
         const fileShare = await this.getFileShare(viewerXuid, shareXuid);
 
         if (!fileShare) {
-            throw new NotFoundException("No file share.")
+            return this.fileCatalogResponse({
+                quotaBytes: UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+                quotaSlots: UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                slots: [],
+                visibleSlots: UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                subscriptionHash: 0,
+            })
         }
 
         let slots: FileShareSlot[] = [];
@@ -631,7 +637,13 @@ export class Halo3FileShareService {
         }
 
         if (!fileShare) {
-            throw new NotFoundException("No file share.")
+            return this.fileCatalogResponseODST({
+                quotaBytes: UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+                quotaSlots: UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                slots: [],
+                visibleSlots: UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                subscriptionHash: 0,
+            })
         }
 
         let slots: ODSTFileShareSlot[] = [];

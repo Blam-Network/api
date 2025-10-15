@@ -385,7 +385,7 @@ export class Halo3FileShareService {
                 QuotaSlots: ${options.quotaSlots ?? 0}
                 SlotCount: ${options.slots.length ?? 0}
                 VisibleSlots: ${options.visibleSlots ?? 0}
-                SubscriptionHash: ${options.subscriptionHash || 1}
+                SubscriptionHash: ${options.subscriptionHash}
                 Message: ${options.message ?? ''}
             `)
 

@@ -34,7 +34,7 @@ export class Halo3PopulationService {
                     FROM "halo3"."carnage_report_player" crp
                     INNER JOIN "halo3"."carnage_report" cr ON cr.id = crp.carnage_report_id
                     INNER JOIN "halo3"."carnage_report_matchmaking_options" crmo ON crmo.id = crp.carnage_report_id
-                    WHERE cr.finish_time >= NOW() - INTERVAL '1 hours'
+                    WHERE cr.finish_time >= NOW() AT TIME ZONE 'UTC' - INTERVAL '1 hours'
                     ORDER BY crp.player_xuid, cr.finish_time DESC
                 ) AS hopper_players
                 GROUP BY hopper_identifier
@@ -77,7 +77,7 @@ export class Halo3PopulationService {
             SELECT DISTINCT crm.inaddr_online
             FROM "halo3"."carnage_report_machine" crm
             INNER JOIN "halo3"."carnage_report" cr ON cr.id = crm.carnage_report_id
-            WHERE cr.finish_time >= NOW() - INTERVAL '12 hours'
+            WHERE cr.finish_time >= NOW() AT TIME ZONE 'UTC' - INTERVAL '12 hours'
         `;
 
         for (const { inaddr_online } of rawIps) {

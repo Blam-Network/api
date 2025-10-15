@@ -930,7 +930,7 @@ export class Halo3FileShareService {
     ) => {
         const subscriptionHash = await this.getShareSubscriptionHash('subscription', userXuid);
 
-        // if (subscriptionHash.currentHash || subscriptionHash.isUnsubscribing || isDebug) {
+        if (subscriptionHash.currentHash || subscriptionHash.isUnsubscribing || isDebug) {
             return this.fileshareSubscriptionResponseODST({
                 status: !subscriptionHash.isUnsubscribing ? 'Subscribed' : 'Expired',
                 subscriptionHash: subscriptionHash.currentHash,
@@ -951,7 +951,7 @@ export class Halo3FileShareService {
                 portalOfferCount: 1,
                 portalOfferId: OFFER_IDS.HALO3ODST_REACH_BETA
             })
-        // }
+        }
         
         return this.fileshareSubscriptionResponse({
             status: 'NeverSubscribed',

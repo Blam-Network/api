@@ -146,7 +146,7 @@ export class UploadServerController {
     @Param('path') path: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, 'tracked', '08172', 'default', ...path);
+    const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, 'tracked', '06481', 'default', ...path);
     const fileName = basename(filePath);
 
     if (!existsSync(filePath)) throw new NotFoundException();

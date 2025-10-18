@@ -49,4 +49,18 @@ export class MachineStorageController {
     const blfFile = this.halo3MachineService.getMachineFile(machineId);
     return new StreamableFile(blfFile, { disposition: "filename=machine.bin" });
   }
+
+  @ApiOperation({
+    summary: 'Halo 3 Pre-Release Machine File',
+    description: "Used to retrieve a Halo 3 machine.bin BLF file in 08172 and older builds. Typically required for gameplay.",
+  })
+  @ApiTags('Halo 3')
+  @Get('/:unk1/:unk2/:machineId/machine.bin')
+  @ApiParam({ name: 'machineId', example: EXAMPLE_XUID })
+  async getPreReleaseMachineFile(
+    @Param('machineId') machineId: string,
+  ) {
+    const blfFile = this.halo3MachineService.getMachineFile(machineId);
+    return new StreamableFile(blfFile, { disposition: "filename=machine.bin" });
+  }
 }

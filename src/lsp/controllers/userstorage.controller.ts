@@ -70,6 +70,21 @@ export class UserStorageController {
   }
 
   @ApiOperation({
+    summary: 'Halo 3 / ODST User File',
+    description: "Used to retrieve a Halo 3 user.bin BLF file in 08172 and older builds. Typically required for gameplay.",
+  })
+  @ApiTags('Halo 3')
+  @Get('/:unk1/:unk2/:xuid/user.bin')
+  @ApiParam({ name: 'xuid', example: EXAMPLE_XUID })
+  async getHalo3PreReleaseUser(
+    @Param('xuid', ParseXUIDPipe) xuid: BigInt,
+  ) {
+    const blfFile = await this.halo3UserService.getUserFile(xuid);
+
+    return new StreamableFile(blfFile, { disposition: "filename=user.bin" });
+  }
+
+  @ApiOperation({
     summary: 'Halo 3 Recent Players',
     description: "Used to retrieve a Halo 3 recent_players.bin BLF file. Typically required for gameplay. We're not really sure what this data does yet.",
   })

@@ -72,7 +72,7 @@ export class TitleStorageController {
 
   @ApiOperation({
     summary: 'Halo 3 Nightmap',
-    description: "Returns the world map population image shown on Halo 3's Matchmaking menu..",
+    description: "Returns the world map population image shown on Halo 3's Matchmaking menu.",
   })
   @ApiTags('Halo 3')
   @Header('Content-Type', 'image/jpg')
@@ -80,6 +80,18 @@ export class TitleStorageController {
   async getHalo3Nightmap() {
     const nightmap = await this.halo3PopulationService.getNightmap();
     return new StreamableFile(nightmap, { disposition: "filename=dynamic_matchmaking_nightmap.jpg" });
+  }
+
+  @ApiOperation({
+    summary: 'Halo 3 Nightmap (Pre-Release)',
+    description: "Returns the world map population image shown on Halo 3's Matchmaking menu.",
+  })
+  @ApiTags('Halo 3')
+  @Header('Content-Type', 'image/jpg')
+  @Get('/tracked/:build_number/matchmaking_nightmap.jpg')
+  async getHalo3PreReleaseNightmap() {
+    const nightmap = await this.halo3PopulationService.getNightmap();
+    return new StreamableFile(nightmap, { disposition: "filename=matchmaking_nightmap.jpg" });
   }
 
   @ApiOperation({

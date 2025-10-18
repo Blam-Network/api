@@ -8,14 +8,22 @@ import {
   HttpCode,
   UploadedFiles,
   BadRequestException,
+  Get,
+  Param,
+  NotFoundException,
+  StreamableFile,
 } from '@nestjs/common';
-import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { Halo3UploadService } from '../halo3/upload.service';
 import { CompressionService } from '../services/compression.service';
 import { UploadService } from '../services/upload.service';
+import { TITLE_STORAGE_FOLDER } from 'src/constants';
+import { basename, join } from 'path';
+import { createReadStream, existsSync } from 'fs';
+import { stat } from 'fs/promises';
 
 @ApiTags('Upload Server')
 @Controller('/upload_server')
@@ -109,5 +117,47 @@ export class UploadServerController {
     ));
 
     return 'ok';
+  }
+
+  @ApiOperation({
+    summary: 'Static Title Storage',
+    description: "Used in early Halo 3 builds (pimps and prior) for title storage.",
+    externalDocs: {
+      description: "Blam-Title-Storage (GitHub)",
+      url: 'https://github.com/Blam-Network/Blam-Title-Storage'
+    },
+    parameters: [
+      {
+        name: 'path',
+        example: '/network_configuration_062.bin',
+        in: 'path'
+      }
+    ]
+  })
+  @ApiParam({
+    name: 'path',
+    example: '/network_configuration_062.bin',
+    style: 'simple',
+    allowReserved: true,
+  })
+  @Get('/storage/default/*path')
+  @ApiTags('Halo 3')
+  async getStaticFile(
+    @Param('path') path: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const filePath = join(process.cwd(), TITLE_STORAGE_FOLDER, 'tracked', '08172', 'default', ...path);
+    const fileName = basename(filePath);
+
+    if (!existsSync(filePath)) throw new NotFoundException();
+
+    const stats = await stat(filePath);
+
+    if (!stats.isFile()) throw new NotFoundException();
+
+    res.set('Content-Length', stats.size.toString());
+    res.set('Cache-Control', 'no-cache');
+
+    return new StreamableFile(createReadStream(filePath), {disposition: `filename=${fileName}`});
   }
 }

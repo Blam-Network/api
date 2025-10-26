@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, InternalServerErrorException, 
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blam-network/blf_lsp'
 import { PrismaService } from "src/db/prisma.service";
-import { HALO3_BUILD_NUMBER, HALO3_EPSILON_BUILD_NUMBER, HALO3_ODST_BUILD_NUMBER, HALO3_TU1_BUILD_NUMBER, HALO3_TU2_BUILD_NUMBER } from "./constants";
+import { HALO3_BUILD_NUMBER, HALO3_EPSILON_BUILD_NUMBER, HALO3_EPSILON_REFRESH_BUILD_NUMBER, HALO3_EXPO_BUILD_NUMBER, HALO3_ODST_BUILD_NUMBER, HALO3_TU1_BUILD_NUMBER, HALO3_TU2_BUILD_NUMBER } from "./constants";
 import { access, mkdir, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
 import { FILESHARE_FOLDER, SCREENSHOTS_FOLDER } from "../../constants";
@@ -13,7 +13,6 @@ import { h32 } from 'xxhashjs';
 import { createReadStream } from "fs";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { xuidToHexString } from "src/xbox/xuid";
-import { HALO3_EPSILON_REFRESH_NUMBER } from "src/ares_lsp/ares/constants";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 
@@ -1100,6 +1099,8 @@ export class Halo3FileShareService {
 
         if (contentHeader.build_number !== HALO3_BUILD_NUMBER
             && contentHeader.build_number !== HALO3_EPSILON_BUILD_NUMBER
+            && contentHeader.build_number !== HALO3_EXPO_BUILD_NUMBER
+            && contentHeader.build_number !== HALO3_EPSILON_REFRESH_BUILD_NUMBER
             && contentHeader.build_number !== HALO3_TU1_BUILD_NUMBER
             && contentHeader.build_number !== HALO3_TU2_BUILD_NUMBER
             && contentHeader.build_number !== HALO3_ODST_BUILD_NUMBER) {
@@ -1340,7 +1341,9 @@ export class Halo3FileShareService {
         if (!screenshot) throw new BadRequestException('No header found for upload.');
 
         if (screenshot.chdr.build_number !== HALO3_BUILD_NUMBER
-            && screenshot.chdr.build_number !== HALO3_EPSILON_REFRESH_NUMBER
+            && screenshot.chdr.build_number !== HALO3_EPSILON_BUILD_NUMBER
+            && screenshot.chdr.build_number !== HALO3_EXPO_BUILD_NUMBER
+            && screenshot.chdr.build_number !== HALO3_EPSILON_REFRESH_BUILD_NUMBER
             && screenshot.chdr.build_number !== HALO3_TU1_BUILD_NUMBER
             && screenshot.chdr.build_number !== HALO3_TU2_BUILD_NUMBER
         ) {

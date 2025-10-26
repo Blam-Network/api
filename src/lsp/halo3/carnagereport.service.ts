@@ -167,7 +167,7 @@ export class Halo3CarnageReportService {
                 })
             }
 
-            const {id: carnageReportId} = await tx.halo3_carnage_report.create({
+            const { id: carnageReportId } = await tx.halo3_carnage_report.create({
                 data: {
                     id: existingCarnageReportId,
                     finish_time: multi.mpgd.finish_time,

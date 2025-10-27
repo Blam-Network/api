@@ -13,6 +13,7 @@ import { h32 } from 'xxhashjs';
 import { createReadStream } from "fs";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { xuidToHexString } from "src/xbox/xuid";
+import { UploadService } from "../services/upload.service";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 
@@ -180,6 +181,7 @@ export class Halo3FileShareService {
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly prisma: PrismaService,
         private readonly discordWebhookService: DiscordWebhookService,
+        private readonly uploadService: UploadService,
     ) { }
 
     private applyDebugMime = (file: Express.Multer.File) => {
@@ -1095,7 +1097,10 @@ export class Halo3FileShareService {
         }
 
         const contentHeader = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_content_header(file.buffer);
-        if (!contentHeader) throw new BadRequestException('No header found for upload.');
+        if (!contentHeader) { 
+            await this.uploadService.storeUploadedFile(file);
+            throw new BadRequestException('No header found for upload.'); 
+        }
 
         if (contentHeader.build_number !== HALO3_BUILD_NUMBER
             && contentHeader.build_number !== HALO3_EPSILON_BUILD_NUMBER
@@ -1338,8 +1343,11 @@ export class Halo3FileShareService {
         }
 
         const screenshot = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_blind_screenshot(file.buffer);
-        if (!screenshot) throw new BadRequestException('No header found for upload.');
-
+        if (!screenshot) { 
+            await this.uploadService.storeUploadedFile(file);
+            throw new BadRequestException('Unsupported screenshot file.'); 
+        }
+        
         if (screenshot.chdr.build_number !== HALO3_BUILD_NUMBER
             && screenshot.chdr.build_number !== HALO3_EPSILON_BUILD_NUMBER
             && screenshot.chdr.build_number !== HALO3_EXPO_BUILD_NUMBER

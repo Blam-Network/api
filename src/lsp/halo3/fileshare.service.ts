@@ -1342,20 +1342,30 @@ export class Halo3FileShareService {
             throw new BadRequestException('Invalid filetype.')
         }
 
-        const screenshot = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_blind_screenshot(file.buffer);
-        if (!screenshot) { 
+        let chdr: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_content_header | undefined = undefined;
+        let scnc: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_screenshot_camera | undefined = undefined;
+        let scnd: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_screenshot_data | undefined = undefined;
+
+        const screenshot_12070 = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_blind_screenshot(file.buffer);
+        const screenshot_11637 = BLF.halo3_11637_07_08_02_2348_release.read_blind_screenshot(file.buffer);
+
+        chdr = (screenshot_12070?.chdr || screenshot_12070?.chdr) ?? undefined;
+        scnc = screenshot_12070?.scnc ?? undefined;
+        scnd = (screenshot_12070?.scnd || screenshot_12070?.scnd) ?? undefined;
+
+        if (!chdr || !scnd) { 
             await this.uploadService.storeUploadedFile(file);
             throw new BadRequestException('Unsupported screenshot file.'); 
         }
         
-        if (screenshot.chdr.build_number !== HALO3_BUILD_NUMBER
-            && screenshot.chdr.build_number !== HALO3_EPSILON_BUILD_NUMBER
-            && screenshot.chdr.build_number !== HALO3_EXPO_BUILD_NUMBER
-            && screenshot.chdr.build_number !== HALO3_EPSILON_REFRESH_BUILD_NUMBER
-            && screenshot.chdr.build_number !== HALO3_TU1_BUILD_NUMBER
-            && screenshot.chdr.build_number !== HALO3_TU2_BUILD_NUMBER
+        if (chdr.build_number !== HALO3_BUILD_NUMBER
+            && chdr.build_number !== HALO3_EPSILON_BUILD_NUMBER
+            && chdr.build_number !== HALO3_EXPO_BUILD_NUMBER
+            && chdr.build_number !== HALO3_EPSILON_REFRESH_BUILD_NUMBER
+            && chdr.build_number !== HALO3_TU1_BUILD_NUMBER
+            && chdr.build_number !== HALO3_TU2_BUILD_NUMBER
         ) {
-            this.logger.warn(`[FileShare] Got a file with build number ${screenshot.chdr.build_number}, rejecting.`)
+            this.logger.warn(`[FileShare] Got a file with build number ${chdr.build_number}, rejecting.`)
             throw new BadRequestException("Bad Version: The file is unsupported.")
         }
 
@@ -1370,8 +1380,8 @@ export class Halo3FileShareService {
         if (await this.prisma.halo3_blind_screenshot.findUnique({
             where: {
                 unique_id_date_game_id: {
-                  unique_id: screenshot.chdr.metadata.unique_id.toString(),
-                  date: screenshot.chdr.metadata.date,
+                  unique_id: chdr.metadata.unique_id.toString(),
+                  date: chdr.metadata.date,
                   game_id: gameId.toString()
                 }
             }
@@ -1382,32 +1392,34 @@ export class Halo3FileShareService {
 
         const screenshotData = await this.prisma.halo3_blind_screenshot.create({
             data: {
-                author: screenshot.chdr.metadata.author,
+                author: chdr.metadata.author,
                 author_id: uploaderXuid.toString(),
-                author_is_xuid_online: screenshot.chdr.metadata.author_is_xuid_online,
-                campaign_difficulty: screenshot.chdr.metadata.campaign_difficulty,
-                campaign_id: screenshot.chdr.metadata.campaign_id,
-                date: screenshot.chdr.metadata.date,
-                description: screenshot.chdr.metadata.description,
-                file_type: screenshot.chdr.metadata.file_type,
-                game_engine_type: screenshot.chdr.metadata.game_engine_type,
+                author_is_xuid_online: chdr.metadata.author_is_xuid_online,
+                campaign_difficulty: chdr.metadata.campaign_difficulty,
+                campaign_id: chdr.metadata.campaign_id,
+                date: chdr.metadata.date,
+                description: chdr.metadata.description,
+                file_type: chdr.metadata.file_type,
+                game_engine_type: chdr.metadata.game_engine_type,
                 game_id: gameId.toString(),
-                length_seconds: screenshot.chdr.metadata.length_seconds,
-                map_id: screenshot.chdr.metadata.map_id,
-                name: screenshot.chdr.metadata.name,
-                size_in_bytes: screenshot.chdr.metadata.size_in_bytes.toString(),
-                unique_id: screenshot.chdr.metadata.unique_id.toString(),
-                hopper_id: screenshot.chdr.metadata.hopper_id,
-                game_tick: screenshot.scnc.game_tick,
-                film_tick: screenshot.scnc.film_tick,
-                jpeg_length: screenshot.scnc.jpeg_data_length,
-                pixel_width: screenshot.scnc.camera.camera.render_pixel_bounds.x.upper,
-                pixel_height: screenshot.scnc.camera.camera.render_pixel_bounds.y.upper,
-                camera_position: [
-                    screenshot.scnc.camera.camera.position.x,
-                    screenshot.scnc.camera.camera.position.y,
-                    screenshot.scnc.camera.camera.position.z,
-                ]
+                length_seconds: chdr.metadata.length_seconds,
+                map_id: chdr.metadata.map_id,
+                name: chdr.metadata.name,
+                size_in_bytes: chdr.metadata.size_in_bytes.toString(),
+                unique_id: chdr.metadata.unique_id.toString(),
+                hopper_id: chdr.metadata.hopper_id,
+                game_tick: scnc?.game_tick,
+                film_tick: scnc?.film_tick,
+                jpeg_length: scnc?.jpeg_data_length,
+                pixel_width: scnc?.camera.camera.render_pixel_bounds.x.upper,
+                pixel_height: scnc?.camera.camera.render_pixel_bounds.y.upper,
+                camera_position: scnc 
+                    ? [
+                        scnc.camera.camera.position.x,
+                        scnc.camera.camera.position.y,
+                        scnc.camera.camera.position.z,
+                    ] 
+                    : []
             },
             select: {
                 id: true,

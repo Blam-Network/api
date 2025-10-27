@@ -16,12 +16,12 @@ model halo3_blind_screenshot {
   campaign_difficulty   Int
   hopper_id             Int      @db.SmallInt
   game_id               Decimal  @db.Decimal(20, 0)
-  game_tick             Int
-  film_tick             Int
-  jpeg_length           Int
+  game_tick             Int?
+  film_tick             Int?
+  jpeg_length           Int?
   camera_position       Float[]
-  pixel_width           Int      @db.SmallInt
-  pixel_height          Int      @db.SmallInt
+  pixel_width           Int?      @db.SmallInt
+  pixel_height          Int?      @db.SmallInt
 
   @@unique([unique_id, date, game_id], map: "unique_unique_id_date")
   @@map("blind_screenshot")

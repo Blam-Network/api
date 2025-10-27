@@ -146,7 +146,7 @@ export class Halo3UserService {
             if (transfers.length > 0) {
                 filq = {
                     transfers: transfers.map(transfer => ({
-                        player_xuid: BigInt(transfer.file.share_id.toFixed(0)),
+                        share_id: BigInt(transfer.file.share_id.toFixed(0)),
                         slot: transfer.file.slot,
                         title_index: transfer.is_odst ? 3 : 0,
                         server_id: 1n,

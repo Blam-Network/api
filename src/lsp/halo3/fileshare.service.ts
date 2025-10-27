@@ -1349,9 +1349,9 @@ export class Halo3FileShareService {
         const screenshot_12070 = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_blind_screenshot(file.buffer);
         const screenshot_11637 = BLF.halo3_11637_07_08_02_2348_release.read_blind_screenshot(file.buffer);
 
-        chdr = (screenshot_12070?.chdr || screenshot_12070?.chdr) ?? undefined;
+        chdr = (screenshot_12070?.chdr || screenshot_11637?.chdr) ?? undefined;
         scnc = screenshot_12070?.scnc ?? undefined;
-        scnd = (screenshot_12070?.scnd || screenshot_12070?.scnd) ?? undefined;
+        scnd = (screenshot_12070?.scnd || screenshot_11637?.scnd) ?? undefined;
 
         if (!chdr || !scnd) { 
             await this.uploadService.storeUploadedFile(file);

@@ -102,7 +102,8 @@ export class UploadServerController {
   async uploadDump(
     @UploadedFiles() uploads: Express.Multer.File[] | undefined,
   ) {
-    if (!uploads) throw new BadRequestException();
+    // sometimes this endpoint is just used to post headers.
+    if (!uploads) return 'ok';
 
     // This endpoint wants a swift response,
     // so we don't await this and respond while processing the uploaded data.

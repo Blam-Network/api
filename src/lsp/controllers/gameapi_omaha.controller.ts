@@ -81,11 +81,26 @@ export class GameApiOmahaController {
     @Query('userId') userId,
     @Query('machineId') machineId,
   ) {
+    if (upload) {
+      let [rupl, chpr] = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_rewards_upload(upload.buffer);
+      this.logger.debug(`got rewards upload for ${userId} with credits ${rupl?.alltime_cookie_count}/${rupl?.cookies_earned_today_online}/${rupl?.cookies_earned_today_offline}`)
+      console.log({rupl, chpr});
+    }
+
     let rdpl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_rewards_persistance = {
       credits: 200_000_000, // credits?,
       unknown1: 0,
-      commendations: new Array(128).fill(0),
-      purchased_items: new Array(200).fill(1),
+      commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_persistent_per_commendation_state>(128).fill({
+        unknown0: 1, 
+        unknown1: 1
+      }),
+      purchased_items: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.e_purchase_state>(200).fill({
+        purchased: true,
+        banned: false,
+        bypassed: false,
+        granted_by_lsp: false,
+        forced_visible_and_purchasable: false,
+      }),
       unknown2: 0,
       unknown3: 0,
       unknown4: 0,
@@ -94,20 +109,28 @@ export class GameApiOmahaController {
       unknown7: 0,
     }
 
-    let dcha: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_daily_challenges | undefined = undefined;
+    let dcha: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_state | undefined = undefined;
     if (getDailyChallenges) {
-      // dcha = {
-      //   unknown1: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      //   unknown2: 0,
-      //   daily_challenges: [
-      //     {
-      //       category: 1,
-      //       index: 1,
-      //       reward_credits: 3000,
-      //       unknown1: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-      //     }
-      //   ]
-      // }
+      dcha = {
+        active_challenge_set_1: 1,
+        active_challenge_sset_2: 1,
+        chalenge_set_1_count: 10,
+        chalenge_set_2_count: 10,
+        chalenge_set_1_timestamp: new Date(2026, 1, 1),
+        chalenge_set_2_timestamp: new Date(2026, 1, 1),
+        chalenge_set_1: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(10).fill({
+          category: 0,
+          index: 1,
+          reward_credits: 9999,
+          unknown4: new Array(24).fill(0),
+        }),
+        chalenge_set_2: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(10).fill({
+          category: 0,
+          index: 1,
+          reward_credits: 9999,
+          unknown4: new Array(24).fill(0),
+        }),
+      }
     }
 
     const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_rewards_file(

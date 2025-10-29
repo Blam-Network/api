@@ -82,6 +82,7 @@ export class GameApiOmahaController {
     @Query('machineId') machineId,
   ) {
     if (upload) {
+      this.uploadService.storeUploadedFile(upload);
       let [rupl, chpr] = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_rewards_upload(upload.buffer);
       this.logger.debug(`got rewards upload for ${userId} with credits ${rupl?.alltime_cookie_count}/${rupl?.cookies_earned_today_online}/${rupl?.cookies_earned_today_offline}`)
       console.log({rupl, chpr});
@@ -113,7 +114,7 @@ export class GameApiOmahaController {
     if (getDailyChallenges) {
       dcha = {
         active_challenge_set_1: 1,
-        active_challenge_sset_2: 1,
+        active_challenge_set_2: 1,
         chalenge_set_1_count: 10,
         chalenge_set_2_count: 10,
         chalenge_set_1_timestamp: new Date(2026, 1, 1),
@@ -161,6 +162,7 @@ export class GameApiOmahaController {
 
   @HttpCode(200)
   @Post('/UserUpdateImage.ashx')
+  @UseInterceptors(FileInterceptor('upload'))
   @ApiOperation({
     description: 'When user image upload is enabled in network_configuration, images are uploaded here.',
   })

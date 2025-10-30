@@ -86,7 +86,7 @@ export class GameApiOmahaController {
     if (upload) {
       this.uploadService.storeUploadedFile(upload);
       let [rupl, chpr] = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_rewards_upload(upload.buffer);
-      this.logger.debug(`got rewards upload for ${userId} with credits ${rupl?.alltime_cookie_count}/${rupl?.cookies_earned_today_online}/${rupl?.cookies_earned_today_offline}`)
+      this.logger.debug(`got rewards upload for ${userId} / ${rupl?.player_name || '<unknown>'} with credits ${rupl?.alltime_cookie_count}/${rupl?.cookies_earned_today_online}/${rupl?.cookies_earned_today_offline} modified at ${rupl?.last_modified_at.toString()}`)
       if (rupl) {
         await this.rewardsService.updatePlayerRewards(userId, rupl);
       }

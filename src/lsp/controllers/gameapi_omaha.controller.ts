@@ -80,7 +80,7 @@ export class GameApiOmahaController {
   async getRewards(
     @UploadedFile() upload: Express.Multer.File,
     @Query('getDailyChallenges', ParseIntPipe) getDailyChallenges: number,
-    @Query('userId') userId,
+    @Query('userId', ParseXUIDPipe) userId: BigInt,
     @Query('machineId') machineId,
   ) {
     if (upload) {

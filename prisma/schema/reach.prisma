@@ -60,3 +60,11 @@ model reach_blind_screenshot {
   @@map("blind_screenshot")
   @@schema("reach")
 }
+
+model reach_player_rewards {
+  player_xuid               Decimal                     @id @db.Decimal(20, 0)
+  credits                   Int
+
+  @@map("player_rewards")
+  @@schema("reach")
+}

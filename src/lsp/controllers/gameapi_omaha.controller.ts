@@ -28,6 +28,7 @@ import { hexStringXuidSchema } from 'src/xbox/xuid';
 import { z } from 'zod';
 import { UploadService } from '../services/upload.service';
 import { HaloReachFileShareService } from '../haloreach/fileshare.service';
+import { HaloReachRewardsService } from '../haloreach/rewards.service';
 
 @ApiTags('Game API Omaha', 'Halo: Reach')
 @Controller('/gameapi_omaha')
@@ -35,8 +36,9 @@ export class GameApiOmahaController {
   constructor(
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
     @Inject() private readonly whitelist: HaloReachWhitelistService,
-    @Inject() private readonly fileshareService :HaloReachFileShareService,
+    @Inject() private readonly fileshareService: HaloReachFileShareService,
     @Inject() private readonly uploadService: UploadService,
+    @Inject() private readonly rewardsService: HaloReachRewardsService,
   ) { }
 
   @Get('/ArenaGetSeasonStats.ashx')
@@ -85,30 +87,13 @@ export class GameApiOmahaController {
       this.uploadService.storeUploadedFile(upload);
       let [rupl, chpr] = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_rewards_upload(upload.buffer);
       this.logger.debug(`got rewards upload for ${userId} with credits ${rupl?.alltime_cookie_count}/${rupl?.cookies_earned_today_online}/${rupl?.cookies_earned_today_offline}`)
+      if (rupl) {
+        await this.rewardsService.updatePlayerRewards(userId, rupl);
+      }
       // console.log({rupl, chpr});
     }
 
-    let rdpl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_rewards_persistance = {
-      credits: 200_000_000, // credits?,
-      unknown1: 0,
-      commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_persistent_per_commendation_state>(128).fill({
-        unknown0: 1, 
-        unknown1: 1
-      }),
-      purchased_items: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.e_purchase_state>(200).fill({
-        purchased: true,
-        banned: false,
-        bypassed: false,
-        granted_by_lsp: false,
-        forced_visible_and_purchasable: false,
-      }),
-      unknown2: 0,
-      unknown3: 0,
-      unknown4: 0,
-      unknown5: 0,
-      unknown6: 0,
-      unknown7: 0,
-    }
+    let rdpl = await this.rewardsService.getPlayerRewards(userId);
 
     let dcha: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_state | undefined = undefined;
     if (getDailyChallenges) {

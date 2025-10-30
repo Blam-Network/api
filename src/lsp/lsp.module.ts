@@ -24,6 +24,7 @@ import { ReachPresenceApiController } from './controllers/reachpresenceapi.contr
 import { HaloReachWhitelistService } from './haloreach/whitelist.service';
 import { HTTP1_0Middleware } from 'src/middleware/HTTP1_0Middleware';
 import { HaloReachFileShareService } from './haloreach/fileshare.service';
+import { HaloReachRewardsService } from './haloreach/rewards.service';
 
 @Module({
     imports: [
@@ -53,6 +54,7 @@ import { HaloReachFileShareService } from './haloreach/fileshare.service';
         Halo3FileShareService,
         HaloReachFileShareService,
         HaloReachWhitelistService,
+        HaloReachRewardsService,
         CompressionService,
         DiscordWebhookService,
         { provide: ILoggerSymbol, useClass: ConsoleLogger },

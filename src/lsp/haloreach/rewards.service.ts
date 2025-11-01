@@ -51,10 +51,9 @@ export class HaloReachRewardsService {
                 }),
                 unknown2: 0,
                 unknown3: 0,
-                unknown4: 0,
+                unknown4: new Date(0),
                 unknown5: 0,
                 unknown6: 0,
-                unknown7: 0,
             }
         }
 
@@ -75,10 +74,9 @@ export class HaloReachRewardsService {
             }),
             unknown2: 0,
             unknown3: 0,
-            unknown4: 0,
+            unknown4: playerRewards?.updatedAt || new Date(0),
             unknown5: 0,
             unknown6: 0,
-            unknown7: 0,
         }
     }
 }

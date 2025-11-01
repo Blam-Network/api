@@ -65,6 +65,8 @@ model reach_player_rewards {
   player_xuid               Decimal                     @id @db.Decimal(20, 0)
   credits                   Int
 
+  updatedAt                 DateTime                    @updatedAt
+
   @@map("player_rewards")
   @@schema("reach")
 }

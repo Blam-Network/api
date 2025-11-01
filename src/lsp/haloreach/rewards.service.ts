@@ -19,6 +19,14 @@ export class HaloReachRewardsService {
     public updatePlayerRewards = async (xuid: BigInt, rupl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_reward_persistence_upload_to_lsp): Promise<void> => {
         if (!await this.useNewRewardsSystem(xuid)) return;
 
+        this.logger.debug(rupl.last_modified_at);
+        this.logger.debug(rupl.profile_time_75c);
+        this.logger.debug(rupl.profile_unknown764);
+        this.logger.debug(rupl.profile_unknown766);
+        this.logger.debug(rupl.profile_unknown768);
+        this.logger.debug(rupl.profile_unknown774);
+        this.logger.debug(rupl.unknown_728);
+        
         await this.prisma.reach_player_rewards.upsert({
             where: {
                 player_xuid: xuid.toString(),
@@ -52,7 +60,7 @@ export class HaloReachRewardsService {
                 unknown2: 0,
                 unknown3: 0,
                 unknown4: new Date(0),
-                unknown5: 0,
+                awarded_credits: 0,
                 unknown6: 0,
             }
         }
@@ -75,7 +83,7 @@ export class HaloReachRewardsService {
             unknown2: 0,
             unknown3: 0,
             unknown4: playerRewards?.updatedAt || new Date(0),
-            unknown5: 0,
+            awarded_credits: 0,
             unknown6: 0,
         }
     }

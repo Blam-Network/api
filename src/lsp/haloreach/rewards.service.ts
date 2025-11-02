@@ -35,7 +35,7 @@ export class HaloReachRewardsService {
 
     public resetPlayerRewards = async (xuid: BigInt) => {
         // Drop data if it exists
-        await this.prisma.reach_player_data.deleteMany({ where: { player_xuid: xuid.toString() }});
+        await this.prisma.reach_player_rewards.deleteMany({ where: { player_xuid: xuid.toString() }});
         await this.prisma.reach_player_rewards_armour.deleteMany({
             where: {
                 player_xuid: xuid.toString(),

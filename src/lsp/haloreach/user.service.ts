@@ -101,6 +101,160 @@ export class HaloReachUserService {
         );
     }
 
+    public getServiceRecord = async (xuid: BigInt): Promise<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record> => {
+        const playerRewards = await this.prisma.reach_player_rewards.findUnique({
+            where: {
+                player_xuid: xuid.toString(),
+            },
+            select: {
+                credits: true
+            }
+        })
+
+        const halo3ServiceRecord = await this.prisma.halo3_service_record.findUnique({
+            where: {
+                player_xuid: xuid.toString(),
+            },
+            select: {
+                first_played: true,
+                games_completed: true,
+            }
+        })
+        
+        return {
+            player_name: '',
+            player_info_available: true,
+            player_model_choice: 0,
+            armour_primary_color: 0,
+            armour_secondary_color: 0,
+            armour_tertiary_color: 0,
+            emblem_primary: 0,
+            emblem_background: 0,
+            emblem_secondary: false,
+            emblem_primary_color: 0,
+            emblem_secondary_color: 0,
+            emblem_background_color: 0,
+            service_tag: '',
+            
+            career_overview_stats_available: true,
+            credits_available: true,
+            credits: playerRewards?.credits || 0,
+
+            campaign_record_available: true,
+            campaign_completed_at: new Date(),
+            campaign_completion_difficulty: 0,
+            campaign_enemies_killed: 0,
+            campaign_vehicles_destroyed: 0,
+            campaign_seconds_played: 0,
+            campaign_difficulty_stats: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_campaign_difficulty_stats>(3).fill({
+                covenant_kills: 0,
+                vehicles_destroyed: 0,
+                highest_skull_multiplier: 1,
+                missions_complete: 0,
+                missions_completed_without_dying_or_restarting: 0,
+                unknown1: 0,
+            }, 0, 3),
+            campaign_commendations_count: 0,
+            campaign_commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_commendation>(16).fill({
+                commendation: 0,
+                progress: 1
+            }, 0, 16),
+
+            firefight_record_available: true,
+            firefight_covenant_kills: 0,
+            firefight_vehicles_destroyed: 0,
+            firefight_highest_set_completed: 0,
+            firefight_most_kills_in_game: 0,
+            firefight_waves_completed: 0,
+            firefight_generators_destroyed: 0,
+            firefight_enemy_players_killed: 0,
+            firefight_difficulty_stats: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_firefight_difficulty_stats>(3).fill({
+                biggest_kill: 0,
+                covenant_kills: 0,
+                vehicles_destroyed: 0,
+                highest_official_score: 0,
+                highest_set_completed: 0,
+                times_beat_par: 0,
+                most_consecutive_kills_without_dying: 0,
+            }, 0, 3),
+            firefight_commendations_count: 0,
+            firefight_commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_commendation>(16).fill({
+                commendation: 0,
+                progress: 1
+            }, 0, 16),
+
+            matchmaking_record_available: true,
+            matchmaking_games_won: 0,
+            matchmaking_assists: 0,
+            matchmaking_kills: 0,
+            matchmaking_deaths: 0,
+            matchmaking_category_stats: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_matchmaking_category_stats>(5).fill({
+                games_won: 0,
+                kills: 0,
+                deaths: 0,
+                assists: 0,
+                percentage_of_matchmaking_games_played_in_category: 0,
+            }, 0, 5),
+            matchmaking_commendations_count: 0,
+            matchmaking_commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_commendation>(16).fill({
+                commendation: 0,
+                progress: 1
+            }, 0, 16),
+
+            arena_season_stats_count: 0,
+            arena_season_stats: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_arena_season_stats>(3).fill({
+                season_number: 0,
+                hopper_stats_count: 0,
+                hopper_stats: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_arena_hopper_stats>(8).fill({
+                    kills: 0,
+                    deaths: 0,
+                    assists: 0,
+                    days_rated: 0,
+                    division: 0,
+                    division_standing: 0,
+                    last_7_days_kill_and_assist_death_ratio: 0,
+                    last_7_days_kill_death_ratio: 0,
+                    games_played: 0,
+                    games_played_today: 0,
+                    games_won: 0,
+                    unknown1: 0,
+                    unknown2: 0,
+                    unknown3: 0,
+                    unknown4: 0,
+                    unknown5: 0,
+                    current_best_set: 0,
+                    yesterdays_best_set: 0,
+                    hopper_name: ''
+                }, 0, 8)
+            }, 0, 3),
+
+            custom_games_record_available: true,
+            custom_games_firefight_killed: 0,
+            custom_games_firefight_played: 0,
+            custom_games_multiplayer_kills: 0,
+            custom_games_multiplayer_played: 0,
+
+            legacy_record_available: true,
+            halo2_first_played_time: new Date(),
+            halo2_highest_difficulty: 0,
+            halo2_unknown_1: 0,
+            halo2_unknown_2: 0,
+            halo3_first_played_time: halo3ServiceRecord ? halo3ServiceRecord.first_played : new Date(),
+            halo3_games_played: halo3ServiceRecord?.games_completed || 0,
+            halo3_highest_difficulty: 0, // TODO
+            halo3_multiplayer_kills: 0,  // TODO
+            odst_first_played_time: new Date(),
+            odst_grunts_killed_in_firefight: 0,
+            odst_highest_difficulty: 0,
+            
+            unknown1: [0, 0, 0, 0],
+            unknown2: [0, 0, 0],
+            unknown3: new Array(14).fill(0, 0, 14),
+            unknown4: [0, 0],
+            unknown5: 0,
+        }
+    }
+
     // TODO: Implement
     public getRecentPlayersFile = (_xuid: string) => {
         return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_recent_players_file({

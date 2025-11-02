@@ -29,6 +29,7 @@ import { z } from 'zod';
 import { UploadService } from '../services/upload.service';
 import { HaloReachFileShareService } from '../haloreach/fileshare.service';
 import { HaloReachRewardsService } from '../haloreach/rewards.service';
+import { HaloReachUserService } from '../haloreach/user.service';
 
 @ApiTags('Game API Omaha', 'Halo: Reach')
 @Controller('/gameapi_omaha')
@@ -36,6 +37,7 @@ export class GameApiOmahaController {
   constructor(
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
     @Inject() private readonly whitelist: HaloReachWhitelistService,
+    @Inject() private readonly userService: HaloReachUserService,
     @Inject() private readonly fileshareService: HaloReachFileShareService,
     @Inject() private readonly uploadService: UploadService,
     @Inject() private readonly rewardsService: HaloReachRewardsService,
@@ -405,12 +407,21 @@ export class GameApiOmahaController {
   @HttpCode(200)
   @Get('/UserGetServiceRecord.ashx')
   @ApiOperation({
-    description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
+    description: 'Returns a Service Record for a Halo: Reach user.',
   })
-  async getServiceRecord() {
-    // I think this might return a blf file with a srid in it.
-    throw new NotImplementedException();
+  @ApiQuery({ name: 'machineId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  async getServiceRecord(
+    @Query('machineId', ParseXUIDPipe) machineId: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareId: BigInt,
+    @Query('userId', ParseXUIDPipe) userId: BigInt,
+  ) {
+    return new StreamableFile(
+      BLF.haloreach_12065_11_08_24_1738_tu1actual.build_service_record_file(
+        await this.userService.getServiceRecord(userId)
+      )
+    );
   }
 
   @Get('/UserBeginConsume.ashx')

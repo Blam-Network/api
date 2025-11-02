@@ -111,7 +111,6 @@ export class HaloReachRewardsService {
                 this.logger.warn(`The player has purchased more armour than they can afford skipping ${rupl.unknown_51b_purchases_count - (index + 1)} remaining armours.`);
                 break;
             }
-            console.log({armour, creditsAvailableForArmour, armourCost})
             purchasedArmour.push(armour);
             creditsAvailableForArmour -= armourCost;
         }

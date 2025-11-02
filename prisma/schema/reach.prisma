@@ -271,3 +271,68 @@ model reach_player_rewards_armour {
   @@map("player_rewards_armour")
   @@schema("reach")
 }
+
+enum reach_commendation {
+  matchmaking_oneshot
+  matchmaking_multikill
+  matchmaking_anyspree
+  matchmaking_assistant
+  matchmaking_crackshot
+  matchmaking_closequarters
+  matchmaking_downshift
+  matchmaking_triggerman
+  matchmaking_sidearm
+  matchmaking_heavyweapon
+  matchmaking_mobileasset
+  matchmaking_grenadier
+  matchmaking_rearadmiral
+  matchmaking_jackofalltrades
+  matchmaking_domeinspector
+  matchmaking_numbersgame
+
+  firefight_targetpractice
+  firefight_specialized
+  firefight_incommand
+  firefight_longshot
+  firefight_riflinthrough
+  firefight_triggerhappy
+  firefight_pullthepin
+  firefight_getloud
+  firefight_methodical
+  firefight_backup
+  firefight_vehicular
+  firefight_grounded
+  firefight_perfectionist
+
+  campaign_pinpoint
+  campaign_demon
+  campaign_cannonfodder
+  campaign_specops
+  campaign_leadershipelement
+  campaign_walkingtank
+  campaign_precisely
+  campaign_standardissue
+  campaign_smallarms
+  campaign_nicearm
+  campaign_warmachine
+  campaign_splashdamage
+  campaign_supersoldier
+  campaign_supportrole
+  campaign_rightofway
+  campaign_flawlesscowboy
+
+  @@map("commendation")
+  @@schema("reach")
+}
+
+model reach_player_rewards_commendations {
+  player_xuid                       Decimal                 @db.Decimal(20, 0)
+  commendation                      reach_commendation
+
+  progress                          Int                     @default(0)
+
+  @@id([player_xuid, commendation])
+  @@index([player_xuid])
+  @@map("player_rewards_commendations")
+  @@schema("reach")
+}

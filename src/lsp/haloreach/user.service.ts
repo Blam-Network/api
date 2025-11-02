@@ -4,6 +4,7 @@ import { parseXuid } from "src/xbox/xuid";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
 import { reach_player_data_nameplate } from "@prisma/client";
+import { CAMPAIGN_COMMENDATIONS, COMMENDATIONS_FROM_DB_MAP, FIREFIGHT_COMMENDATIONS, MATCHMAKING_COMMENDATIONS } from "./commendations";
 
 @Injectable()
 export class HaloReachUserService {
@@ -111,6 +112,33 @@ export class HaloReachUserService {
             }
         })
 
+        const playerCommendations = await this.prisma.reach_player_rewards_commendations.findMany({
+            where: {
+                player_xuid: xuid.toString(),
+            }
+        })
+
+        const matchmakingCommendations = playerCommendations
+            .filter(commendation => MATCHMAKING_COMMENDATIONS.includes(COMMENDATIONS_FROM_DB_MAP[commendation.commendation]))
+            .map(commendation => ({
+                commendation: COMMENDATIONS_FROM_DB_MAP[commendation.commendation] as number,
+                progress: commendation.progress,
+            }))
+
+        const firefightCommendations = playerCommendations
+            .filter(commendation => FIREFIGHT_COMMENDATIONS.includes(COMMENDATIONS_FROM_DB_MAP[commendation.commendation]))
+            .map(commendation => ({
+                commendation: COMMENDATIONS_FROM_DB_MAP[commendation.commendation] as number,
+                progress: commendation.progress,
+            }))
+
+        const campaignCommendations = playerCommendations
+            .filter(commendation => CAMPAIGN_COMMENDATIONS.includes(COMMENDATIONS_FROM_DB_MAP[commendation.commendation]))
+            .map(commendation => ({
+                commendation: COMMENDATIONS_FROM_DB_MAP[commendation.commendation] as number,
+                progress: commendation.progress,
+            }))
+
         const halo3ServiceRecord = await this.prisma.halo3_service_record.findUnique({
             where: {
                 player_xuid: xuid.toString(),
@@ -118,9 +146,22 @@ export class HaloReachUserService {
             select: {
                 first_played: true,
                 games_completed: true,
+                campaign_progress: true,
             }
         })
         
+        const halo3KillsData = await this.prisma.halo3_carnage_report_player_statistics.aggregate({
+            _sum: {
+                kills: true,
+            },
+            where: {
+                carnage_report_player: {
+                    player_xuid: xuid.toString(),
+                },
+            },
+            }
+        );
+
         return {
             player_name: '',
             player_info_available: true,
@@ -136,9 +177,10 @@ export class HaloReachUserService {
             emblem_background_color: 0,
             service_tag: '',
             
-            career_overview_stats_available: true,
             credits_available: true,
             credits: playerRewards?.credits || 0,
+
+            career_overview_stats_available: true,
 
             campaign_record_available: true,
             campaign_completed_at: new Date(),
@@ -154,11 +196,10 @@ export class HaloReachUserService {
                 missions_completed_without_dying_or_restarting: 0,
                 unknown1: 0,
             }, 0, 3),
-            campaign_commendations_count: 0,
-            campaign_commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_commendation>(16).fill({
-                commendation: 0,
-                progress: 1
-            }, 0, 16),
+            campaign_commendations_count: campaignCommendations.length,
+            campaign_commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_commendation>(16)
+                .fill({ commendation: 0, progress: 0 }, 0, 16)
+                .splice(0, campaignCommendations.length, ...campaignCommendations),
 
             firefight_record_available: true,
             firefight_covenant_kills: 0,
@@ -177,11 +218,10 @@ export class HaloReachUserService {
                 times_beat_par: 0,
                 most_consecutive_kills_without_dying: 0,
             }, 0, 3),
-            firefight_commendations_count: 0,
-            firefight_commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_commendation>(16).fill({
-                commendation: 0,
-                progress: 1
-            }, 0, 16),
+            firefight_commendations_count: firefightCommendations.length,
+            firefight_commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_commendation>(16)
+                .fill({ commendation: 0, progress: 0 }, 0, 16)
+                .splice(0, firefightCommendations.length, ...firefightCommendations),
 
             matchmaking_record_available: true,
             matchmaking_games_won: 0,
@@ -195,11 +235,10 @@ export class HaloReachUserService {
                 assists: 0,
                 percentage_of_matchmaking_games_played_in_category: 0,
             }, 0, 5),
-            matchmaking_commendations_count: 0,
-            matchmaking_commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_commendation>(16).fill({
-                commendation: 0,
-                progress: 1
-            }, 0, 16),
+            matchmaking_commendations_count: matchmakingCommendations.length,
+            matchmaking_commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_commendation>(16)
+                .fill({ commendation: 0, progress: 0 }, 0, 16)
+                .splice(0, matchmakingCommendations.length, ...matchmakingCommendations),
 
             arena_season_stats_count: 0,
             arena_season_stats: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_arena_season_stats>(3).fill({
@@ -228,7 +267,7 @@ export class HaloReachUserService {
                 }, 0, 8)
             }, 0, 3),
 
-            custom_games_record_available: true,
+            custom_games_record_available: false,
             custom_games_firefight_killed: 0,
             custom_games_firefight_played: 0,
             custom_games_multiplayer_kills: 0,
@@ -241,8 +280,8 @@ export class HaloReachUserService {
             halo2_unknown_2: 0,
             halo3_first_played_time: halo3ServiceRecord ? halo3ServiceRecord.first_played : new Date(),
             halo3_games_played: halo3ServiceRecord?.games_completed || 0,
-            halo3_highest_difficulty: 0, // TODO
-            halo3_multiplayer_kills: 0,  // TODO
+            halo3_highest_difficulty: halo3ServiceRecord?.campaign_progress || 0,
+            halo3_multiplayer_kills: halo3KillsData._sum.kills || 0,
             odst_first_played_time: new Date(),
             odst_grunts_killed_in_firefight: 0,
             odst_highest_difficulty: 0,

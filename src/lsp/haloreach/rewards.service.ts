@@ -4,6 +4,7 @@ import { parseXuid } from "src/xbox/xuid";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
 import { Prisma, reach_armour } from "@prisma/client";
+import { ALL_COMMENDATIONS, COMMENDATION_TO_DB, COMMENDATIONS_FROM_DB_MAP } from "./commendations";
 
 // This is configured in the network configuration file. Please update both together.
 const DAILY_COOKIE_LIMIT_ONLINE = 200_000;
@@ -41,6 +42,11 @@ export class HaloReachRewardsService {
                 player_xuid: xuid.toString(),
             }
         })
+        await this.prisma.reach_player_rewards_commendations.deleteMany({
+            where: {
+                player_xuid: xuid.toString(),
+            }
+        })
 
         // Create default
         await this.prisma.reach_player_rewards.create({
@@ -48,6 +54,13 @@ export class HaloReachRewardsService {
                 player_xuid: xuid.toString(),
                 credits: 5000,
             }
+        })
+        await this.prisma.reach_player_rewards_commendations.createMany({
+            data: ALL_COMMENDATIONS.map(commendation => ({
+                commendation: COMMENDATION_TO_DB[commendation],
+                player_xuid: xuid.toString(),
+                progress: 0,
+            }))
         })
     }
 
@@ -115,24 +128,40 @@ export class HaloReachRewardsService {
             creditsAvailableForArmour -= armourCost;
         }
 
-        await this.prisma.reach_player_rewards.update({
-            where: {
-                player_xuid: xuid.toString(),
-            },
-            data: {
-                credits: rupl.alltime_cookie_count,
-            },
-        });
+        this.logger.log(`player ${rupl.player_name} has these commendations:`)
+        this.logger.log(rupl.alltime_commendation_progress)
 
-        await this.prisma.$transaction(
-            purchasedArmour.map((armour) => {
+        await this.prisma.$transaction(async (tx) => {
+            await tx.reach_player_rewards_commendations.deleteMany({
+                where: {
+                    player_xuid: xuid.toString(),
+                }
+            })
+            await tx.reach_player_rewards_commendations.createMany({
+                data: ALL_COMMENDATIONS.map(commendation => ({
+                    player_xuid: xuid.toString(),
+                    commendation: COMMENDATION_TO_DB[commendation],
+                    progress: rupl.alltime_commendation_progress[commendation as number].progress,
+                }))
+            })
+
+            await tx.reach_player_rewards.update({
+                where: {
+                    player_xuid: xuid.toString(),
+                },
+                data: {
+                    credits: rupl.alltime_cookie_count,
+                },
+            });
+
+            await Promise.all(purchasedArmour.map((armour) => {
                 const purchase_state = rupl.alltime_purchased_items[armour as number];
 
                 // If the user purchases a DLC item, we assume they have the DLC...
                 // so we unlock that item permanantly for the user in case they switch console.
                 const hasPurchasedSpecialItem = DLC_AND_SPECIAL_ARMOURS.includes(armour);
 
-                return this.prisma.reach_player_rewards_armour.upsert({
+                return tx.reach_player_rewards_armour.upsert({
                     where: {
                         player_xuid_armour: {
                             player_xuid: xuid.toString(),
@@ -150,8 +179,8 @@ export class HaloReachRewardsService {
                         forced_visible_and_purchasable: hasPurchasedSpecialItem ? true : undefined,
                     }
                 });
-            })
-        );
+            }));
+        });
     }
 
     public getPlayerRewards = async (xuid: BigInt): Promise<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_rewards_persistance> => {
@@ -160,8 +189,7 @@ export class HaloReachRewardsService {
                 credits: 200_000_000, // credits?,
                 unknown1: 0,
                 commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_persistent_per_commendation_state>(128).fill({
-                    unknown0: 0, 
-                    unknown1: 0
+                    progress: 0,
                 }),
                 purchased_items: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.e_purchase_state>(200).fill({
                     purchased: true,
@@ -207,6 +235,16 @@ export class HaloReachRewardsService {
             where: {
                 player_xuid: xuid.toString()
             }
+        });
+
+        const responseCommendations = Array<number>(128).fill(0, 0, 128);
+        const commendations = await this.prisma.reach_player_rewards_commendations.findMany({
+            where: {
+                player_xuid: xuid.toString(),
+            }
+        })
+        commendations.forEach(commendation => {
+            responseCommendations[COMMENDATIONS_FROM_DB_MAP[commendation.commendation] as number] = commendation.progress;
         })
 
         purchasedArmours.forEach(purchasedArmour => {
@@ -234,8 +272,7 @@ export class HaloReachRewardsService {
             credits: (playerRewards?.credits || 0) + (playerRewards?.credits_award || 0),
             unknown1: 0,
             commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_persistent_per_commendation_state>(128).fill({
-                unknown0: 1, 
-                unknown1: 1
+                progress: 1,
             }),
             purchased_items: responsePurchasedArmours,
             unknown2: 0,
@@ -631,7 +668,7 @@ const armourCosts: Record<HaloReachArmour, number> = {
 	[HaloReachArmour.firefightvoice_jorges052]: 10000
 };
 
-const ARMOURS_TO_DB_MAP = {
+const ARMOURS_TO_DB_MAP: Record<HaloReachArmour, reach_armour> = {
 	[HaloReachArmour.helmet_mk5b_base]: reach_armour.helmet_mk5b_base,
 	[HaloReachArmour.helmet_mk5b_ua]: reach_armour.helmet_mk5b_ua,
 	[HaloReachArmour.helmet_mk5b_uahul]: reach_armour.helmet_mk5b_uahul,

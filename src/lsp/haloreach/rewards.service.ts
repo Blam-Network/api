@@ -138,9 +138,6 @@ export class HaloReachRewardsService {
                 data: ALL_COMMENDATIONS.map(commendation => ({
                     player_xuid: xuid.toString(),
                     commendation: COMMENDATION_TO_DB[commendation],
-                    // im not exactly sure but the game seems to send progress + 1, so we subtract 1.
-                    // we've seen this before in h3 stats
-                    // maybe it's an indication of presence? but for what purpose?
                     progress: rupl.alltime_commendation_progress[commendation as number].progress,
                 }))
             })

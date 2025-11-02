@@ -5,18 +5,21 @@ import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
 import { reach_player_data_nameplate } from "@prisma/client";
 import { CAMPAIGN_COMMENDATIONS, COMMENDATIONS_FROM_DB_MAP, FIREFIGHT_COMMENDATIONS, MATCHMAKING_COMMENDATIONS } from "./commendations";
+import { HaloReachChallengeService } from "./challenge.service";
 
 @Injectable()
 export class HaloReachUserService {
     constructor(
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly prisma: PrismaService,
+        private readonly challengeService: HaloReachChallengeService,
     ) { }
 
     public getUserFile = async (xuid: BigInt) => {
         // If the DB is too slow, or data isn't present, we'll return a file without player data or a service record.
         let fupd: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_player_data = undefined;
         let srid: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record = undefined;
+        let chpr: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_progress = undefined;
 
         const playerDataPromise = this.prisma.$transaction(async (prisma) => {
             const playerData = await prisma.reach_player_data.findUnique({ where: { player_xuid: xuid.toString() } });
@@ -79,7 +82,10 @@ export class HaloReachUserService {
             }
         })
 
-        await Promise.allSettled([playerDataPromise]);
+        const challengesPromise = this.challengeService.getChallengeProgress(xuid)
+            .then(_chpr => chpr = _chpr);
+
+        await Promise.allSettled([playerDataPromise, challengesPromise]);
 
         if (!fupd) {
             fupd = {
@@ -98,6 +104,7 @@ export class HaloReachUserService {
 
         return BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_file(
             fupd,
+            chpr,
             srid,
         );
     }

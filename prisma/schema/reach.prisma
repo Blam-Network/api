@@ -336,3 +336,16 @@ model reach_player_rewards_commendations {
   @@map("player_rewards_commendations")
   @@schema("reach")
 }
+
+model reach_player_challenge_progress {
+  player_xuid                       Decimal                 @db.Decimal(20, 0)
+  challenge_set                     Int
+  challenge_index                   Int
+  progress                          Int                     @default(0)
+  expiresAt                         DateTime
+
+  @@id([player_xuid, challenge_set, challenge_index])
+  @@index([player_xuid])
+  @@map("player_challenge_progress")
+  @@schema("reach")
+}

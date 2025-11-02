@@ -30,6 +30,7 @@ import { UploadService } from '../services/upload.service';
 import { HaloReachFileShareService } from '../haloreach/fileshare.service';
 import { HaloReachRewardsService } from '../haloreach/rewards.service';
 import { HaloReachUserService } from '../haloreach/user.service';
+import { HaloReachChallengeService } from '../haloreach/challenge.service';
 
 @ApiTags('Game API Omaha', 'Halo: Reach')
 @Controller('/gameapi_omaha')
@@ -41,6 +42,7 @@ export class GameApiOmahaController {
     @Inject() private readonly fileshareService: HaloReachFileShareService,
     @Inject() private readonly uploadService: UploadService,
     @Inject() private readonly rewardsService: HaloReachRewardsService,
+    @Inject() private readonly challengeService: HaloReachChallengeService,
   ) { }
 
   @Get('/ArenaGetSeasonStats.ashx')
@@ -99,26 +101,7 @@ export class GameApiOmahaController {
 
     let dcha: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_state | undefined = undefined;
     if (getDailyChallenges) {
-      // dcha = {
-      //   active_challenge_set_1: 1,
-      //   active_challenge_set_2: 1,
-      //   chalenge_set_1_count: 10,
-      //   chalenge_set_2_count: 10,
-      //   chalenge_set_1_timestamp: new Date(2026, 1, 1),
-      //   chalenge_set_2_timestamp: new Date(2026, 1, 1),
-      //   chalenge_set_1: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(10).fill({
-      //     category: 0,
-      //     index: 1,
-      //     reward_credits: 9999,
-      //     unknown4: new Array(24).fill(0),
-      //   }),
-      //   chalenge_set_2: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(10).fill({
-      //     category: 0,
-      //     index: 1,
-      //     reward_credits: 9999,
-      //     unknown4: new Array(24).fill(0),
-      //   }),
-      // }
+      dcha = this.challengeService.getActiveChallenges();
     }
 
     const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_rewards_file(

@@ -216,16 +216,20 @@ export class HaloReachRewardsService {
                 this.logger.error(`User ${xuid.toString()} has an armour (${armour}) we can't map from DB to game, this should never happen!`)
                 return;
             }
-            const visibleForBungieUser = isPlayerBungie && DLC_AND_SPECIAL_ARMOURS.includes(armour);
             responsePurchasedArmours[armour] = {
                 purchased: purchasedArmour.purchased,
                 banned: purchasedArmour.banned,
                 bypassed: purchasedArmour.bypassed,
                 granted_by_lsp: purchasedArmour.granted_by_lsp,
-                forced_visible_and_purchasable: visibleForBungieUser || purchasedArmour.forced_visible_and_purchasable,
+                forced_visible_and_purchasable: purchasedArmour.forced_visible_and_purchasable,
             }
         });
         
+        if (isPlayerBungie) {
+            DLC_AND_SPECIAL_ARMOURS.forEach(armour => {
+                responsePurchasedArmours[armour].forced_visible_and_purchasable = true;
+            });
+        }
 
         return {
             credits: (playerRewards?.credits || 0) + (playerRewards?.credits_award || 0),

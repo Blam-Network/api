@@ -174,6 +174,8 @@ export class HaloReachRewardsService {
         }
 
         const playerRewards = await this.prisma.reach_player_rewards.findUnique({ where: { player_xuid: xuid.toString() } });
+        const playerData = await this.prisma.reach_player_data.findUnique({ where: { player_xuid: xuid.toString() } });
+        const isPlayerBungie = !!playerData?.is_bungie;
 
         // If we've award the player credits, we can clear the pending award now.
         if (playerRewards?.credits_award) {
@@ -208,12 +210,13 @@ export class HaloReachRewardsService {
                 this.logger.error(`User ${xuid.toString()} has an armour (${armour}) we can't map from DB to game, this should never happen!`)
                 return;
             }
+            const visibleForBungieUser = isPlayerBungie && DLC_AND_SPECIAL_ARMOURS.includes(armour);
             responsePurchasedArmours[armour] = {
                 purchased: purchasedArmour.purchased,
                 banned: purchasedArmour.banned,
                 bypassed: purchasedArmour.bypassed,
                 granted_by_lsp: purchasedArmour.granted_by_lsp,
-                forced_visible_and_purchasable: purchasedArmour.forced_visible_and_purchasable,
+                forced_visible_and_purchasable: visibleForBungieUser || purchasedArmour.forced_visible_and_purchasable,
             }
         });
         
@@ -425,6 +428,18 @@ enum HaloReachArmour {
     firefightvoice_emiles239 = 166,
     firefightvoice_jorges052 = 167,
 }
+
+const DLC_AND_SPECIAL_ARMOURS = [
+    HaloReachArmour.armoureffect_legendary,         // Limited Edition Bonus
+    HaloReachArmour.helmet_recon_uahul3,            // Pre-Order bonus
+    HaloReachArmour.chest_uamultithreatw,           // Pre-Order bonus
+    HaloReachArmour.helmet_cqb_base,                // Waypoint Unlockable - Halo: Reach Heroic Complete
+    HaloReachArmour.helmet_cqb_hurscnm,             // Waypoint Unlockable - Halo 3: ODST Heroic Complete
+    HaloReachArmour.helmet_cqb_uahul,               // Waypoint Unlockable - Halo 3 Legendary Complete
+    HaloReachArmour.helmet_militarypolice_base,     // Waypoint Unlockable - Reach Campaign complete on Normal or higher.
+    HaloReachArmour.helemt_militarypolice_hurscnm,  // Waypoint Unlockable - ODST Pink & Deadly Cheevo
+    HaloReachArmour.helmet_militarypolice_cbrnhurs, // Waypoint Unlockable - Halo 3 Fear The Pink Mist & Reach Spoon Full Of Blamite Cheevos
+]
 
 const armourCosts: Record<HaloReachArmour, number> = {
 	[HaloReachArmour.helmet_mk5b_base]: 0,

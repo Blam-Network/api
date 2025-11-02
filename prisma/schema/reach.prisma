@@ -223,6 +223,15 @@ enum reach_armour {
   armoureffect_pestilence
   armoureffect_gruntbirthdayparty
 
+  elitearmour_minor
+  elitearmour_specops
+  elitearmour_ranger
+  elitearmour_ultra
+  elitearmour_zealot
+  elitearmour_general
+  elitearmour_fieldmarshall
+  elitearmour_officer
+
   visor_default
   visor_silver
   visor_blue
@@ -248,14 +257,14 @@ enum reach_armour {
 
 
 model reach_player_rewards_armour {
-  player_xuid               Decimal                 @db.Decimal(20, 0)
-  armour                    reach_armour
+  player_xuid                       Decimal                 @db.Decimal(20, 0)
+  armour                            reach_armour
 
-  purchased              Boolean                 @default(false)
-  forced_visible_and_purchasable               Boolean                 @default(false)
-  bypassed              Boolean                 @default(false)
-  granted_by_lsp              Boolean                 @default(false)
-  banned              Boolean                 @default(false)
+  purchased                         Boolean                 @default(false)
+  forced_visible_and_purchasable    Boolean                 @default(false)
+  bypassed                          Boolean                 @default(false)
+  granted_by_lsp                    Boolean                 @default(false)
+  banned                            Boolean                 @default(false)
 
   @@id([player_xuid, armour])
   @@index([player_xuid])

@@ -409,14 +409,14 @@ enum HaloReachArmour {
     armoureffect_pestilence = 141,
     armoureffect_gruntbirthdayparty = 142,
     
-    // ?
-    // ?
-    // ?
-    // ?
-    // ?
-    // ?
-    // ?
-    // ?
+    elitearmour_minor = 143,
+    elitearmour_specops = 144,
+    elitearmour_ranger = 145,
+    elitearmour_ultra = 146,
+    elitearmour_zealot = 147,
+    elitearmour_general = 148,
+    elitearmour_fieldmarshall = 149,
+    elitearmour_officer = 150,
 
     visor_default = 151,
     visor_silver = 152,
@@ -440,8 +440,10 @@ enum HaloReachArmour {
 
 const DLC_AND_SPECIAL_ARMOURS = [
     HaloReachArmour.armoureffect_legendary,         // Limited Edition Bonus
+    HaloReachArmour.elitearmour_officer,            // Limited Edition Bonus
     HaloReachArmour.helmet_recon_uahul3,            // Pre-Order bonus
     HaloReachArmour.chest_uamultithreatw,           // Pre-Order bonus
+    HaloReachArmour.chest_uabasesecurity,           // Waypoint Unlockable
     HaloReachArmour.helmet_cqb_base,                // Waypoint Unlockable - Halo: Reach Heroic Complete
     HaloReachArmour.helmet_cqb_hurscnm,             // Waypoint Unlockable - Halo 3: ODST Heroic Complete
     HaloReachArmour.helmet_cqb_uahul,               // Waypoint Unlockable - Halo 3 Legendary Complete
@@ -599,6 +601,15 @@ const armourCosts: Record<HaloReachArmour, number> = {
 	[HaloReachArmour.armoureffect_inclementweather]: 2000000,
 	[HaloReachArmour.armoureffect_pestilence]: 1000000,
 	[HaloReachArmour.armoureffect_gruntbirthdayparty]: 200000,
+
+    [HaloReachArmour.elitearmour_minor]: 0,
+    [HaloReachArmour.elitearmour_specops]: 0,
+    [HaloReachArmour.elitearmour_ranger]: 0,
+    [HaloReachArmour.elitearmour_ultra]: 0,
+    [HaloReachArmour.elitearmour_zealot]: 0,
+    [HaloReachArmour.elitearmour_general]: 0,
+    [HaloReachArmour.elitearmour_fieldmarshall]: 0,
+    [HaloReachArmour.elitearmour_officer]: 0,
 
 	[HaloReachArmour.visor_default]: 0,
 	[HaloReachArmour.visor_silver]: 35000,
@@ -769,6 +780,8 @@ const ARMOURS_TO_DB_MAP = {
 	[HaloReachArmour.armoureffect_inclementweather]: reach_armour.armoureffect_inclementweather,
 	[HaloReachArmour.armoureffect_pestilence]: reach_armour.armoureffect_pestilence,
 	[HaloReachArmour.armoureffect_gruntbirthdayparty]: reach_armour.armoureffect_gruntbirthdayparty,
+
+	[HaloReachArmour.elitearmour_minor]: reach_armour.armoureffect_gruntbirthdayparty,
 
 	[HaloReachArmour.visor_default]: reach_armour.visor_default,
 	[HaloReachArmour.visor_silver]: reach_armour.visor_silver,

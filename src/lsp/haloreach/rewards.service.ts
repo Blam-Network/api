@@ -4,6 +4,10 @@ import { parseXuid } from "src/xbox/xuid";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
 
+// This is configured in the network configuration file. Please update both together.
+const DAILY_COOKIE_LIMIT_ONLINE = 200_000;
+const REWARDS_UPDATE_COOKIE_LIMIT = 25_000; // https://www.bungie.net/en/Forums/Post/14406965?sort=0&page=0&path=1
+
 @Injectable()
 export class HaloReachRewardsService {
     constructor(
@@ -16,26 +20,71 @@ export class HaloReachRewardsService {
         return !!playerData?.is_bungie
     }
 
+    private playerHasLegacySunriseUnlocks = (rupl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_reward_persistence_upload_to_lsp) => {
+        const LEGACY_SUNRISE_CREDITS = 200_000_000;
+
+        const withinLegacySunriseCookieRange = rupl.alltime_cookie_count >= LEGACY_SUNRISE_CREDITS && rupl.alltime_cookie_count <= LEGACY_SUNRISE_CREDITS + DAILY_COOKIE_LIMIT_ONLINE;
+        const hasLegacySunriseArmorUnlocks = rupl.alltime_purchased_items.slice(0, 200).every(armor => {
+            return armor.purchased && !armor.bypassed && !armor.forced_visible_and_purchasable && !armor.granted_by_lsp && !armor.banned
+        })
+
+        return withinLegacySunriseCookieRange && hasLegacySunriseArmorUnlocks;
+    }
+
+    public resetPlayerRewards = async (xuid: BigInt) => {
+        // Drop data if it exists
+        await this.prisma.reach_player_data.deleteMany({ where: { player_xuid: xuid.toString() }});
+
+        // Create default
+        await this.prisma.reach_player_rewards.create({
+            data: {
+                player_xuid: xuid.toString(),
+                credits: 0,
+                credits_award: 5000,
+            }
+        })
+    }
+
     public updatePlayerRewards = async (xuid: BigInt, rupl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_reward_persistence_upload_to_lsp): Promise<void> => {
         if (!await this.useNewRewardsSystem(xuid)) return;
 
-        this.logger.debug(rupl.last_modified_at);
-        this.logger.debug(rupl.profile_time_75c);
-        this.logger.debug(rupl.profile_unknown764);
-        this.logger.debug(rupl.profile_unknown766);
-        this.logger.debug(rupl.profile_unknown768);
-        this.logger.debug(rupl.profile_unknown774);
-        this.logger.debug(rupl.unknown_728);
+        const currentData = (await this.prisma.reach_player_rewards.findUnique({ where: { player_xuid: xuid.toString() }}));
+        const isNewPlayer = currentData == null;
+        // If the player is new, if they have stats from Bungie we want to save them, if they have all unlocks from Sunrise we want to reset them.
+        if (isNewPlayer) {
+            const playerHasLegacySunriseUnlocks = this.playerHasLegacySunriseUnlocks(rupl);
+            if (playerHasLegacySunriseUnlocks) {
+                await this.resetPlayerRewards(xuid);
+            } 
+            else {
+                await this.prisma.reach_player_rewards.create({
+                    data: {
+                        player_xuid: xuid.toString(),
+                        credits: rupl.alltime_cookie_count
+                    }
+                })
+            }
+
+            return;
+        }
+
+        if (currentData.reset_rewards) {
+            await this.resetPlayerRewards(xuid);
+            return;
+        }
+
+        const hasTooManyCredits = rupl.alltime_cookie_count - currentData.credits > REWARDS_UPDATE_COOKIE_LIMIT;
+
+        if (hasTooManyCredits) {
+            // clamp down credits AND unlocked items.
+            return;
+        }
         
-        await this.prisma.reach_player_rewards.upsert({
+        await this.prisma.reach_player_rewards.update({
             where: {
                 player_xuid: xuid.toString(),
             },
-            update: {
-                credits: rupl.alltime_cookie_count,
-            },
-            create: {
-                player_xuid: xuid.toString(),
+            data: {
                 credits: rupl.alltime_cookie_count,
             },
         });
@@ -65,7 +114,20 @@ export class HaloReachRewardsService {
             }
         }
 
-        const playerRewards = await this.prisma.reach_player_rewards.findUnique({where: {player_xuid: xuid.toString() }});
+        const playerRewards = await this.prisma.reach_player_rewards.findUnique({ where: { player_xuid: xuid.toString() } });
+
+        // If we've award the player credits, we can clear the pending award now.
+        if (playerRewards?.credits_award) {
+            await this.prisma.reach_player_rewards.update({
+                where: {
+                    player_xuid: xuid.toString(),
+                },
+                data: {
+                    credits_award: 0,
+                }
+            })
+        }
+        
         return {
             credits: playerRewards?.credits || 0,
             unknown1: 0,
@@ -74,16 +136,16 @@ export class HaloReachRewardsService {
                 unknown1: 1
             }),
             purchased_items: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.e_purchase_state>(200).fill({
-                purchased: true,
+                purchased: false,
                 banned: false,
-                bypassed: true,
-                granted_by_lsp: true,
+                bypassed: false,
+                granted_by_lsp: false,
                 forced_visible_and_purchasable: true,
             }),
             unknown2: 0,
             unknown3: 0,
             unknown4: playerRewards?.updatedAt || new Date(0),
-            awarded_credits: 0,
+            awarded_credits: playerRewards?.credits_award || 0,
             unknown6: 0,
         }
     }

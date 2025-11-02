@@ -70,6 +70,12 @@ export class HaloReachRewardsService {
             return;
         }
 
+        // If the player lost cookies... give them back.
+        if (currentData.credits > rupl.alltime_cookie_count) {
+            this.logger.debug(`${rupl.player_name} lost cookies! Ignoring update.`)
+            return;
+        }
+
         if (currentData.reset_rewards) {
             this.logger.log(`Resetting rewards for ${rupl.player_name}`)
             await this.resetPlayerRewards(xuid);

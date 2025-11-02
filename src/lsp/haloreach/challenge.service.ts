@@ -202,8 +202,8 @@ export class HaloReachChallengeService {
                 }
             })
 
-            const responseChallengeSet1Progress = Array<number>(10);
-            const responseChallengeSet2Progress = Array<number>(10);
+            const responseChallengeSet1Progress = Array<number>(10).fill(0, 0, 10);
+            const responseChallengeSet2Progress = Array<number>(10).fill(0, 0, 10);
 
             activeChallengeProgress
                 .filter(challengeProgress => challengeProgress.challenge_set === activeChallenges.active_challenge_set_1)

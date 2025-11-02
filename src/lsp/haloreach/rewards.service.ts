@@ -129,6 +129,10 @@ export class HaloReachRewardsService {
             purchasedArmour.map((armour) => {
                 const purchase_state = rupl.alltime_purchased_items[armour as number];
 
+                // If the user purchases a DLC item, we assume they have the DLC...
+                // so we unlock that item permanantly for the user in case they switch console.
+                const hasPurchasedSpecialItem = DLC_AND_SPECIAL_ARMOURS.includes(armour);
+
                 return this.prisma.reach_player_rewards_armour.upsert({
                     where: {
                         player_xuid_armour: {
@@ -140,9 +144,11 @@ export class HaloReachRewardsService {
                         armour: ARMOURS_TO_DB_MAP[armour as number],
                         player_xuid: xuid.toString(),
                         purchased: purchase_state.purchased,
+                        forced_visible_and_purchasable: hasPurchasedSpecialItem,
                     },
                     update: {
                         purchased: purchase_state.purchased,
+                        forced_visible_and_purchasable: hasPurchasedSpecialItem ? true : undefined,
                     }
                 });
             })

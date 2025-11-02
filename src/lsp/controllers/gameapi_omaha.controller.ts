@@ -101,7 +101,7 @@ export class GameApiOmahaController {
 
     let dcha: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_state | undefined = undefined;
     if (getDailyChallenges) {
-      dcha = this.challengeService.getActiveChallenges();
+      dcha = await this.challengeService.getActiveChallenges(userId);
     }
 
     const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_rewards_file(

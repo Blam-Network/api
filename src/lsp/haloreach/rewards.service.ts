@@ -128,9 +128,6 @@ export class HaloReachRewardsService {
             creditsAvailableForArmour -= armourCost;
         }
 
-        this.logger.log(`player ${rupl.player_name} has these commendations:`)
-        this.logger.log(rupl.alltime_commendation_progress)
-
         await this.prisma.$transaction(async (tx) => {
             await tx.reach_player_rewards_commendations.deleteMany({
                 where: {

@@ -222,7 +222,7 @@ export class HaloReachChallengeService {
                 active_challenge_set_2: activeChallenges.active_challenge_set_2,
                 chalenge_set_1_progress: responseChallengeSet1Progress,
                 chalenge_set_2_progress: responseChallengeSet2Progress,
-            }
+            } satisfies BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_progress
         });
     }
 

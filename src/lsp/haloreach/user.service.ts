@@ -102,6 +102,8 @@ export class HaloReachUserService {
         let name = srid ? srid.player_name : '<unknown>';
         this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
 
+        console.log({chpr})
+
         return BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_file(
             fupd,
             chpr,

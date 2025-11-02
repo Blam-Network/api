@@ -100,15 +100,15 @@ export class HaloReachRewardsService {
         // loop through purchased armour and check how much we can afford.
         let purchasedArmour: HaloReachArmour[] = [];
         let creditsAvailableForArmour = rupl.alltime_cookie_count;
-        for (let index = 0; index < rupl.unknown_51b_purchases_count; index++) {
-            let armour = toHaloReachArmour(rupl.unknown_520_purchases[index]);
+        for (let index = 0; index < rupl.armour_purchases_count; index++) {
+            let armour = toHaloReachArmour(rupl.armour_purchase_stack[index]);
             if (armour === undefined) {
-                this.logger.warn(`The player has purchased an unknown armour piece (${rupl.unknown_520_purchases[index]}), skipping.`);
+                this.logger.warn(`The player has purchased an unknown armour piece (${rupl.armour_purchase_stack[index]}), skipping.`);
                 continue;
             }
             let armourCost = armourCosts[armour];
             if (armourCost > creditsAvailableForArmour) {
-                this.logger.warn(`The player has purchased more armour than they can afford skipping ${rupl.unknown_51b_purchases_count - (index + 1)} remaining armours.`);
+                this.logger.warn(`The player has purchased more armour than they can afford skipping ${rupl.armour_purchases_count - (index + 1)} remaining armours.`);
                 break;
             }
             purchasedArmour.push(armour);

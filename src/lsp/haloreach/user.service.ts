@@ -197,9 +197,10 @@ export class HaloReachUserService {
                 unknown1: 0,
             }, 0, 3),
             campaign_commendations_count: campaignCommendations.length,
-            campaign_commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_commendation>(16)
-                .fill({ commendation: 0, progress: 0 }, 0, 16)
-                .splice(0, campaignCommendations.length, ...campaignCommendations),
+            campaign_commendations: [
+                ...campaignCommendations,
+                ...new Array(16 - campaignCommendations.length).fill({ commendation: 0, progress: 0 }),
+            ],
 
             firefight_record_available: true,
             firefight_covenant_kills: 0,
@@ -219,9 +220,10 @@ export class HaloReachUserService {
                 most_consecutive_kills_without_dying: 0,
             }, 0, 3),
             firefight_commendations_count: firefightCommendations.length,
-            firefight_commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_commendation>(16)
-                .fill({ commendation: 0, progress: 0 }, 0, 16)
-                .splice(0, firefightCommendations.length, ...firefightCommendations),
+            firefight_commendations: [
+                ...firefightCommendations,
+                ...new Array(16 - firefightCommendations.length).fill({ commendation: 0, progress: 0 }),
+            ],
 
             matchmaking_record_available: true,
             matchmaking_games_won: 0,
@@ -236,9 +238,10 @@ export class HaloReachUserService {
                 percentage_of_matchmaking_games_played_in_category: 0,
             }, 0, 5),
             matchmaking_commendations_count: matchmakingCommendations.length,
-            matchmaking_commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_commendation>(16)
-                .fill({ commendation: 0, progress: 0 }, 0, 16)
-                .splice(0, matchmakingCommendations.length, ...matchmakingCommendations),
+            matchmaking_commendations: [
+                ...matchmakingCommendations,
+                ...new Array(16 - matchmakingCommendations.length).fill({ commendation: 0, progress: 0 }),
+            ],
 
             arena_season_stats_count: 0,
             arena_season_stats: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_arena_season_stats>(3).fill({

@@ -234,14 +234,14 @@ export class HaloReachRewardsService {
             }
         });
 
-        const responseCommendations = Array<number>(128).fill(0, 0, 128);
+        const responseCommendations = Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_persistent_per_commendation_state>(128).fill({progress: 0}, 0, 128);
         const commendations = await this.prisma.reach_player_rewards_commendations.findMany({
             where: {
                 player_xuid: xuid.toString(),
             }
         })
         commendations.forEach(commendation => {
-            responseCommendations[COMMENDATIONS_FROM_DB_MAP[commendation.commendation] as number] = commendation.progress;
+            responseCommendations[COMMENDATIONS_FROM_DB_MAP[commendation.commendation] as number].progress = commendation.progress;
         })
 
         purchasedArmours.forEach(purchasedArmour => {
@@ -268,9 +268,7 @@ export class HaloReachRewardsService {
         return {
             credits: (playerRewards?.credits || 0) + (playerRewards?.credits_award || 0),
             unknown1: 0,
-            commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_persistent_per_commendation_state>(128).fill({
-                progress: 1,
-            }),
+            commendations: responseCommendations,
             purchased_items: responsePurchasedArmours,
             unknown2: 0,
             unknown3: 0,

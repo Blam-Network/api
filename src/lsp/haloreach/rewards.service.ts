@@ -132,11 +132,11 @@ export class HaloReachRewardsService {
                     where: {
                         player_xuid_armour: {
                             player_xuid: xuid.toString(),
-                            armour: ARMOURS_TO_DB_MAP[armour],
+                            armour: ARMOURS_TO_DB_MAP[armour as number],
                         },
                     },
                     create: {
-                        armour: ARMOURS_TO_DB_MAP[armour],
+                        armour: ARMOURS_TO_DB_MAP[armour as number],
                         player_xuid: xuid.toString(),
                         purchased: purchase_state.purchased,
                     },
@@ -200,7 +200,7 @@ export class HaloReachRewardsService {
                 player_xuid: xuid.toString()
             }
         })
-        
+
         purchasedArmours.forEach(purchasedArmour => {
             const armour = ARMOURS_FROM_DB_MAP[purchasedArmour.armour];
             if (!armour || (armour as number) > 255) {

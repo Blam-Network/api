@@ -781,7 +781,14 @@ const ARMOURS_TO_DB_MAP = {
 	[HaloReachArmour.armoureffect_pestilence]: reach_armour.armoureffect_pestilence,
 	[HaloReachArmour.armoureffect_gruntbirthdayparty]: reach_armour.armoureffect_gruntbirthdayparty,
 
-	[HaloReachArmour.elitearmour_minor]: reach_armour.armoureffect_gruntbirthdayparty,
+	[HaloReachArmour.elitearmour_minor]: reach_armour.elitearmour_minor,
+	[HaloReachArmour.elitearmour_fieldmarshall]: reach_armour.elitearmour_fieldmarshall,
+	[HaloReachArmour.elitearmour_general]: reach_armour.elitearmour_general,
+	[HaloReachArmour.elitearmour_officer]: reach_armour.elitearmour_officer,
+	[HaloReachArmour.elitearmour_ranger]: reach_armour.elitearmour_ranger,
+	[HaloReachArmour.elitearmour_specops]: reach_armour.elitearmour_specops,
+	[HaloReachArmour.elitearmour_ultra]: reach_armour.elitearmour_ultra,
+	[HaloReachArmour.elitearmour_zealot]: reach_armour.elitearmour_zealot,
 
 	[HaloReachArmour.visor_default]: reach_armour.visor_default,
 	[HaloReachArmour.visor_silver]: reach_armour.visor_silver,

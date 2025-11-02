@@ -52,11 +52,14 @@ export class HaloReachRewardsService {
         const isNewPlayer = currentData == null;
         // If the player is new, if they have stats from Bungie we want to save them, if they have all unlocks from Sunrise we want to reset them.
         if (isNewPlayer) {
+            this.logger.log(`New player ${rupl.player_name} submitting rewards.`)
             const playerHasLegacySunriseUnlocks = this.playerHasLegacySunriseUnlocks(rupl);
             if (playerHasLegacySunriseUnlocks) {
+                this.logger.log(`${rupl.player_name} has Sunrise unlocks. Resetting`)
                 await this.resetPlayerRewards(xuid);
             } 
             else {
+                this.logger.log(`${rupl.player_name} has Bungie stats, storing`)
                 await this.prisma.reach_player_rewards.create({
                     data: {
                         player_xuid: xuid.toString(),
@@ -69,6 +72,7 @@ export class HaloReachRewardsService {
         }
 
         if (currentData.reset_rewards) {
+            this.logger.log(`Resetting rewards for ${rupl.player_name}`)
             await this.resetPlayerRewards(xuid);
             return;
         }
@@ -76,10 +80,12 @@ export class HaloReachRewardsService {
         const hasTooManyCredits = rupl.alltime_cookie_count - currentData.credits > REWARDS_UPDATE_COOKIE_LIMIT;
 
         if (hasTooManyCredits) {
+            this.logger.log(`${rupl.player_name} has too many credits. Skipping update`)
             // clamp down credits AND unlocked items.
             return;
         }
         
+        this.logger.log(`${rupl.player_name} earned credits.`)
         await this.prisma.reach_player_rewards.update({
             where: {
                 player_xuid: xuid.toString(),

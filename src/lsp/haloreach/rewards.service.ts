@@ -39,8 +39,7 @@ export class HaloReachRewardsService {
         await this.prisma.reach_player_rewards.create({
             data: {
                 player_xuid: xuid.toString(),
-                credits: 0,
-                credits_award: 5000,
+                credits: 5000,
             }
         })
     }
@@ -84,6 +83,10 @@ export class HaloReachRewardsService {
             // clamp down credits AND unlocked items.
             return;
         }
+        
+        this.logger.debug({
+            unlocks: rupl.unknown_520_purchases.slice(0, rupl.unknown_51b_purchases_count)
+        })
         
         this.logger.log(`${rupl.player_name} earned credits.`)
         await this.prisma.reach_player_rewards.update({
@@ -130,12 +133,13 @@ export class HaloReachRewardsService {
                 },
                 data: {
                     credits_award: 0,
+                    credits: playerRewards.credits + playerRewards.credits_award,
                 }
             })
         }
-        
+
         return {
-            credits: playerRewards?.credits || 0,
+            credits: (playerRewards?.credits || 0) + (playerRewards?.credits_award || 0),
             unknown1: 0,
             commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_persistent_per_commendation_state>(128).fill({
                 unknown0: 1, 

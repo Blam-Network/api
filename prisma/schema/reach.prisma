@@ -63,8 +63,8 @@ model reach_blind_screenshot {
 
 model reach_player_rewards {
   player_xuid               Decimal                     @id @db.Decimal(20, 0)
-  credits                   Int
-  credits_award             Int?
+  credits                   Int                         @default(0)
+  credits_award             Int?                        @default(0)
   reset_rewards             Boolean                     @default(false)
 
   updatedAt                 DateTime                    @updatedAt

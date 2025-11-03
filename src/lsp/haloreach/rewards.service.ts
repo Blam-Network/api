@@ -25,9 +25,16 @@ export class HaloReachRewardsService {
     }
 
     private playerHasLegacySunriseUnlocks = (rupl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_reward_persistence_upload_to_lsp) => {
-        const LEGACY_SUNRISE_CREDITS = 200_000_000;
+        const LEGACY_SUNRISE_CREDITS_1 = 20_000_000;
+        const LEGACY_SUNRISE_CREDITS_2 = 200_000_000;
 
-        const withinLegacySunriseCookieRange = rupl.alltime_cookie_count >= LEGACY_SUNRISE_CREDITS && rupl.alltime_cookie_count <= LEGACY_SUNRISE_CREDITS + DAILY_COOKIE_LIMIT_ONLINE;
+        // If the user has exactly the amount of credits sunrise provided, and hasn't earned any credits today, and isn't in our database, they're probably using Sunrise.
+        if ((rupl.alltime_cookie_award_count == LEGACY_SUNRISE_CREDITS_1 || rupl.alltime_cookie_count == 200_000_000) && rupl.cookies_earned_today_online == 0) {
+            return true;
+        }
+
+        // Old logic, seems to miss a lot of users.
+        const withinLegacySunriseCookieRange = rupl.alltime_cookie_count >= LEGACY_SUNRISE_CREDITS_2 && rupl.alltime_cookie_count <= LEGACY_SUNRISE_CREDITS_2 + DAILY_COOKIE_LIMIT_ONLINE;
         const hasLegacySunriseArmorUnlocks = rupl.alltime_purchased_items.slice(0, 200).every(armor => {
             return armor.purchased && !armor.bypassed && !armor.forced_visible_and_purchasable && !armor.granted_by_lsp && !armor.banned
         })

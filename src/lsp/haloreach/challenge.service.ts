@@ -65,7 +65,6 @@ export class HaloReachChallengeService {
     }
 
     public getRandomDailyChallenges = (): BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state[] => {
-        const randomizer = new DeterministicRandomizer(this.getNextDailyResetDate().getDate().toString())
         const challenges = Array.from(
             { length: MAXIMUM_CHALLENGES_PER_SET },
             () => ({ category: 0, challenge: 0 } as BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state)
@@ -83,6 +82,8 @@ export class HaloReachChallengeService {
         const REMAINING_MATCHMAKING_CHALLENGES = [...AVAILABLE_MATCHMAKING_CHALELNGES];
 
         for (let challengeNumber = 0; challengeNumber < DAILY_CHALLENGES_COUNT; challengeNumber++) {
+            const randomizer = new DeterministicRandomizer(`${this.getNextDailyResetDate().getDate().toString()}-${challengeNumber}`)
+
             let challengeCategory = randomizer.pick([
                 BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.bounty,
                 BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.campaign,
@@ -119,13 +120,14 @@ export class HaloReachChallengeService {
     }
 
     public getRandomWeeklyChallenges = (): BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state[] => {
-        const randomizer = new DeterministicRandomizer(this.getNextDailyResetDate().getDate().toString())
         const challenges = Array.from(
             { length: MAXIMUM_CHALLENGES_PER_SET },
             () => ({ category: 0, challenge: 0 } as BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state)
         );
 
         for (let challengeNumber = 0; challengeNumber < WEEKLY_CHALLENGES_COUNT; challengeNumber++) {
+            const randomizer = new DeterministicRandomizer(`${this.getNextWeeklyResetDate().getDate().toString()}-${challengeNumber}`)
+
             let challengeCategory = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.weekly;
             let challenge: number = randomizer.pick(AVAILABLE_WEEKLY_CHALLENGES);
 

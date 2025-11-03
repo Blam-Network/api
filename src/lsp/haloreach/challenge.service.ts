@@ -5,6 +5,7 @@ import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
 import { reach_player_data_nameplate } from "@prisma/client";
 import { CAMPAIGN_COMMENDATIONS, COMMENDATIONS_FROM_DB_MAP, FIREFIGHT_COMMENDATIONS, MATCHMAKING_COMMENDATIONS } from "./commendations";
+import { HaloReachFirefightChallenge } from "./challenges";
 
 const CHALLENGES_ENABLED = true;
 
@@ -56,7 +57,7 @@ export class HaloReachChallengeService {
         return next;
     }
 
-    public getActiveChallenges = async (xuid: BigInt): Promise<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_state> => {
+    public getActiveChallenges = async (xuid: BigInt): Promise<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_state> => {        
         if (!CHALLENGES_ENABLED || !await this.useNewChallengeSystem(xuid)) {
             return {
                 active_challenge_set_1: 0,
@@ -103,7 +104,7 @@ export class HaloReachChallengeService {
             },
             {
                 category: 3,
-                index: 1,
+                index: HaloReachFirefightChallenge.ff_score_custom,
                 reward_credits: 2000,
                 unknown4: [
                     0, 0, 0, 30, // required points

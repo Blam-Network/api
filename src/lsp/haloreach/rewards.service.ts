@@ -129,19 +129,7 @@ export class HaloReachRewardsService {
         }
 
         await this.prisma.$transaction(async (tx) => {
-            await tx.reach_player_rewards_commendations.deleteMany({
-                where: {
-                    player_xuid: xuid.toString(),
-                }
-            })
-            await tx.reach_player_rewards_commendations.createMany({
-                data: ALL_COMMENDATIONS.map(commendation => ({
-                    player_xuid: xuid.toString(),
-                    commendation: COMMENDATION_TO_DB[commendation],
-                    progress: rupl.alltime_commendation_progress[commendation as number].progress,
-                }))
-            })
-
+            // Update Credits
             await tx.reach_player_rewards.update({
                 where: {
                     player_xuid: xuid.toString(),
@@ -151,32 +139,71 @@ export class HaloReachRewardsService {
                 },
             });
 
-            await Promise.all(purchasedArmour.map((armour) => {
-                const purchase_state = rupl.alltime_purchased_items[armour as number];
+            // Update Commendations
+            const existingCommendationProgress = await tx.reach_player_rewards_commendations.findMany({
+                where: { player_xuid: xuid.toString() },
+                select: { commendation: true, progress: true },
+            });
 
-                // If the user purchases a DLC item, we assume they have the DLC...
-                // so we unlock that item permanantly for the user in case they switch console.
-                const hasPurchasedSpecialItem = DLC_AND_SPECIAL_ARMOURS.includes(armour);
+            const commendationProgressMap = new Map(existingCommendationProgress.map(e => [e.commendation, e.progress]));
 
-                return tx.reach_player_rewards_armour.upsert({
-                    where: {
-                        player_xuid_armour: {
+            const commendationProgressUpdates = ALL_COMMENDATIONS
+                .map(commendation => {
+                    const commendation_id = COMMENDATION_TO_DB[commendation];
+                    const new_progress = rupl.alltime_commendation_progress[commendation as number].progress;
+                    const old_progress = commendationProgressMap.get(commendation_id) ?? 0;
+
+                    if (new_progress > old_progress) {
+                        return {
                             player_xuid: xuid.toString(),
-                            armour: ARMOURS_TO_DB_MAP[armour as number],
+                            commendation: commendation_id,
+                            progress: new_progress,
+                        };
+                    }
+                    return null;
+                })
+                .filter((u): u is NonNullable<typeof u> => !!u);
+
+            if (commendationProgressUpdates.length > 0) {
+                await tx.reach_player_rewards_commendations.deleteMany({
+                    where: {
+                        player_xuid: xuid.toString(),
+                        commendation: {
+                            in: commendationProgressUpdates.map(d => d.commendation),
                         },
                     },
-                    create: {
-                        armour: ARMOURS_TO_DB_MAP[armour as number],
-                        player_xuid: xuid.toString(),
-                        purchased: purchase_state.purchased,
-                        forced_visible_and_purchasable: hasPurchasedSpecialItem,
-                    },
-                    update: {
-                        purchased: purchase_state.purchased,
-                        forced_visible_and_purchasable: hasPurchasedSpecialItem ? true : undefined,
-                    }
                 });
-            }));
+
+                await tx.reach_player_rewards_commendations.createMany({
+                    data: commendationProgressUpdates,
+                });
+            }
+
+            // Update Armours
+            if (purchasedArmour.length > 0) {
+                await tx.reach_player_rewards_armour.deleteMany({
+                    where: {
+                        player_xuid: xuid.toString(),
+                        armour: {
+                            in: purchasedArmour.map(armour => ARMOURS_TO_DB_MAP[armour]),
+                        },
+                    },
+                });
+
+                await tx.reach_player_rewards_armour.createMany({
+                    data: purchasedArmour.map(armour => {
+                        const purchase_state = rupl.alltime_purchased_items[armour as number];
+                        const hasPurchasedSpecialItem = DLC_AND_SPECIAL_ARMOURS.includes(armour);
+
+                        return {
+                            player_xuid: xuid.toString(),
+                            armour: ARMOURS_TO_DB_MAP[armour as number],
+                            purchased: purchase_state.purchased,
+                            forced_visible_and_purchasable: hasPurchasedSpecialItem || purchase_state.forced_visible_and_purchasable,
+                        };
+                    }),
+                });
+            }
         });
     }
 

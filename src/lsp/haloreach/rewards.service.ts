@@ -258,13 +258,18 @@ export class HaloReachRewardsService {
             })
         }
 
-        const responsePurchasedArmours = new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.e_purchase_state>(256).fill({
-            purchased: false,
-            banned: false,
-            bypassed: false,
-            granted_by_lsp: false,
-            forced_visible_and_purchasable: false,
-        }, 0, 256);
+        const responsePurchasedArmours = Array.from(
+            {
+                length: 256,
+            },
+            () => ({
+                purchased: false,
+                banned: false,
+                bypassed: false,
+                granted_by_lsp: false,
+                forced_visible_and_purchasable: false,
+            } as BLF.haloreach_12065_11_08_24_1738_tu1actual.e_purchase_state)
+        );
 
         const purchasedArmours = await this.prisma.reach_player_rewards_armour.findMany({
             where: {
@@ -272,7 +277,7 @@ export class HaloReachRewardsService {
             }
         });
 
-        const responseCommendations = Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_persistent_per_commendation_state>(128).fill({progress: 0}, 0, 128);
+        const responseCommendations = Array.from({ length: 128 }, () => ({progress: 0} as BLF.haloreach_12065_11_08_24_1738_tu1actual.s_persistent_per_commendation_state));
         const commendations = await this.prisma.reach_player_rewards_commendations.findMany({
             where: {
                 player_xuid: xuid.toString(),

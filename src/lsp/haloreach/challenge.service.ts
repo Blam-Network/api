@@ -68,8 +68,13 @@ export class HaloReachChallengeService {
         const randomizer = new DeterministicRandomizer(this.getNextDailyResetDate().getDate().toString())
         const challenges = Array.from(
             { length: MAXIMUM_CHALLENGES_PER_SET },
-            () => ({ category: 0, challenge: 0 })
+            () => ({ category: 0, challenge: 0 } as BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state)
         );
+
+        // this should really be based on the challenge difficulty, but for now it's more random.
+        const CHALLENGE_CREDITS_RANGE = [
+            1500, 2000, 2250, 2500, 2750, 3000,
+        ]
 
         // Working copies of challenge arrays which we remove from to prevent duplication in picked challenges.
         const REMAINING_BOUNTY_CHALLENGES = [...AVAILABLE_BOUNTY_CHALLENGES];
@@ -105,8 +110,9 @@ export class HaloReachChallengeService {
                 }
             }
 
-            challenges[challengeNumber].category = challengeCategory
+            challenges[challengeNumber].category = challengeCategory;
             challenges[challengeNumber].challenge = challenge;
+            challenges[challengeNumber].cookie_reward = randomizer.pick(CHALLENGE_CREDITS_RANGE);
         }
 
         return challenges;
@@ -116,15 +122,21 @@ export class HaloReachChallengeService {
         const randomizer = new DeterministicRandomizer(this.getNextDailyResetDate().getDate().toString())
         const challenges = Array.from(
             { length: MAXIMUM_CHALLENGES_PER_SET },
-            () => ({ category: 0, challenge: 0 })
+            () => ({ category: 0, challenge: 0 } as BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state)
         );
 
         for (let challengeNumber = 0; challengeNumber < WEEKLY_CHALLENGES_COUNT; challengeNumber++) {
             let challengeCategory = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.weekly;
             let challenge: number = randomizer.pick(AVAILABLE_WEEKLY_CHALLENGES);
 
+            // this should really be based on the challenge difficulty, but for now it's more random.
+            const CHALLENGE_CREDITS_RANGE = [
+                15000, 17500, 20000, 22500, 25000, 27500, 30000,
+            ]
+
             challenges[challengeNumber].category = challengeCategory
             challenges[challengeNumber].challenge = challenge;
+            challenges[challengeNumber].cookie_reward = randomizer.pick(CHALLENGE_CREDITS_RANGE);
         }
 
         return challenges;

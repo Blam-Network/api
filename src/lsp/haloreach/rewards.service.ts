@@ -19,8 +19,9 @@ export class HaloReachRewardsService {
     ) { }
 
     private useNewRewardsSystem = async (xuid: BigInt): Promise<boolean> => {
-        const playerData = await this.prisma.reach_player_data.findUnique({ where: { player_xuid: xuid.toString() } });
-        return !!playerData?.is_bungie
+        // const playerData = await this.prisma.reach_player_data.findUnique({ where: { player_xuid: xuid.toString() } });
+        // return !!playerData?.is_bungie
+        return true;
     }
 
     private playerHasLegacySunriseUnlocks = (rupl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_reward_persistence_upload_to_lsp) => {

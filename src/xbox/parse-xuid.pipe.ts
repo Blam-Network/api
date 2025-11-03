@@ -2,6 +2,10 @@ import { ArgumentMetadata, HttpStatus, Injectable, Optional, PipeTransform } fro
 import { ErrorHttpStatusCode, HttpErrorByCode } from "@nestjs/common/utils/http-error-by-code.util";
 import { parseXuid } from "src/xbox/xuid";
 
+const BANNED_XUIDS = [
+  2535442705942709n
+]
+
 /**
  * @publicApi
  */
@@ -49,7 +53,15 @@ export class ParseXUIDPipe implements PipeTransform<string> {
       );
     }
 
-    return parseXuid(value);
+    const parsedXuid = parseXuid(value);
+
+    if (this.isBannedXuid(parsedXuid)) {
+      throw this.exceptionFactory(
+        `Validation failed (XUID is expected)`,
+      );
+    }
+
+    return parsedXuid;
   }
 
   protected isXUID(str: unknown, version = 'all') {
@@ -57,5 +69,9 @@ export class ParseXUIDPipe implements PipeTransform<string> {
       throw this.exceptionFactory('The value passed as XUID is not a string');
     }
     return XUIDRegex?.test(str);
+  }
+
+  protected isBannedXuid(xuid: BigInt) {
+    return BANNED_XUIDS.includes(xuid.valueOf());
   }
 }

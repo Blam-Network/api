@@ -5,9 +5,46 @@ import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
 import { reach_player_data_nameplate } from "@prisma/client";
 import { CAMPAIGN_COMMENDATIONS, COMMENDATIONS_FROM_DB_MAP, FIREFIGHT_COMMENDATIONS, MATCHMAKING_COMMENDATIONS } from "./commendations";
-import { HaloReachFirefightChallenge } from "./challenges";
+import { HaloReachFirefightChallenge, HaloReachWeeklyChallenge } from "./challenges";
+import { DeterministicRandomizer } from "src/utils/random";
 
 const CHALLENGES_ENABLED = true;
+const DAILY_CHALLENGES_COUNT = 4;
+const WEEKLY_CHALLENGES_COUNT = 1;
+const MAXIMUM_CHALLENGES_PER_SET = 10;
+
+enum ChallengeSet {
+    Daily = 1,
+    Weekly = 2
+}
+
+const EMPTY_SKULL_FLAGS: BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_skull_flags = {
+    assasin: false,
+    black_eye: false,
+    thunderstorm: false,
+    blind: false,
+    mythic: false,
+    iwhbyd: false,
+    tough_luck: false,
+    tilt: false,
+    superman: false,
+    iron: false,
+    grunt_birthday_party: false,
+    fog: false,
+    famine: false,
+    catch: false,
+}
+const EMPTY_CHALLENGE: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state = {
+    category: 0,
+    challenge: 0,
+    cookie_reward: 0,
+    maximum_death_count: 0,
+    maximum_level_completion_time: 0,
+    minimum_score: 0,
+    toast_progress_count: 0,
+    required_progress: 0,
+    skull_flags: EMPTY_SKULL_FLAGS
+}
 
 @Injectable()
 export class HaloReachChallengeService {
@@ -57,23 +94,31 @@ export class HaloReachChallengeService {
         return next;
     }
 
+    public getRandomDailyChallenges = (): BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state[] => {
+        const randomizer = new DeterministicRandomizer(this.getNextDailyResetDate().getDate().toString())
+        // Init empty challenge array
+        const challenges = new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(MAXIMUM_CHALLENGES_PER_SET)
+            .fill(EMPTY_CHALLENGE);
+
+        for (let challengeNumber = 0; challengeNumber < DAILY_CHALLENGES_COUNT; challengeNumber++) {
+            let challenge_category = randomizer.pick([
+                BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.bounty,
+                BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.campaign,
+                BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.firefight,
+                BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.matchmaking,
+            ])
+        }
+
+        return challenges;
+    }
+
     public getActiveChallenges = async (xuid: BigInt): Promise<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_state> => {        
         if (!CHALLENGES_ENABLED || !await this.useNewChallengeSystem(xuid)) {
             return {
                 active_challenge_set_1: 0,
                 active_challenge_set_2: 0,
-                chalenge_set_1: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(10).fill({
-                    category: 0,
-                    index: 0,
-                    reward_credits: 0,
-                    unknown4: new Array<number>(24).fill(0, 0, 24)
-                }),
-                chalenge_set_2: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(10).fill({
-                    category: 0,
-                    index: 0,
-                    reward_credits: 0,
-                    unknown4: new Array<number>(24).fill(0, 0, 24)
-                }),
+                chalenge_set_1: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(MAXIMUM_CHALLENGES_PER_SET).fill(EMPTY_CHALLENGE),
+                chalenge_set_2: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(MAXIMUM_CHALLENGES_PER_SET).fill(EMPTY_CHALLENGE),
                 chalenge_set_1_count: 0,
                 chalenge_set_2_count: 0,
                 chalenge_set_1_timestamp: new Date(),
@@ -82,106 +127,72 @@ export class HaloReachChallengeService {
         }
 
         return {
-            active_challenge_set_1: 1,
-            active_challenge_set_2: 1,
-            chalenge_set_1_count: 5,
-            chalenge_set_2_count: 10,
+            active_challenge_set_1: ChallengeSet.Daily,
+            active_challenge_set_2: ChallengeSet.Weekly,
+            chalenge_set_1_count: DAILY_CHALLENGES_COUNT,
+            chalenge_set_2_count: WEEKLY_CHALLENGES_COUNT,
             chalenge_set_1_timestamp: this.getNextDailyResetDate(),
             chalenge_set_2_timestamp: this.getNextWeeklyResetDate(),
             chalenge_set_1: [
             {
                 category: 0,
-                index: 1,
-                reward_credits: 2250,
-                unknown4: [
-                    0, 0, 0, 75, // required points
-                    0, 0, 0, 2,  
-                    0, 0, 0, 15, // maximum_level_completion_seconds maybe
-                    0, 0, 0, 34, // pretty sure this is skulls
-                    0, 0, 0, 4,
-                    0, 0, 0, 5
-                ],
+                challenge: HaloReachFirefightChallenge.temp_f_2,
+                cookie_reward: 0,
+                maximum_death_count: 0,
+                maximum_level_completion_time: 0,
+                minimum_score: 0,
+                toast_progress_count: 0,
+                required_progress: 0,
+                skull_flags: EMPTY_SKULL_FLAGS,
             },
             {
-                category: 3,
-                index: HaloReachFirefightChallenge.ff_score_custom,
-                reward_credits: 2000,
-                unknown4: [
-                    0, 0, 0, 30, // required points
-                    0, 0, 0, 3,
-                    0, 0, 0, 2,
-                    0, 0, 0, 34, // pretty sure this is skulls
-                    0, 0, 0, 4,
-                    0, 0, 0, 5
-                ],
+                category: 1,
+                challenge: HaloReachWeeklyChallenge.survival_wave_weekly,
+                cookie_reward: 0,
+                maximum_death_count: 0,
+                maximum_level_completion_time: 0,
+                minimum_score: 0,
+                toast_progress_count: 0,
+                required_progress: 0,
+                skull_flags: EMPTY_SKULL_FLAGS,
             },
             {
                 category: 2,
-                index: 1,
-                reward_credits: 5000,
-                unknown4: [
-                    0, 1, 160, 134, // required points
-                    0, 0, 0, 3,
-                    0, 0, 0, 2,
-                    0, 0, 0, 0, // pretty sure this is skulls
-                    0, 0, 0, 4,
-                    0, 0, 0, 5
-                ],
+                challenge: 1,
+                cookie_reward: 0,
+                maximum_death_count: 0,
+                maximum_level_completion_time: 0,
+                minimum_score: 0,
+                toast_progress_count: 0,
+                required_progress: 0,
+                skull_flags: EMPTY_SKULL_FLAGS,
             },
             {
                 category: 4,
-                index: 1,
-                reward_credits: 2100,
-                unknown4: [
-                    0, 0, 0, 2, // required points
-                    0, 0, 0, 3,
-                    0, 0, 0, 2,
-                    0, 0, 0, 0, // pretty sure this is skulls
-                    0, 0, 0, 4,
-                    0, 0, 0, 5
-                ],
+                challenge: 1,
+                cookie_reward: 0,
+                maximum_death_count: 0,
+                maximum_level_completion_time: 0,
+                minimum_score: 0,
+                toast_progress_count: 0,
+                required_progress: 0,
+                skull_flags: EMPTY_SKULL_FLAGS,
             },
-            ...new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(5).fill({
-                category: 3,
-                index: 1,
-                reward_credits: 9999,
-                unknown4: [
-                    0, 0, 0, 7, // required points
-                    0, 0, 0, 3,
-                    0, 0, 0, 2,
-                    0, 0, 0, 34, // pretty sure this is skulls
-                    0, 0, 0, 4,
-                    0, 0, 0, 5
-                ],
-            })
+            ...new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(5).fill(EMPTY_CHALLENGE)
             ],
             chalenge_set_2: [
                 {
                     category: 1,
-                    index: 1,
-                    reward_credits: 14000,
-                    unknown4: [
-                        0, 0, 0, 1, // required points
-                        0, 0, 0, 3,
-                        0, 0, 0, 2,
-                        0, 0, 0, 34, // pretty sure this is skulls
-                        0, 0, 0, 4,
-                        0, 0, 0, 5
-                    ],
+                    challenge: 1,
+                    cookie_reward: 0,
+                    maximum_death_count: 0,
+                    maximum_level_completion_time: 0,
+                    minimum_score: 0,
+                    toast_progress_count: 0,
+                    required_progress: 0,
+                    skull_flags: EMPTY_SKULL_FLAGS,
                 },
-                ...new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(9).fill({
-                    category: 0,
-                    index: 0,
-                    reward_credits: 0,
-                    unknown4: [
-                        0, 0, 0, 1,
-                        0, 0, 0, 0,
-                        0, 0, 0, 2,
-                        0, 0, 0, 0,
-                        0, 0, 0, 3,
-                        0, 0, 0, 0
-                    ]
-                }),
+                ...new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(9).fill(EMPTY_CHALLENGE),
             ]
         }
     }

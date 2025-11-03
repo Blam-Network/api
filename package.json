@@ -28,7 +28,7 @@
     "schema": "prisma/schema"
   },
   "dependencies": {
-    "@blam-network/blf_lsp": "^1.7.18",
+    "@blam-network/blf_lsp": "^1.7.19",
     "@faker-js/faker": "^8.4.1",
     "@nestjs/common": "^11.1.0",
     "@nestjs/core": "^11.1.0",
@@ -40,6 +40,7 @@
     "@nestjs/swagger": "^11.2.0",
     "@prisma/client": "^6.7.0",
     "@sequelize/core": "^7.0.0-alpha.10",
+    "@types/seedrandom": "^3.0.8",
     "@types/uuid": "^8.3.4",
     "@types/xxhashjs": "^0.2.4",
     "axios": "^1.9.0",
@@ -52,6 +53,7 @@
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.2",
     "rxjs": "^7.2.0",
+    "seedrandom": "^3.0.5",
     "sequelize": "^6.21.3",
     "sequelize-cli": "^6.4.1",
     "sequelize-typescript": "^2.1.3",

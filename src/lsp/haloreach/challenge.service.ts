@@ -66,8 +66,16 @@ export class HaloReachChallengeService {
 
     public getRandomDailyChallenges = (): BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state[] => {
         const randomizer = new DeterministicRandomizer(this.getNextDailyResetDate().getDate().toString())
-        const challenges = new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(MAXIMUM_CHALLENGES_PER_SET)
-            .fill({ category: 0, challenge: 0 });
+        const challenges = Array.from(
+            { length: MAXIMUM_CHALLENGES_PER_SET },
+            () => ({ category: 0, challenge: 0 })
+        );
+
+        // Working copies of challenge arrays which we remove from to prevent duplication in picked challenges.
+        const REMAINING_BOUNTY_CHALLENGES = [...AVAILABLE_BOUNTY_CHALLENGES];
+        const REMAINING_CAMPAIGN_CHALLENGES = [...AVAILABLE_CAMPAIGN_CHALLENGES];
+        const REMAINING_FIREFIGHT_CHALLENGES = [...AVAILABLE_FIREFIGHT_CHALLENGES];
+        const REMAINING_MATCHMAKING_CHALLENGES = [...AVAILABLE_MATCHMAKING_CHALELNGES];
 
         for (let challengeNumber = 0; challengeNumber < DAILY_CHALLENGES_COUNT; challengeNumber++) {
             let challengeCategory = randomizer.pick([
@@ -80,19 +88,19 @@ export class HaloReachChallengeService {
             let challenge: number = 0;
             switch (challengeCategory) {
                 case BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.bounty: {
-                    challenge = randomizer.pick(AVAILABLE_BOUNTY_CHALLENGES)
+                    challenge = randomizer.pick_and_remove(REMAINING_BOUNTY_CHALLENGES)
                     break;
                 }
                 case BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.campaign: {
-                    challenge = randomizer.pick(AVAILABLE_CAMPAIGN_CHALLENGES)
+                    challenge = randomizer.pick_and_remove(REMAINING_CAMPAIGN_CHALLENGES)
                     break;
                 }
                 case BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.firefight: {
-                    challenge = randomizer.pick(AVAILABLE_FIREFIGHT_CHALLENGES)
+                    challenge = randomizer.pick_and_remove(REMAINING_FIREFIGHT_CHALLENGES)
                     break;
                 }
                 case BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.matchmaking: {
-                    challenge = randomizer.pick(AVAILABLE_MATCHMAKING_CHALELNGES)
+                    challenge = randomizer.pick_and_remove(REMAINING_MATCHMAKING_CHALLENGES)
                     break;
                 }
             }
@@ -106,8 +114,10 @@ export class HaloReachChallengeService {
 
     public getRandomWeeklyChallenges = (): BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state[] => {
         const randomizer = new DeterministicRandomizer(this.getNextDailyResetDate().getDate().toString())
-        const challenges = new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(MAXIMUM_CHALLENGES_PER_SET)
-            .fill({ category: 0, challenge: 0 });
+        const challenges = Array.from(
+            { length: MAXIMUM_CHALLENGES_PER_SET },
+            () => ({ category: 0, challenge: 0 })
+        );
 
         for (let challengeNumber = 0; challengeNumber < WEEKLY_CHALLENGES_COUNT; challengeNumber++) {
             let challengeCategory = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.weekly;

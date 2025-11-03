@@ -306,6 +306,8 @@ export class HaloReachRewardsService {
             DLC_AND_SPECIAL_ARMOURS.forEach(armour => {
                 responsePurchasedArmours[armour].forced_visible_and_purchasable = true;
             });
+            // This one is a special case, it needs to be marked as purchased to work.
+            responsePurchasedArmours[HaloReachArmour.elitearmour_officer].purchased = true;
         }
 
         return {

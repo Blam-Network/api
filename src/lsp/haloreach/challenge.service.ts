@@ -251,13 +251,13 @@ export class HaloReachChallengeService {
             for (const { challenge_set, challenge_index, progress, expiresAt } of allProgress) {
                 // Use upsert with raw SQL to ensure progress never decreases
                 await tx.$executeRawUnsafe(`
-                    INSERT INTO reach_player_challenge_progress (
-                    player_xuid, challenge_set, challenge_index, progress, "expiresAt"
+                    INSERT INTO reach.player_challenge_progress (
+                        player_xuid, challenge_set, challenge_index, progress, "expiresAt"
                     )
                     VALUES (${xuid.toString()}, ${challenge_set}, ${challenge_index}, ${progress}, TO_TIMESTAMP(${Math.floor(expiresAt.getTime() / 1000)}))
                     ON CONFLICT (player_xuid, challenge_set, challenge_index)
                     DO UPDATE SET
-                    progress = GREATEST(reach_player_challenge_progress.progress, EXCLUDED.progress),
+                    progress = GREATEST(reach.player_challenge_progress.progress, EXCLUDED.progress),
                     "expiresAt" = EXCLUDED."expiresAt";
                 `);
             }

@@ -8,7 +8,7 @@ import { ALL_COMMENDATIONS, COMMENDATION_TO_DB, COMMENDATIONS_FROM_DB_MAP } from
 
 // This is configured in the network configuration file. Please update both together.
 const DAILY_COOKIE_LIMIT_ONLINE = 200_000;
-const REWARDS_UPDATE_COOKIE_LIMIT = 25_000; // https://www.bungie.net/en/Forums/Post/14406965?sort=0&page=0&path=1
+const REWARDS_UPDATE_COOKIE_LIMIT = 100_000; // This is the maximum we'll update cookies in a single request.
 // Halo: Reach armour constants at EOF.
 
 @Injectable()
@@ -96,7 +96,7 @@ export class HaloReachRewardsService {
             }
         }
 
-        if (currentData) {
+        if (currentData !== null) {
             // If the player lost cookies... give them back.
             if (currentData.credits > rupl.alltime_cookie_count) {
                 this.logger.debug(`${rupl.player_name} lost cookies! Ignoring update.`)
@@ -108,6 +108,14 @@ export class HaloReachRewardsService {
                 await this.resetPlayerRewards(xuid);
                 return;
             }
+
+            // Needs further testing.
+            // const hasExceededDailyOnlineLimit = rupl.cookies_earned_today_online > DAILY_COOKIE_LIMIT_ONLINE;
+
+            // if (hasExceededDailyOnlineLimit) {
+            //     const excessCookiesToday = rupl.cookies_earned_today_online - DAILY_COOKIE_LIMIT_ONLINE;
+            //     rupl.alltime_cookie_count -= excessCookiesToday;
+            // }
 
             const hasTooManyCredits = rupl.alltime_cookie_count - currentData.credits > REWARDS_UPDATE_COOKIE_LIMIT;
 

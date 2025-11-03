@@ -94,7 +94,9 @@ export class GameApiOmahaController {
       if (rupl) {
         await this.rewardsService.updatePlayerRewards(userId, rupl);
       }
-      // console.log({rupl, chpr});
+      if (chpr) {
+        await this.challengeService.updateChallengeProgress(userId, chpr);
+      }
     }
 
     let rdpl = await this.rewardsService.getPlayerRewards(userId);

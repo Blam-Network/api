@@ -93,12 +93,12 @@ export class HaloReachChallengeService {
                 index: 1,
                 reward_credits: 2250,
                 unknown4: [
-                0, 0, 0, 75, // required points
-                0, 0, 0, 15,
-                0, 0, 0, 2,
-                0, 0, 0, 34, // pretty sure this is skulls
-                0, 0, 0, 4,
-                0, 0, 0, 5
+                    0, 0, 0, 75, // required points
+                    0, 0, 0, 2,  
+                    0, 0, 0, 15, // maximum_level_completion_seconds maybe
+                    0, 0, 0, 34, // pretty sure this is skulls
+                    0, 0, 0, 4,
+                    0, 0, 0, 5
                 ],
             },
             {
@@ -106,12 +106,12 @@ export class HaloReachChallengeService {
                 index: 1,
                 reward_credits: 2000,
                 unknown4: [
-                0, 0, 0, 30, // required points
-                0, 0, 0, 3,
-                0, 0, 0, 2,
-                0, 0, 0, 34, // pretty sure this is skulls
-                0, 0, 0, 4,
-                0, 0, 0, 5
+                    0, 0, 0, 30, // required points
+                    0, 0, 0, 3,
+                    0, 0, 0, 2,
+                    0, 0, 0, 34, // pretty sure this is skulls
+                    0, 0, 0, 4,
+                    0, 0, 0, 5
                 ],
             },
             {
@@ -119,12 +119,12 @@ export class HaloReachChallengeService {
                 index: 1,
                 reward_credits: 5000,
                 unknown4: [
-                0, 1, 160, 134, // required points
-                0, 0, 0, 3,
-                0, 0, 0, 2,
-                0, 0, 0, 0, // pretty sure this is skulls
-                0, 0, 0, 4,
-                0, 0, 0, 5
+                    0, 1, 160, 134, // required points
+                    0, 0, 0, 3,
+                    0, 0, 0, 2,
+                    0, 0, 0, 0, // pretty sure this is skulls
+                    0, 0, 0, 4,
+                    0, 0, 0, 5
                 ],
             },
             {
@@ -132,12 +132,12 @@ export class HaloReachChallengeService {
                 index: 1,
                 reward_credits: 2100,
                 unknown4: [
-                0, 0, 0, 2, // required points
-                0, 0, 0, 3,
-                0, 0, 0, 2,
-                0, 0, 0, 0, // pretty sure this is skulls
-                0, 0, 0, 4,
-                0, 0, 0, 5
+                    0, 0, 0, 2, // required points
+                    0, 0, 0, 3,
+                    0, 0, 0, 2,
+                    0, 0, 0, 0, // pretty sure this is skulls
+                    0, 0, 0, 4,
+                    0, 0, 0, 5
                 ],
             },
             ...new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(5).fill({
@@ -145,12 +145,12 @@ export class HaloReachChallengeService {
                 index: 1,
                 reward_credits: 9999,
                 unknown4: [
-                0, 0, 0, 7, // required points
-                0, 0, 0, 3,
-                0, 0, 0, 2,
-                0, 0, 0, 34, // pretty sure this is skulls
-                0, 0, 0, 4,
-                0, 0, 0, 5
+                    0, 0, 0, 7, // required points
+                    0, 0, 0, 3,
+                    0, 0, 0, 2,
+                    0, 0, 0, 34, // pretty sure this is skulls
+                    0, 0, 0, 4,
+                    0, 0, 0, 5
                 ],
             })
             ],
@@ -227,7 +227,7 @@ export class HaloReachChallengeService {
     }
 
     public updateChallengeProgress = async (
-        xuid: bigint,
+        xuid: BigInt,
         chpr: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_progress
     ) => {
         const activeChallenges = await this.getActiveChallenges(xuid);

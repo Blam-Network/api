@@ -76,38 +76,44 @@ export class HaloReachRewardsService {
             if (playerHasLegacySunriseUnlocks) {
                 this.logger.log(`${rupl.player_name} has Sunrise unlocks. Resetting`)
                 await this.resetPlayerRewards(xuid);
+                // Track users we reset, so we can make it right later.
+                await this.prisma.reach_player_data.upsert({
+                    where: {
+                        player_xuid: xuid.toString(),
+                    },
+                    create: {
+                        player_xuid: xuid.toString(),
+                        used_sunrise_pre_reset: true,
+                    },
+                    update: {
+                        used_sunrise_pre_reset: true,
+                    }
+                })
             } 
             else {
                 this.logger.log(`${rupl.player_name} has Bungie stats, storing`)
-                await this.prisma.reach_player_rewards.create({
-                    data: {
-                        player_xuid: xuid.toString(),
-                        credits: rupl.alltime_cookie_count
-                    }
-                })
+            }
+        }
+
+        if (currentData) {
+            // If the player lost cookies... give them back.
+            if (currentData.credits > rupl.alltime_cookie_count) {
+                this.logger.debug(`${rupl.player_name} lost cookies! Ignoring update.`)
+                return;
             }
 
-            return;
-        }
+            if (currentData.reset_rewards) {
+                this.logger.log(`Resetting rewards for ${rupl.player_name}`)
+                await this.resetPlayerRewards(xuid);
+                return;
+            }
 
-        // If the player lost cookies... give them back.
-        if (currentData.credits > rupl.alltime_cookie_count) {
-            this.logger.debug(`${rupl.player_name} lost cookies! Ignoring update.`)
-            return;
-        }
+            const hasTooManyCredits = rupl.alltime_cookie_count - currentData.credits > REWARDS_UPDATE_COOKIE_LIMIT;
 
-        if (currentData.reset_rewards) {
-            this.logger.log(`Resetting rewards for ${rupl.player_name}`)
-            await this.resetPlayerRewards(xuid);
-            return;
-        }
-
-        const hasTooManyCredits = rupl.alltime_cookie_count - currentData.credits > REWARDS_UPDATE_COOKIE_LIMIT;
-
-        if (hasTooManyCredits) {
-            this.logger.log(`${rupl.player_name} has too many credits. Skipping update`)
-            // clamp down credits AND unlocked items.
-            return;
+            if (hasTooManyCredits) {
+                this.logger.log(`${rupl.player_name} has too many credits. Applying clampdown Clash style.`)
+                rupl.alltime_cookie_count = currentData.credits - REWARDS_UPDATE_COOKIE_LIMIT;
+            }
         }
         
         // loop through purchased armour and check how much we can afford.
@@ -130,11 +136,15 @@ export class HaloReachRewardsService {
 
         await this.prisma.$transaction(async (tx) => {
             // Update Credits
-            await tx.reach_player_rewards.update({
+            await tx.reach_player_rewards.upsert({
                 where: {
                     player_xuid: xuid.toString(),
                 },
-                data: {
+                create: {
+                    player_xuid: xuid.toString(),
+                    credits: rupl.alltime_cookie_count,
+                },
+                update: {
                     credits: rupl.alltime_cookie_count,
                 },
             });

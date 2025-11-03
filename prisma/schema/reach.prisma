@@ -8,6 +8,8 @@ model reach_player_data {
   is_pro                    Boolean                     @default(false)
   extras_portal_debug       Boolean                     @default(false)
   nameplate                 reach_player_data_nameplate @default(none)
+  
+  used_sunrise_pre_reset    Boolean                     @default(false)
 
   @@map("player_data")
   @@schema("reach")

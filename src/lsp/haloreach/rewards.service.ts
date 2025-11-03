@@ -97,6 +97,7 @@ export class HaloReachRewardsService {
                         used_sunrise_pre_reset: true,
                     }
                 })
+                return;
             } 
             else {
                 this.logger.log(`${rupl.player_name} has Bungie stats, storing`)

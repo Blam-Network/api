@@ -1,4 +1,4 @@
-import seedrandom from 'seedrandom';
+import * as seedrandom from 'seedrandom';
 
 export class DeterministicRandomizer {
     private rng: seedrandom.PRNG;

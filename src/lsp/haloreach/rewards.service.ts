@@ -113,6 +113,15 @@ export class HaloReachRewardsService {
             if (currentData.reset_rewards) {
                 this.logger.log(`Resetting rewards for ${rupl.player_name}`)
                 await this.resetPlayerRewards(xuid);
+                // If they have a pending credits award, we apply it after the reset.
+                await this.prisma.reach_player_rewards.update({
+                    where: {
+                        player_xuid: xuid.toString(),
+                    },
+                    data: {
+                        credits_award: currentData.credits_award,
+                    }
+                })
                 return;
             }
 

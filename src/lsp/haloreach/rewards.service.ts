@@ -29,7 +29,7 @@ export class HaloReachRewardsService {
         const LEGACY_SUNRISE_CREDITS_2 = 200_000_000;
 
         // If the user has exactly the amount of credits sunrise provided, and hasn't earned any credits today, and isn't in our database, they're probably using Sunrise.
-        if ((rupl.alltime_cookie_award_count == LEGACY_SUNRISE_CREDITS_1 || rupl.alltime_cookie_count == 200_000_000) && rupl.cookies_earned_today_online == 0) {
+        if (rupl.alltime_cookie_award_count == LEGACY_SUNRISE_CREDITS_1 + rupl.cookies_earned_today_online || rupl.alltime_cookie_count == LEGACY_SUNRISE_CREDITS_2 + rupl.cookies_earned_today_online) {
             return true;
         }
 

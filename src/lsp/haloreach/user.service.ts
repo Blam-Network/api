@@ -85,7 +85,6 @@ export class HaloReachUserService {
                     bungie_user_role,
                     hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
                 }
-                console.log({ playerData })
 
                 if (playerData.nag_message && (playerData.nag_message_expires_at == null || playerData.nag_message_expires_at >= new Date())) {
                     umsg = {

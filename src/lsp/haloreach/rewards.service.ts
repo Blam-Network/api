@@ -5,6 +5,8 @@ import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
 import { Prisma, reach_armour } from "@prisma/client";
 import { ALL_COMMENDATIONS, COMMENDATION_TO_DB, COMMENDATIONS_FROM_DB_MAP } from "./commendations";
+import { USER_NAG_MESSAGES } from "./user.service";
+import { addMonths } from "date-fns";
 
 // This is configured in the network configuration file. Please update both together.
 const DAILY_COOKIE_LIMIT_ONLINE = 200_000;
@@ -92,9 +94,13 @@ export class HaloReachRewardsService {
                     create: {
                         player_xuid: xuid.toString(),
                         used_sunrise_pre_reset: true,
+                        nag_message: USER_NAG_MESSAGES.sunrise_legacy_credit_reset,
+                        nag_message_expires_at: addMonths(new Date(), 1),
                     },
                     update: {
                         used_sunrise_pre_reset: true,
+                        nag_message: USER_NAG_MESSAGES.sunrise_legacy_credit_reset,
+                        nag_message_expires_at: addMonths(new Date(), 1),
                     }
                 })
                 return;

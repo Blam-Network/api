@@ -6,6 +6,11 @@ import { PrismaService } from "src/db/prisma.service";
 import { reach_player_data_nameplate } from "@prisma/client";
 import { CAMPAIGN_COMMENDATIONS, COMMENDATIONS_FROM_DB_MAP, FIREFIGHT_COMMENDATIONS, MATCHMAKING_COMMENDATIONS } from "./commendations";
 import { HaloReachChallengeService } from "./challenge.service";
+import { addYears } from "date-fns";
+
+export const USER_NAG_MESSAGES = {
+    sunrise_legacy_credit_reset: 300,
+}
 
 @Injectable()
 export class HaloReachUserService {
@@ -20,6 +25,7 @@ export class HaloReachUserService {
         let fupd: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_player_data = undefined;
         let srid: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record = undefined;
         let chpr: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_progress = undefined;
+        let umsg: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_user_messaging_data = undefined;
 
         const playerDataPromise = this.prisma.$transaction(async (prisma) => {
             const playerData = await prisma.reach_player_data.findUnique({ where: { player_xuid: xuid.toString() } });
@@ -79,6 +85,14 @@ export class HaloReachUserService {
                     bungie_user_role,
                     hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
                 }
+
+                if (playerData.nag_message && (playerData.nag_message_expires_at == null || playerData.nag_message_expires_at >= new Date())) {
+                    umsg = {
+                        unknown0: 0n,
+                        message_index: BigInt(playerData.nag_message) || 0n,
+                        expires_at: playerData.nag_message_expires_at || addYears(new Date(), 1)
+                    }
+                }
             }
         })
 
@@ -106,6 +120,7 @@ export class HaloReachUserService {
             fupd,
             chpr,
             srid,
+            umsg,
         );
     }
 

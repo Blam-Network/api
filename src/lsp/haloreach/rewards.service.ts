@@ -140,11 +140,12 @@ export class HaloReachRewardsService {
             //     rupl.alltime_cookie_count -= excessCookiesToday;
             // }
 
-            const hasTooManyCredits = rupl.alltime_cookie_count - currentData.credits > REWARDS_UPDATE_COOKIE_LIMIT;
+            const extraCreditsThisUpdate = rupl.alltime_cookie_count - currentData.credits;
+            const hasTooManyCredits = extraCreditsThisUpdate > REWARDS_UPDATE_COOKIE_LIMIT;
 
             if (hasTooManyCredits) {
                 this.logger.log(`${rupl.player_name} has too many credits. Applying clampdown Clash style.`)
-                rupl.alltime_cookie_count = currentData.credits - REWARDS_UPDATE_COOKIE_LIMIT;
+                rupl.alltime_cookie_count = Math.min(extraCreditsThisUpdate, REWARDS_UPDATE_COOKIE_LIMIT);
             }
         }
         

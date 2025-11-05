@@ -4,17 +4,14 @@ import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
 import { AVAILABLE_BOUNTY_CHALLENGES, AVAILABLE_CAMPAIGN_CHALLENGES, AVAILABLE_FIREFIGHT_CHALLENGES, AVAILABLE_MATCHMAKING_CHALELNGES, AVAILABLE_WEEKLY_CHALLENGES, HaloReachFirefightChallenge, HaloReachWeeklyChallenge } from "./challenges";
 import { DeterministicRandomizer } from "src/utils/random";
+import { differenceInDays, differenceInWeeks } from "date-fns";
 
 const CHALLENGES_ENABLED = true;
 const CHALLENGES_WHITELIST = false;
 const DAILY_CHALLENGES_COUNT = 4;
 const WEEKLY_CHALLENGES_COUNT = 1;
 const MAXIMUM_CHALLENGES_PER_SET = 10;
-
-enum ChallengeSet {
-    Daily = 1,
-    Weekly = 2
-}
+const JAN_1_2000 = new Date(2000, 1, 1);
 
 @Injectable()
 export class HaloReachChallengeService {
@@ -63,6 +60,9 @@ export class HaloReachChallengeService {
         next.setUTCDate(next.getUTCDate() + daysUntilNextMonday);
         return next;
     }
+
+    private getDayIndex = () => differenceInDays(JAN_1_2000, this.getNextDailyResetDate()) - 1;
+    private getWeekIndex = () => differenceInWeeks(JAN_1_2000, this.getNextWeeklyResetDate()) - 1;
 
     public getRandomDailyChallenges = (): BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state[] => {
         const challenges = Array.from(
@@ -161,8 +161,8 @@ export class HaloReachChallengeService {
         }
 
         return {
-            active_challenge_set_1: ChallengeSet.Daily,
-            active_challenge_set_2: ChallengeSet.Weekly,
+            active_challenge_set_1: this.getDayIndex(),
+            active_challenge_set_2: this.getWeekIndex(),
             chalenge_set_1_count: DAILY_CHALLENGES_COUNT,
             chalenge_set_2_count: WEEKLY_CHALLENGES_COUNT,
             chalenge_set_1_timestamp: this.getNextDailyResetDate(),

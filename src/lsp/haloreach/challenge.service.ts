@@ -61,8 +61,8 @@ export class HaloReachChallengeService {
         return next;
     }
 
-    private getDayIndex = () => differenceInDays(JAN_1_2000, this.getNextDailyResetDate()) - 1;
-    private getWeekIndex = () => differenceInWeeks(JAN_1_2000, this.getNextWeeklyResetDate()) - 1;
+    private getDayIndex = () => differenceInDays(this.getNextDailyResetDate(), JAN_1_2000) - 1;
+    private getWeekIndex = () => differenceInWeeks(this.getNextWeeklyResetDate(), JAN_1_2000) - 1;
 
     public getRandomDailyChallenges = (): BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state[] => {
         const challenges = Array.from(

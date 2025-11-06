@@ -61,6 +61,9 @@ export class HaloReachChallengeService {
         return next;
     }
 
+    // We just need a unique id for the challenge set that's u32 in size.
+    // Using the day and week index from Jan 1st 2000 does the trick
+    // the only overlap would be day 1 / week 1, which was Jan 1st 2000, which was way before reach came out.
     private getDayIndex = () => differenceInDays(this.getNextDailyResetDate(), JAN_1_2000) - 1;
     private getWeekIndex = () => differenceInWeeks(this.getNextWeeklyResetDate(), JAN_1_2000) - 1;
 

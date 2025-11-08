@@ -292,9 +292,9 @@ enum reach_commendation {
   matchmaking_grenadier
   matchmaking_rearadmiral
   matchmaking_jackofalltrades
-  matchmaking_domeinspector
-  matchmaking_numbersgame
 
+  firefight_domeinspector
+  firefight_numbersgame
   firefight_targetpractice
   firefight_specialized
   firefight_incommand

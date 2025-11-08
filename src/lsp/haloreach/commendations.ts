@@ -15,9 +15,9 @@ export enum HaloReachCommendation {
     matchmaking_grenadier = 11,
     matchmaking_rearadmiral = 12,
     matchmaking_jackofalltrades = 13,
-    matchmaking_domeinspector = 14,
-    matchmaking_numbersgame = 15,
 
+    firefight_domeinspector = 14,
+    firefight_numbersgame = 15,
     firefight_targetpractice = 16,
     firefight_specialized = 17,
     firefight_incommand = 18,
@@ -65,11 +65,11 @@ export const MATCHMAKING_COMMENDATIONS = [
     HaloReachCommendation.matchmaking_grenadier,
     HaloReachCommendation.matchmaking_rearadmiral,
     HaloReachCommendation.matchmaking_jackofalltrades,
-    HaloReachCommendation.matchmaking_domeinspector,
-    HaloReachCommendation.matchmaking_numbersgame,
 ]
 
 export const FIREFIGHT_COMMENDATIONS = [
+    HaloReachCommendation.firefight_domeinspector,
+    HaloReachCommendation.firefight_numbersgame,
     HaloReachCommendation.firefight_targetpractice,
     HaloReachCommendation.firefight_specialized,
     HaloReachCommendation.firefight_incommand,
@@ -125,8 +125,8 @@ export const COMMENDATION_TO_DB: Record<HaloReachCommendation, reach_commendatio
     [HaloReachCommendation.matchmaking_grenadier]: reach_commendation.matchmaking_grenadier,
     [HaloReachCommendation.matchmaking_rearadmiral]: reach_commendation.matchmaking_rearadmiral,
     [HaloReachCommendation.matchmaking_jackofalltrades]: reach_commendation.matchmaking_jackofalltrades,
-    [HaloReachCommendation.matchmaking_domeinspector]: reach_commendation.matchmaking_domeinspector,
-    [HaloReachCommendation.matchmaking_numbersgame]: reach_commendation.matchmaking_numbersgame,
+    [HaloReachCommendation.firefight_domeinspector]: reach_commendation.matchmaking_domeinspector,
+    [HaloReachCommendation.firefight_numbersgame]: reach_commendation.matchmaking_numbersgame,
     [HaloReachCommendation.firefight_targetpractice]: reach_commendation.firefight_targetpractice,
     [HaloReachCommendation.firefight_specialized]: reach_commendation.firefight_specialized,
     [HaloReachCommendation.firefight_incommand]: reach_commendation.firefight_incommand,

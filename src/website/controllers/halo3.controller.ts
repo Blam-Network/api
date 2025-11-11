@@ -1193,16 +1193,20 @@ export class Halo3Controller {
     @Get('/screenshots')
     @ApiOperation({
         summary: 'List Screenshots',
-        description: 'Returns paginated screenshots across all users.',
+        description: 'Returns paginated screenshots across all users, optionally filtered by gamertag.',
     })
     async listScreenshots(
         @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
         @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
+        @Query('gamertag') gamertag?: string,
     ) {
         const skip = (page - 1) * pageSize;
         
+        const where = gamertag ? { author: gamertag } : {};
+        
         const [screenshots, total] = await Promise.all([
             this.prisma.halo3_blind_screenshot.findMany({
+                where,
                 orderBy: {
                     date: 'desc',
                 },
@@ -1216,7 +1220,7 @@ export class Halo3Controller {
                     date: true,
                 }
             }),
-            this.prisma.halo3_blind_screenshot.count(),
+            this.prisma.halo3_blind_screenshot.count({ where }),
         ]);
 
         return {

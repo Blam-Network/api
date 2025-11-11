@@ -195,7 +195,7 @@ export class DiscordWebhookService {
                     "text": "Halo 3 Webstats - Blam Network",
                     "icon_url": "https://cdn.discordapp.com/icons/1287731261993127977/be1cefaceefbb03879db1c47ea0cfcb7.webp?size=64"
                 },
-                //url: `https://blam.network/halo3/carnage-report/${data.carnageReportId}`, // Not Yet Implemented
+                url: `https://blam.network/halo3/campaign-carnage-report/${data.carnageReportId}`,
                 "thumbnail": {
                     "url": `https://blam.network/img/largemaps/${data.mapId}.jpg` // Adding map image URL here
                 }

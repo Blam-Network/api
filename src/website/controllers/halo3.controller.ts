@@ -371,7 +371,7 @@ export class Halo3Controller {
         @Param('shareId') shareId: string,
         @Param('slotId') slotId: string,
     ) {
-        const shareIdDecimal = BigInt(shareId);
+        const shareIdDecimal = parseXuid(shareId);
         const slotNumber = parseInt(slotId, 10);
 
         // First, get the fileshare file to get its unique_id

@@ -365,60 +365,24 @@ export class Halo3Controller {
     }
 
     @Get('/fileshare/:shareId/:slotId/view')
+    @ApiOperation({
+        summary: 'View Fileshare Screenshot',
+        description: 'Returns a JPEG screenshot from fileshare by share ID and slot number.'
+    })
+    @Header('Content-Type', 'image/jpeg')
     @ApiParam({ name: 'shareId' })
     @ApiParam({ name: 'slotId' })
-    async getScreenshotByFileshare(
+    async viewFileshareScreenshot(
         @Param('shareId') shareId: string,
         @Param('slotId') slotId: string,
     ) {
-        const shareIdDecimal = parseXuid(shareId);
         const slotNumber = parseInt(slotId, 10);
-
-        // First, get the fileshare file to get its unique_id
-        const fileshareFile = await this.prisma.halo3_file_share_file.findFirst({
-            where: {
-                share_id: shareIdDecimal.toString(),
-                slot: slotNumber,
-                is_uploaded: true,
-            },
-            select: {
-                unique_id: true,
-            },
-        });
-
-        if (!fileshareFile || !fileshareFile.unique_id) {
-            return null;
-        }
-
-        // Then find the screenshot with matching unique_id
-        const screenshot = await this.prisma.halo3_blind_screenshot.findFirst({
-            where: {
-                unique_id: fileshareFile.unique_id as any,
-            },
-            select: {
-                id: true,
-                name: true,
-                description: true,
-                author: true,
-            },
-            orderBy: {
-                date: 'desc', // Get the most recent if multiple exist
-            },
-        });
-
-        if (!screenshot) {
-            return null;
-        }
-
-        return {
-            id: screenshot.id,
-            header: {
-                filename: screenshot.name,
-                description: screenshot.description,
-            },
-            author: screenshot.author,
-        };
+        return new StreamableFile(
+            Uint8Array.from(await this.fileshareService.viewFileshareScreenshot(shareId, slotNumber)),
+            { disposition: "filename=screenshot.jpg" }
+        );
     }
+
 
     @Get('/players/by-gamertag/:gamertag/screenshots')
     @ApiParam({ name: 'gamertag' })
@@ -933,10 +897,6 @@ export class Halo3Controller {
                 player_final_score: player.player_final_score,
                 kills: player.kills,
                 kills_total: player.kill_total_count,
-                deaths: 0, // Campaign reports don't track deaths
-                assists: 0, // Campaign reports don't track assists
-                betrayals: 0, // Campaign reports don't track betrayals
-                suicides: 0, // Campaign reports don't track suicides
                 grenade_sticky_kills: player.grenade_sticky_kills,
                 headshot_kills: player.headshot_kills,
                 assassination_kills: player.assassination_kills,

@@ -10,6 +10,7 @@ import { Halo3FileShareService } from './services/halo3fileshare.service';
 import { Halo3ODSTController } from './controllers/halo3odst.controller';
 import { HaloReachController } from './controllers/haloreach.controller';
 import { HaloReachFileShareService } from './services/haloreachfileshare.service';
+import { Halo3PopulationService } from './services/halo3population.service';
 
 @Module({
     imports: [
@@ -28,6 +29,7 @@ import { HaloReachFileShareService } from './services/haloreachfileshare.service
         Halo3EmblemsService,
         Halo3FileShareService,
         HaloReachFileShareService,
+        Halo3PopulationService,
         { provide: ILoggerSymbol, useClass: ConsoleLogger },
         ShutdownObserver,
     ],

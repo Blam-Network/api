@@ -5,7 +5,7 @@ import { PrismaService } from "src/db/prisma.service";
 import { HALO3_BUILD_NUMBER, HALO3_EPSILON_BUILD_NUMBER, HALO3_EPSILON_REFRESH_BUILD_NUMBER, HALO3_EXPO_BUILD_NUMBER, HALO3_ODST_BUILD_NUMBER, HALO3_TU1_BUILD_NUMBER, HALO3_TU2_BUILD_NUMBER } from "./constants";
 import { access, mkdir, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
-import { FILESHARE_FOLDER, SCREENSHOTS_FOLDER } from "../../constants";
+import { FILESHARE_FOLDER, SCREENSHOTS_FOLDER, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA } from "../../constants";
 import dedent from "dedent";
 import { z } from "zod";
 import { URLSearchParams } from "url";
@@ -19,9 +19,6 @@ const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently 
 
 const HALO3_FILESHARE_FOLDER = join(FILESHARE_FOLDER, 'halo3');
 
-const MEGABYTE = 1024 * 1024;
-const UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA = 25 * MEGABYTE;
-const UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA = 6;
 const DOWNLOAD_ENDPOINT = '/gameapi/FilesStartDownload.ashx';
 const FORCE_ODST_PORTAL = true;
 
@@ -215,8 +212,8 @@ export class Halo3FileShareService {
         ) {
             const hasher = h32().init(0);
             hasher.update(JSON.stringify({
-                quotaSlots: fileShare?.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
-                quotaBytes: fileShare?.quota_bytes ?? UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+                quotaSlots: fileShare?.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                quotaBytes: fileShare?.quota_bytes ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
                 message: fileShare?.message
             }))
     
@@ -496,10 +493,10 @@ export class Halo3FileShareService {
 
         if (!fileShare) {
             return this.fileCatalogResponse({
-                quotaBytes: UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
-                quotaSlots: UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                quotaBytes: HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+                quotaSlots: HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
                 slots: [],
-                visibleSlots: UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                visibleSlots: HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
                 subscriptionHash: 0,
             })
         }
@@ -600,15 +597,15 @@ export class Halo3FileShareService {
 
         // If the user has been downgraded, we allow their visible slots to exceed quota.
         // This allows them to delete over quota slots.
-        let visibleSlots = fileShare.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
+        let visibleSlots = fileShare.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
         let highestSlot = fileShareSlots.sort((left, right) => left.slot - right.slot)[0]
         if (highestSlot && highestSlot.slot > visibleSlots) {
             visibleSlots = highestSlot.slot;
         }
 
         return this.fileCatalogResponse({
-            quotaBytes: fileShare.quota_bytes ?? UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
-            quotaSlots: fileShare.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+            quotaBytes: fileShare.quota_bytes ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+            quotaSlots: fileShare.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
             visibleSlots,
             subscriptionHash: subscriptionHash.currentHash,
             message: fileShare.message ?? undefined,
@@ -639,10 +636,10 @@ export class Halo3FileShareService {
 
         if (!fileShare) {
             return this.fileCatalogResponseODST({
-                quotaBytes: UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
-                quotaSlots: UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                quotaBytes: HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+                quotaSlots: HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
                 slots: [],
-                visibleSlots: UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                visibleSlots: HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
                 subscriptionHash: 0,
             })
         }
@@ -744,9 +741,9 @@ export class Halo3FileShareService {
         let subscriptionHash = await this.getShareSubscriptionHash('fileshare', shareXuid);
 
         return this.fileCatalogResponseODST({
-            quotaBytes: fileShare.quota_bytes ?? UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
-            quotaSlots: fileShare.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
-            visibleSlots: fileShare.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+            quotaBytes: fileShare.quota_bytes ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+            quotaSlots: fileShare.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+            visibleSlots: fileShare.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
             subscriptionHash: subscriptionHash.currentHash,
             message: fileShare.message ?? undefined,
             slots,
@@ -986,7 +983,7 @@ export class Halo3FileShareService {
 
         // if the fileshare is full or there isn't enough space for this file, reject.
         const fileshare = await this.getFileShare(uploaderXuid, shareXuid);
-        const quotaSlots = fileshare?.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
+        const quotaSlots = fileshare?.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
         if (slot > quotaSlots) {
             this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot quota.`);
             throw new BadRequestException("This slot is unavailable.")
@@ -1000,7 +997,7 @@ export class Halo3FileShareService {
                 compressed_size: true,
             }
         })
-        const quotaSpace = fileshare?.quota_bytes ?? UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA;
+        const quotaSpace = fileshare?.quota_bytes ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA;
         const usedSpace = usedSlots.map(slot => slot.compressed_size).reduce((acc, cur) => acc + cur, 0)
         if (usedSpace + compressedSize > quotaSpace) {
             this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot byte quota.`);

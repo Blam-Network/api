@@ -86,17 +86,13 @@ export class Halo3FileShareService {
 
         if (!existsSync(screenshotPath)) throw new NotFoundException('fileshare screenshot file not found');
 
-        const screenshot_12070 = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_blind_screenshot(
+        const screenshot_12070 = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_fileshare_screenshot(
             readFileSync(screenshotPath),
         );
 
-        const screenshot_11637 = BLF.halo3_11637_07_08_02_2348_release.read_blind_screenshot(
-            readFileSync(screenshotPath),
-        );
+        if (!screenshot_12070) throw new Error('Bad Screenshot File');
 
-        if (!screenshot_12070 && !screenshot_11637) throw new Error('Bad Screenshot File');
-
-        return screenshot_12070?.scnd.jpeg_data || screenshot_11637?.scnd.jpeg_data;
+        return screenshot_12070?.scnd.jpeg_data;
     }
 }
 

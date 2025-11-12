@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Header, Headers, Inject, NotFoundException, Param, ParseBoolPipe, ParseIntPipe, Post, Query, Res, StreamableFile, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Header, Headers, Inject, NotFoundException, Param, ParseBoolPipe, ParseIntPipe, Post, Query, Res, StreamableFile, UnauthorizedException } from "@nestjs/common";
 import { ApiHeader, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { EXAMPLE_XUID } from "src/constants";
@@ -1075,6 +1075,82 @@ export class Halo3Controller {
         return { success: true };
     }
 
+    @Get('/fileshare/transfers')
+    @ApiOperation({
+        summary: 'Get Pending Fileshare Transfers',
+        description: 'Returns a list of pending fileshare transfers for the logged-in user.',
+    })
+    @ApiHeader({ name: 'x-xuid', example: EXAMPLE_XUID})
+    async getPendingTransfers(
+        @Headers('x-xuid') xuid: string,
+    ) {
+        const playerXuid = parseXuid(xuid).toString();
+
+        const transfers = await this.prisma.halo3_file_share_transfer.findMany({
+            where: {
+                player_xuid: playerXuid,
+            },
+            include: {
+                file: {
+                    select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                        author: true,
+                        file_type: true,
+                        date: true,
+                        share_id: true,
+                        slot: true,
+                    }
+                }
+            },
+            orderBy: [
+                {
+                    file: {
+                        date: 'desc'
+                    }
+                }
+            ]
+        });
+
+        return transfers.map(t => ({
+            fileId: t.file_id,
+            fileName: t.file.name,
+            fileDescription: t.file.description,
+            fileAuthor: t.file.author,
+            fileType: t.file.file_type,
+            fileDate: t.file.date,
+            shareId: t.file.share_id.toString(),
+            slot: t.file.slot,
+        }));
+    }
+
+    @Delete('/fileshare/transfers/:fileId')
+    @ApiOperation({
+        summary: 'Delete Fileshare Transfer',
+        description: 'Deletes a pending fileshare transfer for the logged-in user.',
+    })
+    @ApiHeader({ name: 'x-xuid', example: EXAMPLE_XUID})
+    @ApiParam({ name: 'fileId' })
+    async deleteTransfer(
+        @Headers('x-xuid') xuid: string,
+        @Param('fileId') fileId: string,
+    ) {
+        const playerXuid = parseXuid(xuid).toString();
+
+        await this.prisma.halo3_file_share_transfer.delete({
+            where: {
+                player_xuid_file_id: {
+                    player_xuid: playerXuid,
+                    file_id: fileId,
+                }
+            }
+        });
+
+        this.logger.log(`[FileShare] Transfer deleted for user ${playerXuid} for file ${fileId}`);
+        return { success: true };
+    }
+
     @Get('/nightmap')
     @ApiOperation({
         summary: 'Get Nightmap',
@@ -1146,6 +1222,7 @@ export class Halo3Controller {
                     carnage_report_game_variant: {
                         select: {
                             name: true,
+                            game_engine: true,
                         }
                     },
                     carnage_report_matchmaking_options: {
@@ -1178,6 +1255,7 @@ export class Halo3Controller {
                 map_variant_name: r.map_variant_name,
                 game_variant_unique_id: r.game_variant_unique_id.toString(),
                 game_variant_name: r.carnage_report_game_variant?.name ?? null,
+                game_engine: r.carnage_report_game_variant?.game_engine ?? null,
                 hopper_name: r.carnage_report_matchmaking_options?.hopper_name ?? null,
                 hopper_identifier: r.carnage_report_matchmaking_options?.hopper_identifier ?? null,
                 player_name: r.carnage_report_player[0]?.player_name ?? null,

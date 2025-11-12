@@ -1101,6 +1101,7 @@ export class Halo3Controller {
                         date: true,
                         share_id: true,
                         slot: true,
+                        game_engine_type: true,
                     }
                 }
             },
@@ -1122,6 +1123,7 @@ export class Halo3Controller {
             fileDate: t.file.date,
             shareId: t.file.share_id.toString(),
             slot: t.file.slot,
+            gameEngineType: t.file.game_engine_type ?? null,
         }));
     }
 

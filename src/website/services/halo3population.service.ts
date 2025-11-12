@@ -41,13 +41,9 @@ export class Halo3PopulationService {
             FROM "halo3"."carnage_report_machine" crm
             INNER JOIN "halo3"."carnage_report" cr ON cr.id = crm.carnage_report_id
             WHERE cr.finish_time >= NOW() AT TIME ZONE 'UTC' - INTERVAL '${hours.toString()} hours'`;
-        
-        this.logger.log(`[Nightmap] Querying for ${hours} hours: ${query}`);
-        
+                
         const rawIps = await this.prisma.$queryRawUnsafe<{ inaddr_online: string }[]>(query);
         
-        this.logger.log(`[Nightmap] Found ${rawIps.length} distinct IPs for ${hours} hours`);
-
         for (const { inaddr_online } of rawIps) {
             try {
                 // Either use geoip-lite:

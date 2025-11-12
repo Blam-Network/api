@@ -8,7 +8,7 @@ import { PrismaService } from "src/db/prisma.service";
 import { Halo3EmblemsService } from "../services/halo3emblems.service";
 import { Halo3FileShareService } from "../services/halo3fileshare.service";
 import { TitleID } from "src/xbox/titles";
-import { HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA } from "src/constants";
+import { HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA, HALO3_MAX_ACTIVE_TRANSFERS } from "src/constants";
 import { Halo3PopulationService } from "../services/halo3population.service";
 
 const RECON_REQUIRED_ACHIEVEMENTS = [
@@ -1053,21 +1053,38 @@ export class Halo3Controller {
             throw new BadRequestException('File is not yet uploaded');
         }
 
-        // Create or update transfer (upsert to handle duplicates)
-        await this.prisma.halo3_file_share_transfer.upsert({
+        // Check if transfer already exists
+        const existingTransfer = await this.prisma.halo3_file_share_transfer.findUnique({
             where: {
                 player_xuid_file_id: {
                     player_xuid: playerXuid,
                     file_id: fileId,
                 }
             },
-            create: {
+        });
+
+        // If transfer already exists, return success (idempotent)
+        if (existingTransfer) {
+            return { success: true };
+        }
+
+        // Check transfer limit (8 active transfers max)
+        const transferCount = await this.prisma.halo3_file_share_transfer.count({
+            where: {
+                player_xuid: playerXuid,
+            },
+        });
+
+        if (transferCount >= HALO3_MAX_ACTIVE_TRANSFERS) {
+            throw new BadRequestException(`You have reached the maximum of ${HALO3_MAX_ACTIVE_TRANSFERS} active transfers. Please complete your transfers by launching Halo 3 on your Xbox 360, or cancel existing transfers before adding new ones.`);
+        }
+
+        // Create transfer
+        await this.prisma.halo3_file_share_transfer.create({
+            data: {
                 player_xuid: playerXuid,
                 file_id: fileId,
                 is_odst: false, // Default to Halo 3, could be determined from file metadata if needed
-            },
-            update: {
-                // No-op if already exists - just keep the existing record
             },
         });
 
@@ -1114,17 +1131,20 @@ export class Halo3Controller {
             ]
         });
 
-        return transfers.map(t => ({
-            fileId: t.file_id,
-            fileName: t.file.name,
-            fileDescription: t.file.description,
-            fileAuthor: t.file.author,
-            fileType: t.file.file_type,
-            fileDate: t.file.date,
-            shareId: t.file.share_id.toString(),
-            slot: t.file.slot,
-            gameEngineType: t.file.game_engine_type ?? null,
-        }));
+        return {
+            transfers: transfers.map(t => ({
+                fileId: t.file_id,
+                fileName: t.file.name,
+                fileDescription: t.file.description,
+                fileAuthor: t.file.author,
+                fileType: t.file.file_type,
+                fileDate: t.file.date,
+                shareId: t.file.share_id.toString(),
+                slot: t.file.slot,
+                gameEngineType: t.file.game_engine_type ?? null,
+            })),
+            maxTransfers: HALO3_MAX_ACTIVE_TRANSFERS,
+        };
     }
 
     @Delete('/fileshare/transfers/:fileId')
@@ -1178,7 +1198,7 @@ export class Halo3Controller {
     @Get('/games')
     @ApiOperation({
         summary: 'List Games',
-        description: 'Returns paginated games across all users, optionally filtered by gamertag.',
+        description: 'Returns paginated games across all users, optionally filtered by gamertag. Includes both multiplayer and campaign reports.',
     })
     async listGames(
         @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
@@ -1187,31 +1207,121 @@ export class Halo3Controller {
     ) {
         const skip = (page - 1) * pageSize;
         
-        let whereClause: any = {};
-        let playerJoin: any = {};
+        // Use UNION query to get IDs and types, sorted by finish_time
+        // If gamertag is provided, filter by it; otherwise get all games
+        let unionQuery: string;
+        let countQuery: string;
         
         if (gamertag) {
-            // Filter by gamertag - need to join with players
-            playerJoin = {
-                carnage_report_player: {
-                    some: {
-                        player_name: {
-                            equals: gamertag,
-                            mode: 'insensitive',
-                        }
-                    }
-                }
-            };
+            const escapedGamertag = gamertag.replace(/'/g, "''");
+            unionQuery = `
+                SELECT id, finish_time, 'multiplayer'::text as type
+                FROM "halo3"."carnage_report" cr
+                WHERE EXISTS (
+                    SELECT 1 FROM "halo3"."carnage_report_player" crp
+                    WHERE crp.carnage_report_id = cr.id
+                    AND crp.player_name = '${escapedGamertag}'
+                )
+                UNION ALL
+                SELECT id, finish_time, 'campaign'::text as type
+                FROM "halo3"."campaign_carnage_report" ccr
+                WHERE EXISTS (
+                    SELECT 1 FROM "halo3"."campaign_carnage_report_player" ccrp
+                    WHERE ccrp.carnage_report_id = ccr.id
+                    AND ccrp.player_name = '${escapedGamertag}'
+                )
+                ORDER BY finish_time DESC
+                LIMIT ${pageSize} OFFSET ${skip}
+            `;
+            
+            countQuery = `
+                SELECT COUNT(*)::bigint as total
+                FROM (
+                    SELECT id FROM "halo3"."carnage_report" cr
+                    WHERE EXISTS (
+                        SELECT 1 FROM "halo3"."carnage_report_player" crp
+                        WHERE crp.carnage_report_id = cr.id
+                        AND crp.player_name = '${escapedGamertag}'
+                    )
+                    UNION ALL
+                    SELECT id FROM "halo3"."campaign_carnage_report" ccr
+                    WHERE EXISTS (
+                        SELECT 1 FROM "halo3"."campaign_carnage_report_player" ccrp
+                        WHERE ccrp.carnage_report_id = ccr.id
+                        AND ccrp.player_name = '${escapedGamertag}'
+                    )
+                ) combined
+            `;
+        } else {
+            unionQuery = `
+                SELECT id, finish_time, 'multiplayer'::text as type
+                FROM "halo3"."carnage_report"
+                UNION ALL
+                SELECT id, finish_time, 'campaign'::text as type
+                FROM "halo3"."campaign_carnage_report"
+                ORDER BY finish_time DESC
+                LIMIT ${pageSize} OFFSET ${skip}
+            `;
+            
+            countQuery = `
+                SELECT COUNT(*)::bigint as total
+                FROM (
+                    SELECT id FROM "halo3"."carnage_report"
+                    UNION ALL
+                    SELECT id FROM "halo3"."campaign_carnage_report"
+                ) combined
+            `;
         }
         
-        const [reports, total] = await Promise.all([
-            this.prisma.halo3_carnage_report.findMany({
-                where: playerJoin,
-                orderBy: {
-                    finish_time: 'desc'
-                },
-                skip,
-                take: pageSize,
+        const unionResults = await this.prisma.$queryRawUnsafe<Array<{ id: string; finish_time: Date; type: string }>>(unionQuery);
+        
+        // Get total count
+        const countResult = await this.prisma.$queryRawUnsafe<Array<{ total: bigint }>>(countQuery);
+        const total = Number(countResult[0]?.total || 0);
+        
+        // Debug logging
+        const campaignInResults = unionResults.filter(r => r.type === 'campaign').length;
+        const multiplayerInResults = unionResults.filter(r => r.type === 'multiplayer').length;
+        this.logger.log(`[listGames] Query returned ${unionResults.length} results: ${campaignInResults} campaign, ${multiplayerInResults} multiplayer`);
+        
+        // Separate IDs by type
+        const multiplayerIds = unionResults.filter(r => r.type === 'multiplayer').map(r => r.id);
+        const campaignIds = unionResults.filter(r => r.type === 'campaign').map(r => r.id);
+        
+        // Fetch full details using Prisma
+        type MultiplayerReportSelect = {
+            id: string;
+            map_id: number;
+            game_id: any;
+            start_time: Date;
+            finish_time: Date;
+            team_game: boolean;
+            map_variant_name: string;
+            game_variant_unique_id: any;
+            carnage_report_game_variant: {
+                name: string;
+                game_engine: number | null;
+            } | null;
+            carnage_report_matchmaking_options: {
+                hopper_name: string | null;
+                hopper_identifier: number | null;
+            } | null;
+            carnage_report_player: Array<{ player_name: string }>;
+        };
+        
+        type CampaignReportSelect = {
+            id: string;
+            map_id: number;
+            game_id: any;
+            start_time: Date;
+            finish_time: Date;
+            campaign_difficulty: number;
+            players?: Array<{ player_name: string }>;
+        };
+        
+        const [multiplayerReports, campaignReports] = await Promise.all([
+            multiplayerIds.length > 0 ? this.prisma.halo3_carnage_report.findMany({
+                where: { id: { in: multiplayerIds } },
                 select: {
                     id: true,
                     map_id: true,
@@ -1240,28 +1350,78 @@ export class Halo3Controller {
                         take: 1,
                     }
                 }
-            }),
-            this.prisma.halo3_carnage_report.count({
-                where: playerJoin,
-            }),
+            }) : [] as MultiplayerReportSelect[],
+            campaignIds.length > 0 ? this.prisma.halo3_campaign_carnage_report.findMany({
+                where: { id: { in: campaignIds } },
+                select: {
+                    id: true,
+                    map_id: true,
+                    game_id: true,
+                    start_time: true,
+                    finish_time: true,
+                    campaign_difficulty: true,
+                    players: {
+                        select: {
+                            player_name: true,
+                        },
+                        take: 1,
+                    }
+                }
+            }) : [] as CampaignReportSelect[]
         ]);
+        
+        // Create a map for quick lookup
+        const multiplayerMap = new Map<string, MultiplayerReportSelect>();
+        multiplayerReports.forEach(r => multiplayerMap.set(r.id, r));
+        const campaignMap = new Map<string, CampaignReportSelect>();
+        campaignReports.forEach(r => campaignMap.set(r.id, r));
+        
+        // Build response in the order from UNION query
+        const combinedReports = unionResults.map(unionResult => {
+            if (unionResult.type === 'multiplayer') {
+                const r = multiplayerMap.get(unionResult.id);
+                if (!r) return null;
+                return {
+                    id: r.id,
+                    map_id: r.map_id,
+                    game_id: r.game_id.toString(),
+                    start_time: r.start_time,
+                    finish_time: r.finish_time,
+                    team_game: r.team_game,
+                    map_variant_name: r.map_variant_name,
+                    game_variant_unique_id: r.game_variant_unique_id.toString(),
+                    game_variant_name: r.carnage_report_game_variant?.name ?? null,
+                    game_engine: r.carnage_report_game_variant?.game_engine ?? null,
+                    hopper_name: r.carnage_report_matchmaking_options?.hopper_name ?? null,
+                    hopper_identifier: r.carnage_report_matchmaking_options?.hopper_identifier ?? null,
+                    player_name: r.carnage_report_player[0]?.player_name ?? null,
+                    type: 'multiplayer' as const,
+                };
+            } else {
+                const r = campaignMap.get(unionResult.id);
+                if (!r) return null;
+                return {
+                    id: r.id,
+                    map_id: r.map_id,
+                    game_id: r.game_id.toString(),
+                    start_time: r.start_time,
+                    finish_time: r.finish_time,
+                    team_game: false,
+                    map_variant_name: null,
+                    game_variant_unique_id: null,
+                    game_variant_name: null,
+                    game_engine: null,
+                    hopper_name: null,
+                    hopper_identifier: null,
+                    player_name: r.players?.[0]?.player_name ?? null,
+                    type: 'campaign' as const,
+                    campaign_difficulty: r.campaign_difficulty,
+                };
+            }
+        }).filter((r): r is NonNullable<typeof r> => r !== null);
 
         return {
-            data: reports.map(r => ({
-                id: r.id,
-                map_id: r.map_id,
-                game_id: r.game_id.toString(),
-                start_time: r.start_time,
-                finish_time: r.finish_time,
-                team_game: r.team_game,
-                map_variant_name: r.map_variant_name,
-                game_variant_unique_id: r.game_variant_unique_id.toString(),
-                game_variant_name: r.carnage_report_game_variant?.name ?? null,
-                game_engine: r.carnage_report_game_variant?.game_engine ?? null,
-                hopper_name: r.carnage_report_matchmaking_options?.hopper_name ?? null,
-                hopper_identifier: r.carnage_report_matchmaking_options?.hopper_identifier ?? null,
-                player_name: r.carnage_report_player[0]?.player_name ?? null,
-            })),
+            data: combinedReports,
             total,
             page,
             pageSize,

@@ -5,6 +5,7 @@ import * as BLF from '@blam-network/blf_lsp';
 import { parseXuid } from "src/xbox/xuid";
 import { z } from "zod";
 import { clamp_to_byte, i32_to_u32 } from "../datatypes";
+import { HALO3_MAX_ACTIVE_TRANSFERS } from "src/constants";
 
 @Injectable()
 export class Halo3UserService {
@@ -123,7 +124,7 @@ export class Halo3UserService {
                     player_xuid,
                     file: {
                         is_uploaded: true,
-                    }
+                    },
                 },
                 include: {
                     file: {
@@ -138,9 +139,9 @@ export class Halo3UserService {
                             game_engine_type: true,
                             size_in_bytes: true
                         }
-                    }
+                    },
                 },
-                take: 8, // max filq can handle.
+                take: HALO3_MAX_ACTIVE_TRANSFERS, // max filq can handle.
             })
 
             if (transfers.length > 0) {

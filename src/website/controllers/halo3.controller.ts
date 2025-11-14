@@ -1316,7 +1316,6 @@ export class Halo3Controller {
         // Debug logging
         const campaignInResults = unionResults.filter(r => r.type === 'campaign').length;
         const multiplayerInResults = unionResults.filter(r => r.type === 'multiplayer').length;
-        this.logger.log(`[listGames] Query returned ${unionResults.length} results: ${campaignInResults} campaign, ${multiplayerInResults} multiplayer`);
         
         // Separate IDs by type
         const multiplayerIds = unionResults.filter(r => r.type === 'multiplayer').map(r => r.id);

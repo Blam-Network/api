@@ -1696,619 +1696,413 @@ export class Halo3Controller {
         @Param('gamertag') gamertag: string,
     ) {
         const decodedGamertag = decodeURIComponent(gamertag);
-        const escapedGamertag = decodedGamertag.replace(/'/g, "''");
-
-        // Get all multiplayer games for the player
-        const multiplayerGamesWithPlayer = await this.prisma.halo3_carnage_report_player.findMany({
+        // TODO: in future we should use XUID as the param instead.
+        const serviceRecord = await this.prisma.halo3_service_record.findFirst({
             where: {
                 player_name: decodedGamertag,
             },
             select: {
-                carnage_report_id: true,
+                player_xuid: true,
             },
-            distinct: ['carnage_report_id'],
-        });
+        })
+        if (!serviceRecord) {
+            throw new NotFoundException('Player not found');
+        }
+        const playerXuid = serviceRecord.player_xuid.toString();
 
-        // Get all campaign games for the player
-        const campaignGamesWithPlayer = await this.prisma.halo3_campaign_carnage_report_player.findMany({
-            where: {
-                player_name: decodedGamertag,
-            },
-            select: {
-                carnage_report_id: true,
-            },
-            distinct: ['carnage_report_id'],
-        });
-
-        const campaignIds = campaignGamesWithPlayer.map(p => p.carnage_report_id);
-
-        // Get game type information for multiplayer games (only finished games)
-        const multiplayerGames = multiplayerGamesWithPlayer.length > 0 ? await this.prisma.halo3_carnage_report.findMany({
-            where: { 
-                id: { in: multiplayerGamesWithPlayer.map(p => p.carnage_report_id) },
-                finished: true,
-            },
-            select: {
+        const campaignMatches = await this.prisma.halo3_campaign_carnage_report.aggregate({
+            _count: {
                 id: true,
-                map_id: true,
-                team_game: true,
+            },
+            where: {
+                players: {
+                    some: {
+                        player_name: decodedGamertag,
+                    },
+                },
+            },
+        })
+
+        const matchmakingMatches = await this.prisma.halo3_carnage_report.aggregate({
+            _count: {
+                id: true,
+            },
+            where: {
+                carnage_report_player: {
+                    some: {
+                        player_xuid: playerXuid,
+                    },
+                },
                 carnage_report_matchmaking_options: {
-                    select: {
-                        hopper_name: true,
-                    }
+                    isNot: null,
+                }
+            },
+        })
+        const customGames = await this.prisma.halo3_carnage_report.aggregate({
+            _count: {
+                id: true,
+            },
+            where: {
+                carnage_report_player: {
+                    some: {
+                        player_xuid: playerXuid,
+                    },
+                },
+                carnage_report_matchmaking_options: {
+                    is: null,
                 },
                 carnage_report_game_variant: {
-                    select: {
-                        game_engine: true,
+                    game_engine: {
+                        not: 5,
                     }
                 }
-            }
-        }) : [];
+            },
+        })
+        const forgeGames = await this.prisma.halo3_carnage_report.aggregate({
+            _count: {
+                id: true,
+            },
+            where: {
+                carnage_report_player: {
+                    some: {
+                        player_xuid: playerXuid,
+                    },
+                },
+                carnage_report_matchmaking_options: {
+                    is: null,
+                },
+                carnage_report_game_variant: {
+                    game_engine: 5
+                }
+            },
+        })
 
         // Calculate game type breakdown
         const gameTypeCounts = {
-            Campaign: campaignIds.length,
-            Matchmaking: 0,
-            "Custom Games": 0,
-            Forge: 0,
+            Campaign: campaignMatches._count.id,
+            Matchmaking: matchmakingMatches._count.id,
+            "Custom Games": customGames._count.id,
+            Forge: forgeGames._count.id,
         };
 
-        multiplayerGames.forEach(game => {
-            if (game.carnage_report_matchmaking_options?.hopper_name) {
-                gameTypeCounts.Matchmaking++;
-            } else {
-                // Check if it's a Forge map (Forge canvas maps: 700 Foundry, 701 Sandbox)
-                const isForgeMap = game.map_id === 700 || game.map_id === 701;
-                const isForgeEngine = game.carnage_report_game_variant?.game_engine === 10;
-                if (isForgeMap || isForgeEngine) {
-                    gameTypeCounts.Forge++;
-                } else {
-                    gameTypeCounts["Custom Games"]++;
+        const kdRatio = await this.prisma.halo3_carnage_report_player_statistics.aggregate({
+            _sum: {
+                kills: true,
+                deaths: true,
+            },
+            where: {
+                carnage_report_player: {
+                    player_xuid: playerXuid,
+                    carnage_report: {
+                        carnage_report_matchmaking_options: {
+                            isNot: null,
+                        }
+                    }
                 }
-            }
-        });
-
-        // Get multiplayer IDs from finished games
-        const multiplayerIds = multiplayerGames.map(g => g.id);
+            },
+        })
 
         // Get player statistics for kills/deaths
-        let totalKills = 0;
-        let totalDeaths = 0;
-
-        if (multiplayerIds.length > 0) {
-            // Get player standings for all multiplayer games
-            const playerStandings = await this.prisma.halo3_carnage_report_player.findMany({
-                where: {
-                    carnage_report_id: { in: multiplayerIds },
-                    player_name: decodedGamertag,
-                },
-                select: {
-                    carnage_report_id: true,
-                    player_index: true,
-                }
-            });
-
-            // Get player statistics for kills/deaths
-            const playerStats = await this.prisma.halo3_carnage_report_player_statistics.findMany({
-                where: {
-                    OR: playerStandings.map(player => ({
-                        carnage_report_id: player.carnage_report_id,
-                        player_index: player.player_index,
-                    })),
-                },
-                select: {
-                    kills: true,
-                    deaths: true,
-                }
-            });
-
-            // Sum up kills and deaths
-            playerStats.forEach(stats => {
-                totalKills += stats.kills;
-                totalDeaths += stats.deaths;
-            });
-        }
+        let totalKills = kdRatio._sum.kills;
+        let totalDeaths = kdRatio._sum.deaths;
 
         // Get most killed and most killed by
-        const mostKilled: Array<{ playerName: string; count: number }> = [];
-        const mostKilledBy: Array<{ playerName: string; count: number }> = [];
-        const weaponKills: Record<number, number> = {};
 
-        if (multiplayerIds.length > 0) {
-            // Get player indices for the target player
-            const targetPlayerIndices = await this.prisma.halo3_carnage_report_player.findMany({
-                where: {
-                    carnage_report_id: { in: multiplayerIds },
-                    player_name: decodedGamertag,
-                },
-                select: {
-                    carnage_report_id: true,
-                    player_index: true,
-                }
-            });
+        const mostKilledXuids = await this.prisma.$queryRaw<
+            { killedxuid: bigint; killedcount: bigint }[]
+        >`
+            select 
+                right_player.player_xuid as killedxuid,
+                sum(crpi.killed) as killedcount 
+            from 
+                halo3.carnage_report_player_interaction crpi
+            left join 
+                halo3.carnage_report_player right_player 
+            on right_player.player_index = crpi.right_player_index 
+                and right_player.carnage_report_id = crpi.carnage_report_id
+            left join 
+                halo3.carnage_report_player left_player 
+            on left_player.player_index = crpi.left_player_index 
+                and left_player.carnage_report_id = crpi.carnage_report_id
+            where left_player.player_xuid = 2535457702870641
+                and right_player.is_guest = false
+            group by right_player.player_xuid
+            order by killedcount desc
+            limit 10;
+        `;
 
-            // Create a map for quick lookup
-            const playerIndexMap = new Map<string, number>();
-            targetPlayerIndices.forEach(p => {
-                playerIndexMap.set(p.carnage_report_id, p.player_index);
-            });
-
-            // Get all kill events for games where the player participated
-            const killEvents = await this.prisma.halo3_carnage_report_event_kill.findMany({
-                where: {
-                    carnage_report_id: { in: multiplayerIds },
-                },
-                select: {
-                    carnage_report_id: true,
-                    killer_player_index: true,
-                    dead_player_index: true,
-                    kill_type: true,
-                }
-            });
-
-            // Count kills by weapon
-            killEvents.forEach(kill => {
-                if (!kill.carnage_report_id) return;
-                const targetPlayerIndex = playerIndexMap.get(kill.carnage_report_id);
-                if (targetPlayerIndex === undefined) return;
-
-                // If this player is the killer, count the weapon
-                if (kill.killer_player_index === targetPlayerIndex) {
-                    weaponKills[kill.kill_type] = (weaponKills[kill.kill_type] || 0) + 1;
-                }
-            });
-
-            // Get most killed (victims)
-            // First, get all player indices that are guests to filter them out
-            const allPlayerIndices = new Set<string>();
-            killEvents.forEach(kill => {
-                if (!kill.carnage_report_id) return;
-                allPlayerIndices.add(`${kill.carnage_report_id}:${kill.killer_player_index}`);
-                allPlayerIndices.add(`${kill.carnage_report_id}:${kill.dead_player_index}`);
-            });
-
-            const allPlayersForGuestCheck = await this.prisma.halo3_carnage_report_player.findMany({
-                where: {
-                    OR: Array.from(allPlayerIndices).map(key => {
-                        const [carnageReportId, playerIndex] = key.split(':');
-                        return {
-                            carnage_report_id: carnageReportId,
-                            player_index: parseInt(playerIndex),
-                        };
-                    }),
-                },
-                select: {
-                    carnage_report_id: true,
-                    player_index: true,
-                    is_guest: true,
-                }
-            });
-
-            const guestPlayerKeys = new Set<string>();
-            allPlayersForGuestCheck.forEach(p => {
-                if (p.is_guest) {
-                    guestPlayerKeys.add(`${p.carnage_report_id}:${p.player_index}`);
-                }
-            });
-
-            const victimCounts = new Map<string, number>();
-            killEvents.forEach(kill => {
-                if (!kill.carnage_report_id) return;
-                const targetPlayerIndex = playerIndexMap.get(kill.carnage_report_id);
-                if (targetPlayerIndex === undefined) return;
-
-                // Skip if victim is a guest
-                const victimKey = `${kill.carnage_report_id}:${kill.dead_player_index}`;
-                if (guestPlayerKeys.has(victimKey)) return;
-
-                // If this player is the killer, count the victim
-                if (kill.killer_player_index === targetPlayerIndex) {
-                    victimCounts.set(victimKey, (victimCounts.get(victimKey) || 0) + 1);
-                }
-            });
-
-            // Get player names for victims
-            const victimPlayerIndices = Array.from(victimCounts.keys()).map(key => {
-                const [carnageReportId, playerIndex] = key.split(':');
-                return { carnage_report_id: carnageReportId, player_index: parseInt(playerIndex) };
-            });
-
-            if (victimPlayerIndices.length > 0) {
-                const victimPlayers = await this.prisma.halo3_carnage_report_player.findMany({
-                    where: {
-                        OR: victimPlayerIndices.map(v => ({
-                            carnage_report_id: v.carnage_report_id,
-                            player_index: v.player_index,
-                        })),
-                        is_guest: false,
-                    },
-                    select: {
-                        player_name: true,
-                        carnage_report_id: true,
-                        player_index: true,
-                    }
-                });
-
-                const victimNameCounts = new Map<string, number>();
-                victimPlayers.forEach(victim => {
-                    const key = `${victim.carnage_report_id}:${victim.player_index}`;
-                    const count = victimCounts.get(key) || 0;
-                    const existing = victimNameCounts.get(victim.player_name) || 0;
-                    victimNameCounts.set(victim.player_name, existing + count);
-                });
-
-                // Get unique player names and fetch their service records for current appearance
-                const uniqueVictimNames = Array.from(victimNameCounts.keys());
-                const victimServiceRecords = uniqueVictimNames.length > 0 ? await this.prisma.halo3_service_record.findMany({
-                    where: {
-                        player_name: { in: uniqueVictimNames },
-                    },
-                    select: {
-                        player_name: true,
-                        primary_color: true,
-                        foreground_emblem: true,
-                        background_emblem: true,
-                        emblem_flags: true,
-                        emblem_primary_color: true,
-                        emblem_secondary_color: true,
-                        emblem_background_color: true,
-                    }
-                }) : [];
-
-                // Create a map of player name to service record
-                const victimAppearanceMap = new Map<string, any>();
-                victimServiceRecords.forEach(sr => {
-                    victimAppearanceMap.set(sr.player_name, {
-                        primaryColor: sr.primary_color,
-                        foregroundEmblem: sr.foreground_emblem,
-                        backgroundEmblem: sr.background_emblem,
-                        emblemFlags: sr.emblem_flags,
-                        emblemPrimaryColor: sr.emblem_primary_color,
-                        emblemSecondaryColor: sr.emblem_secondary_color,
-                        emblemBackgroundColor: sr.emblem_background_color,
-                    });
-                });
-
-                mostKilled.push(...Array.from(victimNameCounts.entries())
-                    .map(([playerName, count]) => ({ 
-                        playerName, 
-                        count,
-                        appearance: victimAppearanceMap.get(playerName)
-                    }))
-                    .sort((a, b) => b.count - a.count)
-                    .slice(0, 10));
+        const mostKilledByXuids = await this.prisma.$queryRaw<
+            { killerxuid: bigint; killedbycount: bigint }[]
+        >`
+            select 
+                right_player.player_xuid as killerxuid,
+                sum(crpi.killed_by) as killedbycount 
+            from 
+                halo3.carnage_report_player_interaction crpi
+            left join 
+                halo3.carnage_report_player right_player 
+            on right_player.player_index = crpi.right_player_index 
+                and right_player.carnage_report_id = crpi.carnage_report_id
+            left join 
+                halo3.carnage_report_player left_player 
+            on left_player.player_index = crpi.left_player_index 
+                and left_player.carnage_report_id = crpi.carnage_report_id
+            where left_player.player_xuid = 2535457702870641
+                and right_player.is_guest = false
+            group by right_player.player_xuid
+            order by killedbycount desc
+            limit 10;
+        `;
+        
+        const mostKilledServiceRecords = await this.prisma.halo3_service_record.findMany({
+            where: {
+                player_xuid: { in: mostKilledXuids.map(x => x.killedxuid.toString()) },
+            },
+            select: {
+                player_xuid: true,
+                player_name: true,
+                service_tag: true,
+                is_elite: true,
+                primary_color: true,
+                foreground_emblem: true,
+                background_emblem: true,
+                emblem_flags: true,
+                emblem_primary_color: true,
+                emblem_secondary_color: true,
+                emblem_background_color: true,
             }
+        })
 
-            // Get most killed by (killers)
-            const killerCounts = new Map<string, number>();
-            killEvents.forEach(kill => {
-                if (!kill.carnage_report_id) return;
-                const targetPlayerIndex = playerIndexMap.get(kill.carnage_report_id);
-                if (targetPlayerIndex === undefined) return;
-
-                // Skip if killer is a guest
-                const killerKey = `${kill.carnage_report_id}:${kill.killer_player_index}`;
-                if (guestPlayerKeys.has(killerKey)) return;
-
-                // If this player is the victim, count the killer
-                if (kill.dead_player_index === targetPlayerIndex) {
-                    killerCounts.set(killerKey, (killerCounts.get(killerKey) || 0) + 1);
-                }
-            });
-
-            // Get player names for killers
-            const killerPlayerIndices = Array.from(killerCounts.keys()).map(key => {
-                const [carnageReportId, playerIndex] = key.split(':');
-                return { carnage_report_id: carnageReportId, player_index: parseInt(playerIndex) };
-            });
-
-            if (killerPlayerIndices.length > 0) {
-                const killerPlayers = await this.prisma.halo3_carnage_report_player.findMany({
-                    where: {
-                        OR: killerPlayerIndices.map(k => ({
-                            carnage_report_id: k.carnage_report_id,
-                            player_index: k.player_index,
-                        })),
-                        is_guest: false,
-                    },
-                    select: {
-                        player_name: true,
-                        carnage_report_id: true,
-                        player_index: true,
-                    }
-                });
-
-                const killerNameCounts = new Map<string, number>();
-                killerPlayers.forEach(killer => {
-                    const key = `${killer.carnage_report_id}:${killer.player_index}`;
-                    const count = killerCounts.get(key) || 0;
-                    const existing = killerNameCounts.get(killer.player_name) || 0;
-                    killerNameCounts.set(killer.player_name, existing + count);
-                });
-
-                // Get unique player names and fetch their service records for current appearance
-                const uniqueKillerNames = Array.from(killerNameCounts.keys());
-                const killerServiceRecords = uniqueKillerNames.length > 0 ? await this.prisma.halo3_service_record.findMany({
-                    where: {
-                        player_name: { in: uniqueKillerNames },
-                    },
-                    select: {
-                        player_name: true,
-                        primary_color: true,
-                        foreground_emblem: true,
-                        background_emblem: true,
-                        emblem_flags: true,
-                        emblem_primary_color: true,
-                        emblem_secondary_color: true,
-                        emblem_background_color: true,
-                    }
-                }) : [];
-
-                // Create a map of player name to service record
-                const killerAppearanceMap = new Map<string, any>();
-                killerServiceRecords.forEach(sr => {
-                    killerAppearanceMap.set(sr.player_name, {
-                        primaryColor: sr.primary_color,
-                        foregroundEmblem: sr.foreground_emblem,
-                        backgroundEmblem: sr.background_emblem,
-                        emblemFlags: sr.emblem_flags,
-                        emblemPrimaryColor: sr.emblem_primary_color,
-                        emblemSecondaryColor: sr.emblem_secondary_color,
-                        emblemBackgroundColor: sr.emblem_background_color,
-                    });
-                });
-
-                mostKilledBy.push(...Array.from(killerNameCounts.entries())
-                    .map(([playerName, count]) => ({ 
-                        playerName, 
-                        count,
-                        appearance: killerAppearanceMap.get(playerName)
-                    }))
-                    .sort((a, b) => b.count - a.count)
-                    .slice(0, 10));
+        const mostKilledByServiceRecords = await this.prisma.halo3_service_record.findMany({
+            where: {
+                player_xuid: { in: mostKilledByXuids.map(x => x.killerxuid.toString()) },
+            },
+            select: {
+                player_xuid: true,
+                player_name: true,
+                service_tag: true,
+                is_elite: true,
+                primary_color: true,
+                foreground_emblem: true,
+                background_emblem: true,
+                emblem_flags: true,
+                emblem_primary_color: true,
+                emblem_secondary_color: true,
+                emblem_background_color: true,
             }
-        }
+        })
 
-        // Get medal chest (sum all medals from matchmaking games only)
-        const medalChest: Record<string, number> = {};
-        if (multiplayerIds.length > 0) {
-            // First, get all matchmaking game IDs (games with matchmaking options)
-            const matchmakingGameIds = await this.prisma.halo3_carnage_report.findMany({
-                where: {
-                    id: { in: multiplayerIds },
-                    carnage_report_matchmaking_options: {
-                        isNot: null,
-                    },
+        const mostKilled = mostKilledServiceRecords.map(sr => ({
+            count: (mostKilledXuids.find(x => x.killedxuid.toString() === sr.player_xuid.toString())?.killedcount || 0).toString(),
+            ...sr,
+            player_xuid: sr.player_xuid.toString(),
+        }));
+
+        const mostKilledBy = mostKilledByServiceRecords.map(sr => ({
+            count: (mostKilledByXuids.find(x => x.killerxuid.toString() === sr.player_xuid.toString())?.killedbycount || 0).toString(),
+            ...sr,
+            player_xuid: sr.player_xuid.toString(),
+        }));
+        
+        let weaponKillsQueryResult = await this.prisma.halo3_carnage_report_player_damage_statistics.groupBy({
+            by: ['damage_source'],
+            _sum: {
+                kills: true,
+            },
+            where: {
+                carnage_report_player: {
+                    player_xuid: playerXuid,
+                    carnage_report: {
+                        carnage_report_matchmaking_options: {
+                            isNot: null,
+                        }
+                    }
                 },
-                select: {
-                    id: true,
-                }
-            });
+            },
+        })
 
-            const matchmakingIds = matchmakingGameIds.map(g => g.id);
+        const weaponKills = weaponKillsQueryResult
+            .filter(w => w._sum.kills ?? 0 > 0)
+            .map(w => ({
+                weapon: w.damage_source,
+                kills: w._sum.kills ?? 0,
+            }));
 
-            if (matchmakingIds.length > 0) {
-                const targetPlayerIndices = await this.prisma.halo3_carnage_report_player.findMany({
-                    where: {
-                        carnage_report_id: { in: matchmakingIds },
-                        player_name: decodedGamertag,
-                    },
-                    select: {
-                        carnage_report_id: true,
-                        player_index: true,
+        const weaponOfChoice = weaponKills.sort((a, b) => (b.kills ?? 0) - (a.kills ?? 0))[0] ?? null;
+
+        const medalChestQueryData = await this.prisma.halo3_carnage_report_player_medals.aggregate({
+            _sum: {
+                extermination: true,
+                perfection: true,
+                multiple_kill_2: true,
+                multiple_kill_3: true,
+                multiple_kill_4: true,
+                multiple_kill_5: true,
+                multiple_kill_6: true,
+                multiple_kill_7: true,
+                multiple_kill_8: true,
+                multiple_kill_9: true,
+                multiple_kill_10: true,
+                kills_in_a_row_5: true,
+                kills_in_a_row_10: true,
+                kills_in_a_row_15: true,
+                kills_in_a_row_20: true,
+                kills_in_a_row_25: true,
+                kills_in_a_row_30: true,
+                sniper_kill_5: true,
+                sniper_kill_10: true,
+                shotgun_kill_5: true,
+                shotgun_kill_10: true,
+                collision_kill_5: true,
+                collision_kill_10: true,
+                sword_kill_5: true,
+                sword_kill_10: true,
+                juggernaut_kill_5: true,
+                juggernaut_kill_10: true,
+                zombie_kill_5: true,
+                zombie_kill_10: true,
+                human_kill_5: true,
+                human_kill_10: true,
+                human_kill_15: true,
+                koth_kill_5: true,
+                shotgun_kill_sword: true,
+                vehicle_impact_kill: true,
+                vehicle_hijack: true,
+                aircraft_hijack: true,
+                deadplayer_kill: true,
+                player_kill_spreeplayer: true,
+                spartanlaser_kill: true,
+                stickygrenade_kill: true,
+                sniper_kill: true,
+                bashbehind_kill: true,
+                bash_kill: true,
+                flame_kill: true,
+                driver_assist_gunner: true,
+                assault_bomb_planted: true,
+                assault_player_kill_carrier: true,
+                vip_player_kill_vip: true,
+                juggernaut_player_kill_juggernaut: true,
+                oddball_carrier_kill_player: true,
+                ctf_flag_captured: true,
+                ctf_flag_player_kill_carrier: true,
+                ctf_flag_carrier_kill_player: true,
+                infection_survive: true,
+                nemesis: true,
+                avenger: true,
+                unused3: true,
+            },
+            where: {
+                carnage_report_player: {
+                    player_xuid: playerXuid,
+                    carnage_report: {
+                        carnage_report_matchmaking_options: {
+                            isNot: null,
+                        }
                     }
-                });
-
-                if (targetPlayerIndices.length > 0) {
-                    const medals = await this.prisma.halo3_carnage_report_player_medals.findMany({
-                        where: {
-                            OR: targetPlayerIndices.map(p => ({
-                                carnage_report_id: p.carnage_report_id,
-                                player_index: p.player_index,
-                            })),
-                        },
-                    });
-
-                    medals.forEach(medal => {
-                        Object.entries(medal).forEach(([key, value]) => {
-                            if (key !== 'carnage_report_id' && key !== 'player_index' && typeof value === 'number') {
-                                medalChest[key] = (medalChest[key] || 0) + value;
-                            }
-                        });
-                    });
                 }
-            }
-        }
+            },
+        })
+
+        const medalChest = Object.entries(medalChestQueryData._sum).map(([medal, count]) => ({
+            medal,
+            count: count ?? 0
+        })).filter(m => m.count > 0);
+
 
         // Detect Steaktacular and Linktacular medals
         let steaktacularCount = 0;
         let linktacularCount = 0;
 
-        if (multiplayerIds.length > 0) {
-            // Get matchmade games with game variant info and player data
-            const matchmadeGamesRaw = await this.prisma.halo3_carnage_report.findMany({
-                where: {
-                    id: { in: multiplayerIds },
-                },
-                select: {
-                    id: true,
-                    team_game: true,
-                    carnage_report_matchmaking_options: {
-                        select: {
-                            hopper_name: true,
-                        }
-                    },
-                    carnage_report_game_variant: {
-                        select: {
-                            name: true,
-                        }
-                    },
-                    carnage_report_player: {
-                        select: {
-                            player_name: true,
-                            player_index: true,
-                            standing: true,
-                            player_team: true,
-                            bungienet_user_flags: true,
-                        }
-                    },
-                    carnage_report_team: {
-                        select: {
-                            team_index: true,
-                            standing: true,
-                        }
-                    },
-                }
-            });
+        const linktacularGames = await this.prisma.$executeRaw<{ count: number }[]>`
+            select count(id) as count from halo3.carnage_report cr 
+            left join
+                halo3.carnage_report_player crp 
+            on crp.carnage_report_id = cr.id
+            where crp.player_xuid = ${playerXuid}::bigint
+            AND NOT EXISTS (
+                SELECT 1
+                FROM halo3.carnage_report_player p
+                WHERE p.carnage_report_id = cr.id
+                AND (p.player_xuid::bigint & 1) <> 1
+            )
+            and exists (
+                select 1
+                from halo3.carnage_report_matchmaking_options crmo 
+                where crmo.id = cr.id
+            );
+        `;
 
-            // Filter to only matchmade games and type assert
-            const matchmadeGames = matchmadeGamesRaw.filter(
-                g => g.carnage_report_matchmaking_options?.hopper_name != null
-            ) as Array<{
-                id: string;
-                team_game: boolean;
-                carnage_report_matchmaking_options: { hopper_name: string | null } | null;
-                carnage_report_game_variant: { name: string | null } | null;
-                carnage_report_player: Array<{
-                    player_name: string;
-                    player_index: number;
-                    standing: number;
-                    player_team: number | null;
-                    bungienet_user_flags: any;
-                }>;
-                carnage_report_team: Array<{
-                    team_index: number;
-                    standing: number;
-                }>;
-            }>;
+        linktacularCount = linktacularGames[0]?.count || 0;
 
-            // Fetch all player statistics for all games upfront to avoid N+1 queries
-            const allGameIds = matchmadeGames.map(g => g.id);
-            const allPlayerStats = await this.prisma.halo3_carnage_report_player_statistics.findMany({
-                where: {
-                    carnage_report_id: { in: allGameIds },
-                },
-                select: {
-                    carnage_report_id: true,
-                    player_index: true,
-                    kills: true,
-                }
-            });
+        const ffaSteaktacularGames = await this.prisma.$executeRaw<{ count: number }[]>`
+            select count(cr.id) as count from halo3.carnage_report cr 
+            left join
+                halo3.carnage_report_player crp 
+            on crp.carnage_report_id = cr.id
+            left join
+                halo3.carnage_report_player_statistics crps 
+            on crps.carnage_report_id = cr.id
+            left join
+                halo3.carnage_report_game_variant crgv 
+            on crgv.id = cr.id
+            and crps.player_index = crp.player_index
+            where crp.player_xuid = ${playerXuid}::bigint
+            and crgv.game_engine = 2
+            and cr.team_game = false
+            and crps.kills > (
+                select max(kills) from halo3.carnage_report_player_statistics crps2 
+                where crps2.carnage_report_id = cr.id and crps2.player_index <> crp.player_index
+            ) + 20
+            and exists (
+                select 1
+                from halo3.carnage_report_matchmaking_options crmo 
+                where crmo.id = cr.id
+            );
+        `;
 
-            // Create a map for quick lookup: gameId -> playerIndex -> kills
-            const statsMap = new Map<string, Map<number, number>>();
-            allPlayerStats.forEach(stat => {
-                if (!statsMap.has(stat.carnage_report_id)) {
-                    statsMap.set(stat.carnage_report_id, new Map());
-                }
-                statsMap.get(stat.carnage_report_id)!.set(stat.player_index, stat.kills);
-            });
+        const teamSteaktacularGames = await this.prisma.$executeRaw<{ count: number }[]>`
+            select count(cr.id) as count from halo3.carnage_report cr 
+            left join
+                halo3.carnage_report_player crp 
+            on crp.carnage_report_id = cr.id
+            left join
+                halo3.carnage_report_team crt
+            on crt.carnage_report_id = cr.id
+            and crt.team_index = crp.player_team
+            left join
+                halo3.carnage_report_game_variant crgv 
+            on crgv.id = cr.id
+            where crp.player_xuid = ${playerXuid}::bigint
+            and crgv.game_engine = 2
+            and cr.team_game = true
+            and crt.score > (
+                select max(score) from halo3.carnage_report_team crt2 
+                where crt2.carnage_report_id = cr.id and crt2.team_index <> crp.player_team
+            ) + 20
+            and exists (
+                select 1
+                from halo3.carnage_report_matchmaking_options crmo 
+                where crmo.id = cr.id
+            );
+        `;
 
-            for (const game of matchmadeGames) {
-                const targetPlayer = game.carnage_report_player.find(p => p.player_name === decodedGamertag);
-                if (!targetPlayer) continue;
-
-                const isMatchmade = !!game.carnage_report_matchmaking_options?.hopper_name;
-                if (!isMatchmade) continue;
-
-                const gameVariantName = game.carnage_report_game_variant?.name?.toLowerCase() || '';
-                const isSlayer = gameVariantName.includes('slayer');
-
-                // Check if player won
-                let playerWon = false;
-                if (game.team_game) {
-                    const playerTeam = targetPlayer.player_team;
-                    const playerTeamStanding = game.carnage_report_team.find(t => t.team_index === playerTeam)?.standing;
-                    if (playerTeamStanding !== undefined) {
-                        const bestStanding = Math.min(...game.carnage_report_team.map(t => t.standing));
-                        const teamsWithBestStanding = game.carnage_report_team.filter(t => t.standing === bestStanding);
-                        playerWon = playerTeamStanding === bestStanding && teamsWithBestStanding.length === 1;
-                    }
-                } else {
-                    // FFA
-                    const playersWithStanding1 = game.carnage_report_player.filter(p => p.standing === 1);
-                    playerWon = targetPlayer.standing === 1 && playersWithStanding1.length === 1;
-                }
-
-                // Steaktacular: Matchmade slayer game, won by at least 20 kills
-                if (isSlayer && playerWon) {
-                    const gameStats = statsMap.get(game.id);
-                    if (gameStats) {
-                        const playerKills = gameStats.get(targetPlayer.player_index) || 0;
-                        let secondPlaceKills = 0;
-
-                        if (game.team_game) {
-                            const playerTeam = targetPlayer.player_team;
-                            const playerTeamStanding = game.carnage_report_team.find(t => t.team_index === playerTeam)?.standing;
-                            if (playerTeamStanding === 1) {
-                                // Get team scores (kills) for all teams
-                                const teamScores = game.carnage_report_team.map(team => {
-                                    const teamPlayers = game.carnage_report_player.filter(p => p.player_team === team.team_index);
-                                    const teamKills = teamPlayers.reduce((sum, p) => {
-                                        return sum + (gameStats.get(p.player_index) || 0);
-                                    }, 0);
-                                    return teamKills;
-                                });
-                                const sortedScores = teamScores.sort((a, b) => b - a);
-                                secondPlaceKills = sortedScores.length > 1 ? sortedScores[1] : 0;
-                            }
-                        } else {
-                            // FFA - get second place player's kills
-                            const secondPlacePlayer = game.carnage_report_player
-                                .filter(p => p.standing === 2)
-                                .sort((a, b) => a.standing - b.standing)[0];
-                            if (secondPlacePlayer) {
-                                secondPlaceKills = gameStats.get(secondPlacePlayer.player_index) || 0;
-                            }
-                        }
-
-                        const killDifference = playerKills - secondPlaceKills;
-                        if (killDifference >= 20) {
-                            steaktacularCount++;
-                        }
-                    }
-                }
-
-                // Linktacular: Matchmade game with all players being Bungie.net users
-                // A player is a Bungie.net user if the first bit (bit 0) of bungienet_user_flags is set
-                const allPlayersAreBungieNetUsers = game.carnage_report_player.every(player => {
-                    const flags = Number(player.bungienet_user_flags);
-                    return (flags & 1) !== 0; // Check if bit 0 is set
-                });
-
-                if (allPlayersAreBungieNetUsers) {
-                    linktacularCount++;
-                }
-            }
-        }
-
-        // Add Steaktacular and Linktacular to medal chest
-        if (steaktacularCount > 0) {
-            medalChest['steaktacular'] = (medalChest['steaktacular'] || 0) + steaktacularCount;
-        }
-        if (linktacularCount > 0) {
-            medalChest['linktacular'] = (medalChest['linktacular'] || 0) + linktacularCount;
-        }
-
-        // Find weapon of choice (weapon with most kills)
-        const weaponKillsArray = Object.entries(weaponKills)
-            .map(([killType, count]) => ({ killType: parseInt(killType), count }))
-            .sort((a, b) => b.count - a.count);
-        const weaponOfChoice = weaponKillsArray.length > 0 ? weaponKillsArray[0] : null;
+        steaktacularCount = ffaSteaktacularGames[0]?.count || 0 + teamSteaktacularGames[0]?.count || 0;
 
         return {
             gameTypes: Object.entries(gameTypeCounts)
                 .filter(([_, count]) => count > 0)
                 .map(([name, value]) => ({ name, value })),
             killsDeaths: [
-                { name: "Kills", value: totalKills },
-                { name: "Deaths", value: totalDeaths },
-            ].filter(r => r.value > 0),
-            mostKilled: mostKilled,
-            mostKilledBy: mostKilledBy,
-            medalChest: medalChest,
-            weaponKills: weaponKillsArray,
-            weaponOfChoice: weaponOfChoice ? { killType: weaponOfChoice.killType, count: weaponOfChoice.count } : null,
+                { name: "Kills", value: totalKills ?? 0 },
+                { name: "Deaths", value: totalDeaths ?? 0 },
+            ],
+            mostKilled,
+            mostKilledBy,
+            medalChest,
+            weaponKills,
+            weaponOfChoice,
+            steaktacularCount,
+            linktacularCount,
         };
     }
 

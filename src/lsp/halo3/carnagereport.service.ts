@@ -4,6 +4,7 @@ import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blam-network/blf_lsp';
 import { CompressionService } from "../services/compression.service";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
+import { isGuestXuid } from "src/xbox/xuid";
 
 // We turn this on for debugging but turn it off for security in prod.
 const ALLOW_UNCOMPRESSED_CARNAGE_REPORTS = false;
@@ -291,6 +292,7 @@ export class Halo3CarnageReportService {
                                         elite_model_area_3: p.player_configuration_from_client.appearance.elite_model_area_3,
                                         service_tag: p.player_configuration_from_client.appearance.service_tag,
                                         player_xuid: p.player_configuration_from_client.player_xuid.toString(),
+                                        is_guest: isGuestXuid(p.player_configuration_from_client.player_xuid),
                                         is_silver_or_gold_live: p.player_configuration_from_client.is_silver_or_gold_live,
                                         is_online_enabled: p.player_configuration_from_client.is_online_enabled,
                                         is_controller_attached: p.player_configuration_from_client.is_controller_attached,
@@ -607,6 +609,7 @@ export class Halo3CarnageReportService {
             await tx.halo3_service_record.createMany({
                 data: multi.mppl.players
                     .filter(player => player.player_exists)
+                    .filter(player => !isGuestXuid(player.player_configuration_from_client.player_xuid))
                     .map(player => {
                         const config = player.player_configuration_from_client;
                         return {
@@ -767,6 +770,7 @@ export class Halo3CarnageReportService {
                                     elite_model_area_3: p.configuration.client.appearance.elite_model_area_3,
                                     service_tag: p.configuration.client.appearance.service_tag,
                                     player_xuid: p.configuration.client.player_xuid.toString(),
+                                    is_guest: isGuestXuid(p.configuration.client.player_xuid),
                                     is_silver_or_gold_live: p.configuration.client.is_silver_or_gold_live,
                                     is_online_enabled: p.configuration.client.is_online_enabled,
                                     is_controller_attached: p.configuration.client.is_controller_attached,
@@ -912,6 +916,7 @@ export class Halo3CarnageReportService {
             await tx.halo3_service_record.createMany({
                 data: campaign.gmop.options.players
                     .filter(player => player.valid)
+                    .filter(player => !isGuestXuid(player.configuration.client.player_xuid))
                     .map(player => {
                         const config = player.configuration.client;
                         return {

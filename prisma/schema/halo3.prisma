@@ -205,6 +205,7 @@ model halo3_carnage_report_player {
   elite_model_area_3                                                                                                              Int
   service_tag                                                                                                                     String                                          @db.VarChar(4)
   player_xuid                                                                                                                     Decimal                                         @db.Decimal(20, 0)
+  is_guest                                                                                                                        Boolean
   is_silver_or_gold_live                                                                                                          Boolean
   is_online_enabled                                                                                                               Boolean
   is_controller_attached                                                                                                          Boolean
@@ -860,6 +861,7 @@ model halo3_campaign_carnage_report_player {
   elite_model_area_3                    Int
   service_tag                           String   @db.VarChar(4)
   player_xuid                           Decimal  @db.Decimal(20, 0)
+  is_guest                              Boolean
   is_silver_or_gold_live                Boolean
   is_online_enabled                     Boolean
   is_controller_attached                Boolean

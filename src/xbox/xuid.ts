@@ -16,3 +16,8 @@ export const hexStringXuidSchema = z.string()
 export const xuidToHexString = (xuid: BigInt) => {
   return xuid.toString(16).padStart(16, '0');
 }
+
+export const XUID_GUEST_MASK = 0x00C0000000000000n;
+export const isGuestXuid = (xuid: BigInt) => {
+    return (xuid.valueOf() & XUID_GUEST_MASK) !== 0n;
+}

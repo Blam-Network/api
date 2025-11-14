@@ -524,6 +524,40 @@ export class Halo3Controller {
         );
     }
 
+    @Get('/screenshots/:id')
+    @ApiOperation({
+        summary: 'Get Screenshot',
+        description: 'Returns metadata for a single screenshot by ID.',
+    })
+    async getScreenshot(
+        @Param('id') id: string,
+    ) {
+        const screenshot = await this.prisma.halo3_blind_screenshot.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                author: true,
+                date: true,
+            }
+        });
+
+        if (!screenshot) {
+            throw new NotFoundException('Screenshot not found');
+        }
+
+        return {
+            id: screenshot.id,
+            header: {
+                filename: screenshot.name,
+                description: screenshot.description,
+            },
+            author: screenshot.author,
+            date: screenshot.date,
+        };
+    }
+
     @Get('/emblem')
     @ApiOperation({
         summary: 'Get Emblemr',
@@ -1826,15 +1860,50 @@ export class Halo3Controller {
             });
 
             // Get most killed (victims)
+            // First, get all player indices that are guests to filter them out
+            const allPlayerIndices = new Set<string>();
+            killEvents.forEach(kill => {
+                if (!kill.carnage_report_id) return;
+                allPlayerIndices.add(`${kill.carnage_report_id}:${kill.killer_player_index}`);
+                allPlayerIndices.add(`${kill.carnage_report_id}:${kill.dead_player_index}`);
+            });
+
+            const allPlayersForGuestCheck = await this.prisma.halo3_carnage_report_player.findMany({
+                where: {
+                    OR: Array.from(allPlayerIndices).map(key => {
+                        const [carnageReportId, playerIndex] = key.split(':');
+                        return {
+                            carnage_report_id: carnageReportId,
+                            player_index: parseInt(playerIndex),
+                        };
+                    }),
+                },
+                select: {
+                    carnage_report_id: true,
+                    player_index: true,
+                    is_guest: true,
+                }
+            });
+
+            const guestPlayerKeys = new Set<string>();
+            allPlayersForGuestCheck.forEach(p => {
+                if (p.is_guest) {
+                    guestPlayerKeys.add(`${p.carnage_report_id}:${p.player_index}`);
+                }
+            });
+
             const victimCounts = new Map<string, number>();
             killEvents.forEach(kill => {
                 if (!kill.carnage_report_id) return;
                 const targetPlayerIndex = playerIndexMap.get(kill.carnage_report_id);
                 if (targetPlayerIndex === undefined) return;
 
+                // Skip if victim is a guest
+                const victimKey = `${kill.carnage_report_id}:${kill.dead_player_index}`;
+                if (guestPlayerKeys.has(victimKey)) return;
+
                 // If this player is the killer, count the victim
                 if (kill.killer_player_index === targetPlayerIndex) {
-                    const victimKey = `${kill.carnage_report_id}:${kill.dead_player_index}`;
                     victimCounts.set(victimKey, (victimCounts.get(victimKey) || 0) + 1);
                 }
             });
@@ -1852,6 +1921,7 @@ export class Halo3Controller {
                             carnage_report_id: v.carnage_report_id,
                             player_index: v.player_index,
                         })),
+                        is_guest: false,
                     },
                     select: {
                         player_name: true,
@@ -1917,9 +1987,12 @@ export class Halo3Controller {
                 const targetPlayerIndex = playerIndexMap.get(kill.carnage_report_id);
                 if (targetPlayerIndex === undefined) return;
 
+                // Skip if killer is a guest
+                const killerKey = `${kill.carnage_report_id}:${kill.killer_player_index}`;
+                if (guestPlayerKeys.has(killerKey)) return;
+
                 // If this player is the victim, count the killer
                 if (kill.dead_player_index === targetPlayerIndex) {
-                    const killerKey = `${kill.carnage_report_id}:${kill.killer_player_index}`;
                     killerCounts.set(killerKey, (killerCounts.get(killerKey) || 0) + 1);
                 }
             });
@@ -1937,6 +2010,7 @@ export class Halo3Controller {
                             carnage_report_id: k.carnage_report_id,
                             player_index: k.player_index,
                         })),
+                        is_guest: false,
                     },
                     select: {
                         player_name: true,

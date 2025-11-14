@@ -3,9 +3,6 @@ BEGIN;
 ALTER TABLE "halo3"."carnage_report_player" 
 ADD COLUMN "is_guest" BOOLEAN;
 
-ALTER TABLE "ares"."carnage_report_player" 
-ADD COLUMN "is_guest" BOOLEAN;
-
 ALTER TABLE "halo3"."campaign_carnage_report_player" 
 ADD COLUMN "is_guest" BOOLEAN;
 
@@ -16,16 +13,10 @@ ADD COLUMN "is_guest" BOOLEAN;
 UPDATE "halo3"."carnage_report_player"
 SET is_guest = (mod(trunc(player_xuid / 18014398509481984), 4) <> 0);
 
-UPDATE "ares"."carnage_report_player"
-SET is_guest = (mod(trunc(player_xuid / 18014398509481984), 4) <> 0);
-
 UPDATE "halo3"."campaign_carnage_report_player"
 SET is_guest = (mod(trunc(player_xuid / 18014398509481984), 4) <> 0);
 
 ALTER TABLE "halo3"."carnage_report_player" 
-ALTER COLUMN "is_guest" SET NOT NULL;
-
-ALTER TABLE "ares"."carnage_report_player" 
 ALTER COLUMN "is_guest" SET NOT NULL;
 
 ALTER TABLE "halo3"."campaign_carnage_report_player" 

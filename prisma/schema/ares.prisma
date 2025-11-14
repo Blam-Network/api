@@ -112,6 +112,7 @@ model ares_carnage_report {
   carnage_report_team                ares_carnage_report_team[]
 
   @@unique([start_time, finish_time, game_id], map: "unique_start_finish_game")
+  @@index([start_time], map: "idx_carnage_report_start_time")
   @@map("carnage_report")
   @@schema("ares")
 }
@@ -144,6 +145,7 @@ model ares_carnage_report_event_kill {
   carnage_report                                                                                               ares_carnage_report?        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade)
   carnage_report_player_carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player ares_carnage_report_player? @relation("carnage_report_event_kill_carnage_report_id_killer_player_indexTocarnage_report_player", fields: [carnage_report_id, killer_player_index], references: [carnage_report_id, player_index], onDelete: Cascade, onUpdate: NoAction)
 
+  @@index([carnage_report_id], map: "idx_carnage_report_event_kill_carnage_report_id")
   @@map("carnage_report_event_kill")
   @@schema("ares")
 }
@@ -330,6 +332,7 @@ model ares_carnage_report_player {
   @@id([carnage_report_id, player_index])
   @@index([player_name], map: "idx_player_name")
   @@index([player_xuid], map: "idx_player_xuid")
+  @@index([carnage_report_id, player_name], map: "idx_carnage_report_player_carnage_report_id_player_name")
   @@map("carnage_report_player")
   @@schema("ares")
 }
@@ -549,6 +552,7 @@ model ares_carnage_report_player_statistics {
   carnage_report_player          ares_carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: Cascade, map: "fk_statistics_carnage_report_player")
 
   @@id([carnage_report_id, player_index])
+  @@index([carnage_report_id], map: "idx_carnage_report_player_statistics_carnage_report_id")
   @@map("carnage_report_player_statistics")
   @@schema("ares")
 }

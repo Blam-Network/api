@@ -1824,7 +1824,7 @@ export class Halo3Controller {
                 halo3.carnage_report_player left_player 
             on left_player.player_index = crpi.left_player_index 
                 and left_player.carnage_report_id = crpi.carnage_report_id
-            where left_player.player_xuid = 2535457702870641
+            where left_player.player_xuid = ${playerXuid}::bigint
                 and right_player.is_guest = false
             group by right_player.player_xuid
             order by killedcount desc
@@ -1847,7 +1847,7 @@ export class Halo3Controller {
                 halo3.carnage_report_player left_player 
             on left_player.player_index = crpi.left_player_index 
                 and left_player.carnage_report_id = crpi.carnage_report_id
-            where left_player.player_xuid = 2535457702870641
+            where left_player.player_xuid = ${playerXuid}::bigint
                 and right_player.is_guest = false
             group by right_player.player_xuid
             order by killedbycount desc

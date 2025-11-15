@@ -149,7 +149,6 @@ export class Halo3CarnageReportService {
                     game_id: multi.mpgd.game_id.toString(),
                     map_id: multi.mpgd.map_id,
                     start_time: multi.mpgd.start_time,
-                    finish_time: { lt: ALWAYS_REINSERT_REPORTS ? undefined : multi.mpgd.finish_time }
                 },
                 select: {
                     id: true

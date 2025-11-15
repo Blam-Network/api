@@ -2013,7 +2013,7 @@ export class Halo3Controller {
         let steaktacularCount = 0;
         let linktacularCount = 0;
 
-        const linktacularGames = await this.prisma.$executeRaw<{ count: number }[]>`
+        const linktacularGames = await this.prisma.$queryRaw<{ count: bigint }[]>`
             select count(id) as count from halo3.carnage_report cr 
             left join
                 halo3.carnage_report_player crp 
@@ -2023,7 +2023,7 @@ export class Halo3Controller {
                 SELECT 1
                 FROM halo3.carnage_report_player p
                 WHERE p.carnage_report_id = cr.id
-                AND (p.player_xuid::bigint & 1) <> 1
+                AND (p.bungienet_user_flags::bigint & 1) <> 1
             )
             and exists (
                 select 1
@@ -2032,9 +2032,9 @@ export class Halo3Controller {
             );
         `;
 
-        linktacularCount = linktacularGames[0]?.count || 0;
+        linktacularCount = Number(linktacularGames[0]?.count || 0);
 
-        const ffaSteaktacularGames = await this.prisma.$executeRaw<{ count: number }[]>`
+        const ffaSteaktacularGames = await this.prisma.$queryRaw<{ count: bigint }[]>`
             select count(cr.id) as count from halo3.carnage_report cr 
             left join
                 halo3.carnage_report_player crp 
@@ -2060,7 +2060,7 @@ export class Halo3Controller {
             );
         `;
 
-        const teamSteaktacularGames = await this.prisma.$executeRaw<{ count: number }[]>`
+        const teamSteaktacularGames = await this.prisma.$queryRaw<{ count: bigint }[]>`
             select count(cr.id) as count from halo3.carnage_report cr 
             left join
                 halo3.carnage_report_player crp 
@@ -2086,7 +2086,7 @@ export class Halo3Controller {
             );
         `;
 
-        steaktacularCount = ffaSteaktacularGames[0]?.count || 0 + teamSteaktacularGames[0]?.count || 0;
+        steaktacularCount = Number(ffaSteaktacularGames[0]?.count || 0) + Number(teamSteaktacularGames[0]?.count || 0);
 
         return {
             gameTypes: Object.entries(gameTypeCounts)

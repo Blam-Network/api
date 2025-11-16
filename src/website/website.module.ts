@@ -11,6 +11,9 @@ import { Halo3ODSTController } from './controllers/halo3odst.controller';
 import { HaloReachController } from './controllers/haloreach.controller';
 import { HaloReachFileShareService } from './services/haloreachfileshare.service';
 import { Halo3PopulationService } from './services/halo3population.service';
+import { DatamineController } from './controllers/datamine.controller';
+import { UserController } from './controllers/user.controller';
+import { BnetUserService } from './services/bnetuser.service';
 
 @Module({
     imports: [
@@ -22,7 +25,9 @@ import { Halo3PopulationService } from './services/halo3population.service';
     controllers: [
         Halo3Controller,
         Halo3ODSTController,
-        HaloReachController
+        HaloReachController,
+        DatamineController,
+        UserController,
     ],
     providers: [
         AchievementsService,
@@ -30,6 +35,7 @@ import { Halo3PopulationService } from './services/halo3population.service';
         Halo3FileShareService,
         HaloReachFileShareService,
         Halo3PopulationService,
+        BnetUserService,
         { provide: ILoggerSymbol, useClass: ConsoleLogger },
         ShutdownObserver,
     ],

@@ -24,6 +24,7 @@ import { TITLE_STORAGE_FOLDER } from 'src/constants';
 import { basename, join } from 'path';
 import { createReadStream, existsSync } from 'fs';
 import { stat } from 'fs/promises';
+import { DatamineUploadService } from '../services/datamineupload.service';
 
 @ApiTags('Upload Server')
 @Controller('/upload_server')
@@ -33,6 +34,7 @@ export class UploadServerController {
     private readonly uploadService: UploadService,
     private readonly halo3UploadService: Halo3UploadService,
     private readonly compressionService: CompressionService,
+    private readonly datamineUploadService: DatamineUploadService,
   ) { }
 
   @ApiOperation({
@@ -70,6 +72,7 @@ export class UploadServerController {
 
       // TITLES:
       this.halo3UploadService.handleUpload(upload),
+      this.datamineUploadService.handleUpload(upload),
     ]);
 
     return 'ok'
@@ -114,6 +117,7 @@ export class UploadServerController {
 
         // TITLES:
         this.halo3UploadService.handleUpload(upload),
+        this.datamineUploadService.handleUpload(upload),
       ])
     ));
 

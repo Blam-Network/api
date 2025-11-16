@@ -26,6 +26,7 @@ import { HTTP1_0Middleware } from 'src/middleware/HTTP1_0Middleware';
 import { HaloReachFileShareService } from './haloreach/fileshare.service';
 import { HaloReachRewardsService } from './haloreach/rewards.service';
 import { HaloReachChallengeService } from './haloreach/challenge.service';
+import { DatamineUploadService } from './services/datamineupload.service';
 
 @Module({
     imports: [
@@ -57,6 +58,7 @@ import { HaloReachChallengeService } from './haloreach/challenge.service';
         HaloReachWhitelistService,
         HaloReachRewardsService,
         HaloReachChallengeService,
+        DatamineUploadService,
         CompressionService,
         DiscordWebhookService,
         { provide: ILoggerSymbol, useClass: ConsoleLogger },

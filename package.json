@@ -50,6 +50,7 @@
     "dotenv": "^16.0.1",
     "geoip-lite": "^1.4.10",
     "mysql2": "^3.14.1",
+    "next-auth": "^4.24.13",
     "npm": "^11.6.2",
     "pako": "^2.0.4",
     "reflect-metadata": "^0.1.13",

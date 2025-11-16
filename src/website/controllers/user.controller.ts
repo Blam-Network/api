@@ -2,8 +2,7 @@ import { Controller, Post, Get, Inject, Body, Param, BadRequestException, Unauth
 import { ApiOperation, ApiParam, ApiTags, ApiBody, ApiHeader } from "@nestjs/swagger";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
-import { EXAMPLE_XUID } from "src/constants";
-import { BnetUserService } from "../services/bnetuser.service";
+import { JwtService } from "../services/jwt.service";
 
 @ApiTags('User')
 @Controller('/user')
@@ -11,62 +10,61 @@ export class UserController {
     constructor(
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly prisma: PrismaService,
-        private readonly bnetUserService: BnetUserService,
+        private readonly jwtService: JwtService,
     ) { }
 
     @Post('/register')
     @ApiOperation({
         summary: 'Register User',
-        description: 'Register or update a user, validating XSTS token and setting is_registered to true',
+        description: 'Register or update a user using JWT token and set is_registered to true',
     })
-    @ApiHeader({ name: 'x-xuid', example: EXAMPLE_XUID })
-    @ApiHeader({ name: 'x-uhs' })
-    @ApiHeader({ name: 'Authorization' })
+    @ApiHeader({ name: 'Authorization', description: 'NextAuth JWT token (Bearer token)' })
     async registerUser(
-        @Headers('x-xuid') xuidHex: string,
-        @Headers('x-uhs') userHash: string,
-        @Headers('Authorization') xstsToken: string,
+        @Headers('Authorization') jwtToken: string,
     ) {
-        if (!xstsToken) {
-            throw new BadRequestException('XSTS token is required');
-        }
-        if (!xuidHex) {
-            throw new BadRequestException('XUID is required');
-        }
-        if (!userHash) {
-            throw new BadRequestException('User hash is required');
+        if (!jwtToken) {
+            throw new BadRequestException('Authorization header with JWT token is required');
         }
 
         try {
-            // Validate token and get user details from Xbox API
-            const { xuid, gamertag } = await this.bnetUserService.validateXboxToken(
-                xuidHex,
-                userHash,
-                xstsToken,
-            );
+            // Validate JWT token and get user XUID
+            const { user: jwtUser } = await this.jwtService.validateJwtToken(jwtToken);
+            const xuid = jwtUser.xuid;
 
-            // Register/update user in database
-            await this.prisma.bnet_user.upsert({
+            // Check if user is already registered
+            const existingUser = await this.prisma.bnet_user.findUnique({
                 where: {
                     player_xuid: xuid,
                 },
-                update: {
+                select: {
                     is_registered: true,
-                },
-                create: {
-                    player_xuid: xuid,
-                    is_registered: true,
-                    datamine_access: false,
                 },
             });
 
-            return { success: true, xuid, gamertag };
+            // Only update if not already registered (idempotent)
+            if (!existingUser || !existingUser.is_registered) {
+                await this.prisma.bnet_user.upsert({
+                    where: {
+                        player_xuid: xuid,
+                    },
+                    update: {
+                        is_registered: true,
+                    },
+                    create: {
+                        player_xuid: xuid,
+                        is_registered: true,
+                        datamine_access: false,
+                    },
+                });
+            }
+
+            return { success: true, xuid, gamertag: jwtUser.gamertag };
         } catch (error) {
             if (error instanceof UnauthorizedException || error instanceof BadRequestException) {
                 throw error;
             }
             this.logger.error(`Failed to register user: ${error}`);
-            throw new UnauthorizedException('Failed to validate XSTS token');
+            throw new UnauthorizedException('Failed to validate JWT token');
         }
     }
 
@@ -75,33 +73,20 @@ export class UserController {
         summary: 'Get User',
         description: 'Get current user information including datamine access',
     })
-    @ApiHeader({ name: 'x-xuid', example: EXAMPLE_XUID })
-    @ApiHeader({ name: 'x-uhs' })
-    @ApiHeader({ name: 'Authorization' })
+    @ApiHeader({ name: 'Authorization', description: 'NextAuth JWT token (Bearer token)' })
     async getUser(
-        @Headers('x-xuid') xuidHex: string,
-        @Headers('x-uhs') userHash: string,
-        @Headers('Authorization') xstsToken: string,
+        @Headers('Authorization') jwtToken: string,
     ) {
-        if (!xstsToken) {
-            throw new BadRequestException('XSTS token is required');
-        }
-        if (!xuidHex) {
-            throw new BadRequestException('XUID is required');
-        }
-        if (!userHash) {
-            throw new BadRequestException('User hash is required');
+        if (!jwtToken) {
+            throw new BadRequestException('Authorization header with JWT token is required');
         }
 
-        // Validate token and get user XUID
-        const { xuid } = await this.bnetUserService.validateXboxToken(
-            xuidHex,
-            userHash,
-            xstsToken,
-        );
+        // Validate JWT token and get user XUID
+        const { user: jwtUser } = await this.jwtService.validateJwtToken(jwtToken);
+        const xuid = jwtUser.xuid;
 
         // Get datamine access
-        const user = await this.prisma.bnet_user.findUnique({
+        const dbUser = await this.prisma.bnet_user.findUnique({
             where: {
                 player_xuid: xuid,
             },
@@ -111,7 +96,7 @@ export class UserController {
         });
 
         return {
-            datamineAccess: user?.datamine_access ?? false,
+            datamineAccess: dbUser?.datamine_access ?? false,
         };
     }
 }

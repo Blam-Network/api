@@ -741,12 +741,77 @@ export class Halo3Controller {
 
         return {
             id: carnageReport.id,
-            teams: carnageReport.carnage_report_team.map(team => ({
-                score: team.score,
-                standing: team.standing,
-                team_index: team.team_index,
-                statistics: team.carnage_report_team_statistics,
-            })),
+            teams: carnageReport.carnage_report_team.map(team => {
+                if (!team.carnage_report_team_statistics) {
+                    // If statistics is null, we need to provide all required fields with default values
+                    // This shouldn't happen in practice, but handle it gracefully
+                    return {
+                        score: team.score,
+                        standing: team.standing,
+                        team_index: team.team_index,
+                        statistics: {
+                            kills: 0,
+                            deaths: 0,
+                            assists: 0,
+                            unused0: 0,
+                            unused1: 0,
+                            unused2: 0,
+                            suicides: 0,
+                            total_wp: 0,
+                            betrayals: 0,
+                            games_won: 0,
+                            games_tied: 0,
+                            rounds_won: 0,
+                            games_played: 0,
+                            king_unused0: 0,
+                            king_unused1: 0,
+                            seconds_alive: 0,
+                            vip_takedowns: 0,
+                            ctf_flag_grabs: 0,
+                            in_round_score: 0,
+                            oddball_unused: 0,
+                            vip_guard_time: 0,
+                            ctf_flag_scores: 0,
+                            games_completed: 0,
+                            vip_time_as_vip: 0,
+                            ctf_flag_returns: 0,
+                            juggernaut_kills: 0,
+                            rounds_completed: 0,
+                            vip_kills_as_vip: 0,
+                            vip_lives_as_vip: 0,
+                            assault_bomb_arms: 0,
+                            juggernaut_unused: 0,
+                            king_time_on_hill: 0,
+                            territories_ousts: 0,
+                            territories_owned: 0,
+                            assault_bomb_grabs: 0,
+                            in_game_total_score: 0,
+                            most_kills_in_a_row: 0,
+                            assault_bomb_disarms: 0,
+                            infection_infections: 0,
+                            territories_captures: 0,
+                            ctf_flag_carrier_kills: 0,
+                            infection_zombie_kills: 0,
+                            oddball_time_with_ball: 0,
+                            infection_time_as_human: 0,
+                            king_total_control_time: 0,
+                            assault_bomb_detonations: 0,
+                            oddball_kills_as_carrier: 0,
+                            oddball_ball_carrier_kills: 0,
+                            juggernaut_total_control_time: 0,
+                            territories_time_in_territory: 0,
+                            juggernaut_kills_as_juggernaut: 0,
+                        },
+                    };
+                }
+                const { carnage_report_id, team_index: _, ...statistics } = team.carnage_report_team_statistics;
+                return {
+                    score: team.score,
+                    standing: team.standing,
+                    team_index: team.team_index,
+                    statistics,
+                };
+            }),
             events: {
                 kill_events: carnageReport.carnage_report_event_kill,
                 carry_events: carnageReport.carnage_report_event_carry,

@@ -144,11 +144,22 @@ export class Halo3CarnageReportService {
         await this.prisma.$transaction(async (tx) => {
             // If we have a carnage report submission with an earlier finish time, the host probs dropped.
             // Delete & reinsert with newer data.
+            // Use a 1-day tolerance on start_time
+            // game_id is sent to us from the game, I'm not sure how prone to duplicates it is,
+            // so we add a few more filters to help narrow down the results.
+            const startTime = multi.mpgd.start_time;
+            const oneDayInMs = 24 * 60 * 60 * 1000;
+            const startTimeMin = new Date(startTime.getTime() - oneDayInMs);
+            const startTimeMax = new Date(startTime.getTime() + oneDayInMs);
+            
             const existingReport = await tx.halo3_carnage_report.findFirst({
                 where: {
                     game_id: multi.mpgd.game_id.toString(),
                     map_id: multi.mpgd.map_id,
-                    start_time: multi.mpgd.start_time,
+                    start_time: {
+                        gte: startTimeMin,
+                        lte: startTimeMax,
+                    },
                 },
                 select: {
                     id: true

@@ -14,6 +14,7 @@ import { Halo3PopulationService } from './services/halo3population.service';
 import { DatamineController } from './controllers/datamine.controller';
 import { UserController } from './controllers/user.controller';
 import { BnetUserService } from './services/bnetuser.service';
+import { JwtService } from './services/jwt.service';
 
 @Module({
     imports: [
@@ -36,6 +37,7 @@ import { BnetUserService } from './services/bnetuser.service';
         HaloReachFileShareService,
         Halo3PopulationService,
         BnetUserService,
+        JwtService,
         { provide: ILoggerSymbol, useClass: ConsoleLogger },
         ShutdownObserver,
     ],

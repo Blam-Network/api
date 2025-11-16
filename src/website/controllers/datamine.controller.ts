@@ -211,7 +211,7 @@ export class DatamineController {
         const events = await this.prisma.datamine_event.findMany({
             where,
             orderBy: {
-                event_date: 'asc',
+                event_index: 'asc',
             },
             include: {
                 parameters: {

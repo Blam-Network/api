@@ -82,8 +82,6 @@ export class DatamineUploadService {
             return;
         }
 
-        this.logger.debug(`[DatamineUpload] got datamine file for session ${datamineFile.header.sessionid}`);
-
         try {
             await this.prisma.$transaction(async (tx) => {
                 // Helper function to convert BLF parameter type to Prisma enum
@@ -102,9 +100,18 @@ export class DatamineUploadService {
                     }
                 };
 
-                // Try to create session - unique constraint on (sessionid, session_start_date) prevents duplicates
-                let session;
-                try {
+                // Upsert session - unique constraint on (sessionid, session_start_date)
+                // Find existing session first, or create if it doesn't exist
+                let session = await tx.datamine_session.findUnique({
+                    where: {
+                        sessionid_session_start_date: {
+                            sessionid: datamineFile.header.sessionid,
+                            session_start_date: datamineFile.header.session_start_date,
+                        },
+                    },
+                });
+
+                if (!session) {
                     session = await tx.datamine_session.create({
                         data: {
                             sessionid: datamineFile.header.sessionid,
@@ -113,34 +120,40 @@ export class DatamineUploadService {
                             systemid: datamineFile.header.systemid,
                             title: datamineFile.header.title,
                             session_start_date: datamineFile.header.session_start_date,
-                        }
+                        },
                     });
-                } catch (createError: any) {
-                    // Check if it's a unique constraint violation (P2002)
-                    if (createError?.code === 'P2002' && 
-                        createError?.meta?.target?.includes('sessionid') && 
-                        createError?.meta?.target?.includes('session_start_date')) {
-                        this.logger.debug(`[DatamineUpload] Session already exists (unique constraint), skipping.`);
-                        return;
-                    }
-                    throw createError;
                 }
 
-                // Batch create all events at once
+                // Prepare events data
+                const eventsData = datamineFile.events.map((event) => ({
+                    event_index: event.header.event_index,
+                    session_id: session.id,
+                    priority: event.header.priority,
+                    game_instance: event.header.game_info.game_instance.toString(),
+                    map: event.header.game_info.map,
+                    event_date: event.header.event_date,
+                    message: BLF.common.get_formatted_event_string(event) || `<invalid message string: ${event.header.event_name}>`,
+                    categories: event.categories,
+                }));
+
+                // Insert events - skip duplicates
                 await tx.datamine_event.createMany({
-                    data: datamineFile.events.map((event) => ({
-                        event_index: event.header.event_index,
-                        session_id: session.id,
-                        priority: event.header.priority,
-                        game_instance: event.header.game_info.game_instance.toString(),
-                        map: event.header.game_info.map,
-                        event_date: event.header.event_date,
-                        message: BLF.common.get_formatted_event_string(event) || `<invalid message string: ${event.header.event_name}>`,
-                        categories: event.categories,
-                    }))
+                    data: eventsData,
+                    skipDuplicates: true,
                 });
 
-                // Batch create all parameters at once
+                // Delete existing parameters for these events, then recreate them all
+                const eventIndices = eventsData.map(e => e.event_index);
+                if (eventIndices.length > 0) {
+                    await tx.datamine_event_parameter.deleteMany({
+                        where: {
+                            session_id: session.id,
+                            event_index: { in: eventIndices },
+                        },
+                    });
+                }
+
+                // Create parameters for all events
                 const allParameters = datamineFile.events.flatMap((event) => {
                     return event.parameters
                         .filter(parameter => parameter.name)

@@ -75,7 +75,8 @@ export class UploadServerController {
       this.datamineUploadService.handleUpload(upload),
     ]);
 
-    return 'ok'
+    return;
+    // return 'ok'
   }
 
   @ApiOperation({

@@ -70,13 +70,9 @@ export class DatamineUploadService {
     public handleUpload = async (
         upload: Express.Multer.File
     ) => {
-        this.logger.debug(`[DatamineUpload] Handling upload of type ${upload.mimetype}`);
         if (!this.isDatamineUpload(upload)) {
-            this.logger.debug(`[DatamineUpload] Upload is not a datamine file, skipping.`);
             return;
         }
-
-        this.logger.debug(`[DatamineUpload] Upload is a datamine file, reading.`);
 
         // datamine files are ZIPs, so we need to unzip
         const datamineFile = await readDatamineZip(upload.buffer);
@@ -86,7 +82,7 @@ export class DatamineUploadService {
             return;
         }
 
-        this.logger.debug(`[DatamineUpload] Datamine file read successfully.`);
+        this.logger.debug(`[DatamineUpload] got datamine file for session ${datamineFile.header.sessionid}`);
 
         try {
             await this.prisma.$transaction(async (tx) => {

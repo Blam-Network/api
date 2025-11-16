@@ -58,7 +58,7 @@ export class UploadServerController {
       this.halo3UploadService.handleUpload(upload),
     ]);
 
-    return 'ok';
+    return 'DONE';
   }
 
   @ApiOperation({
@@ -96,6 +96,6 @@ export class UploadServerController {
       this.halo3UploadService.handleUpload(upload);
     })
 
-    res.status(200).send('');
+    return 'DONE';
   }
 }

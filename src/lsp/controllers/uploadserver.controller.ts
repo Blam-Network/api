@@ -75,8 +75,7 @@ export class UploadServerController {
       this.datamineUploadService.handleUpload(upload),
     ]);
 
-    return;
-    // return 'ok'
+    return 'DONE'
   }
 
   @ApiOperation({
@@ -107,7 +106,7 @@ export class UploadServerController {
     @UploadedFiles() uploads: Express.Multer.File[] | undefined,
   ) {
     // sometimes this endpoint is just used to post headers.
-    if (!uploads) return 'ok';
+    if (!uploads) return 'DONE';
 
     // This endpoint wants a swift response,
     // so we don't await this and respond while processing the uploaded data.
@@ -122,7 +121,7 @@ export class UploadServerController {
       ])
     ));
 
-    return 'ok';
+    return 'DONE';
   }
 
   @ApiOperation({

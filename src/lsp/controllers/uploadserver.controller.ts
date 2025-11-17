@@ -26,6 +26,8 @@ import { createReadStream, existsSync } from 'fs';
 import { stat } from 'fs/promises';
 import { DatamineUploadService } from '../services/datamineupload.service';
 
+const HALO_UPLOAD_SUCCESS_RESPONSE = 'DONE';
+
 @ApiTags('Upload Server')
 @Controller('/upload_server')
 export class UploadServerController {
@@ -40,6 +42,19 @@ export class UploadServerController {
   @ApiOperation({
     summary: 'Upload File',
     description: "Use to upload typically a single file to the LSP. These are usually BLF files and include a mime-type describing their contents, like 'x-halo3-multi'.",
+    responses: {
+      '200': {
+        content: {
+          'text/plain': {
+            schema: {
+              type: 'string',
+              example: HALO_UPLOAD_SUCCESS_RESPONSE,
+            },
+          },
+        },
+        description: 'File uploaded successfully',
+      },
+    },
   })
   @ApiTags('Halo 3')
   @ApiTags('Halo 3: ODST')
@@ -60,7 +75,7 @@ export class UploadServerController {
   @UseInterceptors(FileInterceptor('upload'))
   async uploadStats(
     @UploadedFile() upload: Express.Multer.File | undefined,
-  ) {
+  ): Promise<typeof HALO_UPLOAD_SUCCESS_RESPONSE> {
     if (!upload) throw new BadRequestException();
 
     this.uploadService.handleDebug(upload);
@@ -75,12 +90,25 @@ export class UploadServerController {
       this.datamineUploadService.handleUpload(upload),
     ]);
 
-    return 'DONE'
+    return HALO_UPLOAD_SUCCESS_RESPONSE;
   }
 
   @ApiOperation({
     summary: 'Upload Files',
     description: "Use to upload typically multiple crash files, these may have mime types like 'x-halo3-upload'.",
+    responses: {
+      '200': {
+        content: {
+          'text/plain': {
+            schema: {
+              type: 'string',
+              example: HALO_UPLOAD_SUCCESS_RESPONSE,
+            },
+          },
+        },
+        description: 'Files uploaded successfully',
+      },
+    },
   })
   @ApiTags('Halo 3')
   @ApiTags('Halo 3: ODST')
@@ -104,9 +132,9 @@ export class UploadServerController {
   @UseInterceptors(FileInterceptor('upload'))
   async uploadDump(
     @UploadedFiles() uploads: Express.Multer.File[] | undefined,
-  ) {
+  ): Promise<typeof HALO_UPLOAD_SUCCESS_RESPONSE> {
     // sometimes this endpoint is just used to post headers.
-    if (!uploads) return 'DONE';
+    if (!uploads) return HALO_UPLOAD_SUCCESS_RESPONSE;
 
     // This endpoint wants a swift response,
     // so we don't await this and respond while processing the uploaded data.
@@ -121,7 +149,7 @@ export class UploadServerController {
       ])
     ));
 
-    return 'DONE';
+    return HALO_UPLOAD_SUCCESS_RESPONSE;
   }
 
   @ApiOperation({

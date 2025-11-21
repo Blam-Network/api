@@ -465,7 +465,7 @@ export class AresFileShareService {
         downloaderXuid: BigInt,
         shareXuid: BigInt,
         slot: number,
-        serverId: string,
+        serverId: string | undefined,
         startPosition: number,
         fromAutoqueue: number,
         view: number,

@@ -15,6 +15,7 @@ import { Response } from 'express';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { AresUploadService } from '../ares/upload.service';
 import { UploadService } from '../services/upload.service';
+import { DatamineUploadService } from 'src/lsp/services/datamineupload.service';
 
 @ApiTags('Upload Server')
 @Controller('/upload_server')
@@ -23,6 +24,7 @@ export class UploadServerController {
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
     private readonly uploadService: UploadService,
     private readonly halo3UploadService: AresUploadService,
+    private readonly datamineUploadService: DatamineUploadService,
   ) {}
 
   @ApiOperation({
@@ -56,6 +58,7 @@ export class UploadServerController {
 
       // TITLES:
       this.halo3UploadService.handleUpload(upload),
+      this.datamineUploadService.handleUpload(upload),
     ]);
 
     return 'DONE';

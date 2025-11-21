@@ -95,7 +95,7 @@ export class TitleStorageController {
     style: 'simple',
     allowReserved: true,
   })
-  @Get('/ares/untracked/:username/:branch/*path')
+  @Get('/untracked/:username/:branch/*path')
   async getAresUntrackedStaticFile(
     @Param('username') username: string,
     @Param('branch') branch: string,

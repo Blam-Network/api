@@ -16,6 +16,7 @@ import { AresMachineService } from './ares/machine.service';
 import { GameApiController } from './controllers/gameapi.controller';
 import { AresPopulationService } from './ares/population.service';
 import { AresFileShareService } from './ares/fileshare.service';
+import { DatamineUploadService } from 'src/lsp/services/datamineupload.service';
 
 @Module({
     imports: [
@@ -42,6 +43,7 @@ import { AresFileShareService } from './ares/fileshare.service';
         DiscordWebhookService,
         { provide: ILoggerSymbol, useFactory: () => new ConsoleLogger({prefix: 'ARES'}) },
         ShutdownObserver,
+        DatamineUploadService,
     ],
 })
 export class AresLSPModule implements NestModule {

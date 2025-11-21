@@ -23,30 +23,32 @@ model ares_file_share {
   @@schema("ares")
 }
 
-model ares_file_share_slot {
-  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  share_id Decimal @db.Decimal(20, 0)
-  slot     Int     @db.SmallInt
+model ares_file_share_file {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  share_id    Decimal @db.Decimal(20, 0)
+  slot        Int     @db.SmallInt
+  is_uploaded Boolean @default(false)
 
   compressed_size Int
 
-  unique_id                Decimal   @db.Decimal(20, 0)
-  name                     String?   @db.VarChar(16)
-  description              String?   @db.VarChar(128)
-  author                   String?   @db.VarChar(16)
-  file_type                Int
-  author_is_xuid_online    Boolean?
-  author_id                Decimal?  @db.Decimal(20, 0)
-  size_in_bytes            Decimal   @db.Decimal(20, 0)
-  date                     DateTime? @db.Timestamp(6)
-  length_seconds           Int?
-  map_id                   Int?
-  game_engine_type         Int?
-  campaign_id              Int?
-  campaign_difficulty      Int?
-  campaign_insertion_point Int?      @db.SmallInt
-  hopper_id                Int?      @db.SmallInt
-  game_id                  Decimal?  @db.Decimal(20, 0)
+  unique_id                 Decimal                     @db.Decimal(20, 0)
+  name                      String?                     @db.VarChar(16)
+  description               String?                     @db.VarChar(128)
+  author                    String?                     @db.VarChar(16)
+  file_type                 Int
+  author_is_xuid_online     Boolean?
+  author_id                 Decimal?                    @db.Decimal(20, 0)
+  size_in_bytes             Decimal                     @db.Decimal(20, 0)
+  date                      DateTime?                   @db.Timestamp(6)
+  length_seconds            Int?
+  map_id                    Int?
+  game_engine_type          Int?
+  campaign_id               Int?
+  campaign_difficulty       Int?
+  campaign_insertion_point  Int?                        @db.SmallInt
+  hopper_id                 Int?                        @db.SmallInt
+  game_id                   Decimal?                    @db.Decimal(20, 0)
+  ares_file_share_transfer  ares_file_share_transfer[]
 
   @@unique([share_id, slot], map: "unique_share_id_slot")
   @@map("file_share_slot")
@@ -678,5 +680,16 @@ model ares_service_record {
 
   @@index([player_name], map: "idx_service_record_player_name")
   @@map("service_record")
+  @@schema("ares")
+}
+
+model ares_file_share_transfer {
+  player_xuid Decimal @db.Decimal(20, 0)
+  file_id     String  @db.Uuid
+
+  file ares_file_share_file @relation(fields: [file_id], references: [id], onDelete: Cascade)
+
+  @@unique([player_xuid, file_id])
+  @@map("file_share_transfer")
   @@schema("ares")
 }

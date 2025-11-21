@@ -2,10 +2,9 @@ import { BadRequestException, Inject, Injectable, InternalServerErrorException, 
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blam-network/blf_lsp'
 import { PrismaService } from "src/db/prisma.service";
-import { HALO3_BUILD_NUMBER, HALO3_ODST_BUILD_NUMBER, HALO3_TU1_BUILD_NUMBER, HALO3_TU2_BUILD_NUMBER } from "./constants";
 import { access, mkdir, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
-import { FILESHARE_FOLDER, SCREENSHOTS_FOLDER } from "../../constants";
+import { FILESHARE_FOLDER, SCREENSHOTS_FOLDER, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA } from "../../constants";
 import dedent from "dedent";
 import { z } from "zod";
 import { URLSearchParams } from "url";
@@ -13,24 +12,18 @@ import { h32 } from 'xxhashjs';
 import { createReadStream } from "fs";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { xuidToHexString } from "src/xbox/xuid";
+import { UploadService } from "../services/upload.service";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 
 const ARES_FILESHARE_FOLDER = join(FILESHARE_FOLDER, 'ares');
 
-const MEGABYTE = 1024 * 1024;
-const UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA = 25 * MEGABYTE;
-const UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA = 6;
 const DOWNLOAD_ENDPOINT = '/gameapi/FilesStartDownload.ashx';
 
 const HALO3_SHAREDFILE_MIME = 'application/x-halo3sharedfile'
 
-const ENABLE_DEBUG_MIME = true;
+const ENABLE_DEBUG_MIME = false;
 const DEBUG_MIME = HALO3_SHAREDFILE_MIME
-
-const OFFER_IDS = {
-    HALO3_BUNGIE_PRO: 0x4D5307E60CCF002n,
-}
 
 export const FileShareSlotFileTypeSchema = z.enum([
     'GameVariantCtf',
@@ -60,7 +53,7 @@ type PartialFileShareSlot = {
     number: number,
     id: string,
     state: 'Partial'
-    sizeBytes: number
+    sizeBytes: BigInt
 }
 
 type ReadyFileShareSlot = {
@@ -74,7 +67,7 @@ type ReadyFileShareSlot = {
     description: string,
     sizeBytes: bigint,
     fileType: FileShareSlotFileType,
-    timestampSeconds: bigint,
+    timestampSeconds: number,
     lengthSeconds: number,
     campaignId: number,
     mapId: number,
@@ -125,6 +118,7 @@ export class AresFileShareService {
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly prisma: PrismaService,
         private readonly discordWebhookService: DiscordWebhookService,
+        private readonly uploadService: UploadService,
     ) { }
 
     private applyDebugMime = (file: Express.Multer.File) => {
@@ -158,8 +152,8 @@ export class AresFileShareService {
         ) {
             const hasher = h32().init(0);
             hasher.update(JSON.stringify({
-                quotaSlots: fileShare?.quota_slots || UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
-                quotaBytes: fileShare?.quota_bytes || UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+                quotaSlots: fileShare?.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                quotaBytes: fileShare?.quota_bytes ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
                 message: fileShare?.message
             }))
     
@@ -226,7 +220,7 @@ export class AresFileShareService {
                 case 'Ready':
                     return dedent(`
                         StartSlot: ${slot.number}
-                          Guid: ${slot.id}
+                          Guid: ${slot.id.replaceAll('-', '')}
                           State: ${slot.state}
                           Name: ${slot.name}
                           Description: ${slot.description}
@@ -235,7 +229,7 @@ export class AresFileShareService {
                           AuthorXuidIsOnline: ${slot.authorXuidIsOnline ? 1 : 0}
                           SizeBytes: ${slot.sizeBytes}
                           FileType: ${slot.fileType}
-                          SecondsPast19700101: ${slot.timestampSeconds}
+                          SecondsPast19700101: ${slot.timestampSeconds.toString()}
                           LengthSeconds: ${slot.lengthSeconds}
                           CampaignID: ${slot.campaignId}
                           MapID: ${slot.mapId}
@@ -247,7 +241,7 @@ export class AresFileShareService {
                 case 'Partial':
                     return dedent(`
                         StartSlot: ${slot.number}
-                          Guid: ${slot.id}
+                          Guid: ${slot.id.replaceAll('-', '')}
                           State: ${slot.state}
                           SizeBytes: ${slot.sizeBytes}
                         EndSlot
@@ -256,7 +250,7 @@ export class AresFileShareService {
                 default:
                     return dedent(`
                         StartSlot: ${slot.number}
-                          Guid: ${slot.id}
+                          Guid: ${slot.id.replaceAll('-', '')}
                           State: ${slot.state}
                         EndSlot
                     `)
@@ -266,12 +260,12 @@ export class AresFileShareService {
         const shareResponse = dedent.withOptions({
             trimWhitespace: false,
         })(`\
-                QuotaBytes: ${options.quotaBytes || 0}
-                QuotaSlots: ${options.quotaSlots || 0}
-                SlotCount: ${options.slots.length || 0}
-                VisibleSlots: ${options.visibleSlots || 0}
-                SubscriptionHash: ${options.subscriptionHash || 0}
-                Message: ${options.message || ''}
+                QuotaBytes: ${options.quotaBytes ?? 0}
+                QuotaSlots: ${options.quotaSlots ?? 0}
+                SlotCount: ${options.slots.length ?? 0}
+                VisibleSlots: ${options.visibleSlots ?? 0}
+                SubscriptionHash: ${options.subscriptionHash}
+                Message: ${options.message ?? ''}
             `)
 
         return `${shareResponse}${slotsResponse}\0`;
@@ -296,7 +290,7 @@ export class AresFileShareService {
                 trimWhitespace: false,
             })(`\
                 Status: ${subscription.status}
-                NextOfferID: ${subscription.nextOfferId || 0}
+                NextOfferID: ${subscription.nextOfferId ?? 0}
                 HQButton: ${subscription.hqButton}
                 HQMessage: ${subscription.hqMessage}
                 FileShareButton: ${subscription.fileShareButton}
@@ -306,7 +300,7 @@ export class AresFileShareService {
                 CurrentlySubscribedMessage: ${subscription.currentlySubscribedMessage}
                 OverQuotaMessage: ${subscription.overQuotaMessage}
                 SubscriptionSecondsPast19700101: ${subscription.subscriptionEndTimestamp}
-                SubscriptionHash: ${subscription.subscriptionHash}
+                SubscriptionHash: ${subscription.subscriptionHash || 1}
             `);
         }
 
@@ -346,14 +340,20 @@ export class AresFileShareService {
         const fileShare = await this.getFileShare(viewerXuid, shareXuid);
 
         if (!fileShare) {
-            throw new NotFoundException("No file share.")
+            return this.fileCatalogResponse({
+                quotaBytes: HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+                quotaSlots: HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                slots: [],
+                visibleSlots: HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                subscriptionHash: 0,
+            })
         }
 
         let slots: FileShareSlot[] = [];
 
-        const fileShareSlots = await this.prisma.ares_file_share_slot.findMany({
+        const fileShareSlots = await this.prisma.ares_file_share_file.findMany({
             where: {
-                share_id: shareXuid.toString()
+                share_id: shareXuid.toString(),
             }
         });
 
@@ -361,11 +361,22 @@ export class AresFileShareService {
             const fileshareFolder = join(
                 process.cwd(),
                 ARES_FILESHARE_FOLDER,
-                shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+                xuidToHexString(shareXuid),
             );
 
             await Promise.all(fileShareSlots.map(async slot => {
                 try {
+                    if (!slot.is_uploaded) {
+                        slots.push({
+                            number: slot.slot,
+                            state: 'Partial',
+                            id: slot.id,
+                            sizeBytes: BigInt(String(slot.compressed_size))
+                        })
+
+                        return
+                    }
+
                     await access(join(fileshareFolder, slot.slot.toString()))
 
                     // These fields are unavailable for some files still being uploaded.
@@ -391,9 +402,9 @@ export class AresFileShareService {
                             author: slot.author,
                             authorXuid: BigInt(String(slot.author_id)),
                             authorXuidIsOnline: slot.author_is_xuid_online,
-                            sizeBytes: BigInt(String(slot.compressed_size)),
+                            sizeBytes: BigInt(String(slot.size_in_bytes)),
                             fileType: Object.values(FileShareSlotFileTypeSchema.Values)[slot.file_type - 1],
-                            timestampSeconds: BigInt(String(Number(slot.date))),
+                            timestampSeconds: Number(slot.date) / 1000,
                             lengthSeconds: slot.length_seconds,
                             campaignDifficulty: slot.campaign_difficulty,
                             campaignId: slot.campaign_id,
@@ -434,15 +445,15 @@ export class AresFileShareService {
 
         // If the user has been downgraded, we allow their visible slots to exceed quota.
         // This allows them to delete over quota slots.
-        let visibleSlots = fileShare.quota_slots || UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
+        let visibleSlots = fileShare.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
         let highestSlot = fileShareSlots.sort((left, right) => left.slot - right.slot)[0]
         if (highestSlot && highestSlot.slot > visibleSlots) {
             visibleSlots = highestSlot.slot;
         }
 
         return this.fileCatalogResponse({
-            quotaBytes: fileShare.quota_bytes || UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
-            quotaSlots: fileShare.quota_slots || UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+            quotaBytes: fileShare.quota_bytes ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+            quotaSlots: fileShare.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
             visibleSlots,
             subscriptionHash: subscriptionHash.currentHash,
             message: fileShare.message ?? undefined,
@@ -464,7 +475,7 @@ export class AresFileShareService {
             return new ServiceUnavailableException();
         }
 
-        const fileShareSlot = await this.prisma.ares_file_share_slot.findUnique({
+        const fileShareSlot = await this.prisma.ares_file_share_file.findUnique({
             where: {
                 share_id_slot: {
                     share_id: shareXuid.toString(),
@@ -482,7 +493,7 @@ export class AresFileShareService {
             shareId: xuidToHexString(shareXuid),
             slot: slot.toString(),
             startPosition: startPosition.toString(),
-            serverId: serverId.replace('-', ''),
+            serverId: fileShareSlot.id.replaceAll('-', ''),
         })
 
         return dedent(`
@@ -506,9 +517,17 @@ export class AresFileShareService {
         const filePath = join(
             process.cwd(),
             ARES_FILESHARE_FOLDER,
-            shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(shareXuid),
             slot.toString(),
         );
+
+        // if this download started from an active transfer, delete it.
+        await this.prisma.ares_file_share_transfer.deleteMany({
+            where: {
+                player_xuid: downloaderXuid.toString(),
+                file_id: serverId,
+            }
+        })
 
         try {
             await access(filePath);
@@ -537,7 +556,7 @@ export class AresFileShareService {
         const filePath = join(
             process.cwd(),
             ARES_FILESHARE_FOLDER,
-            shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(shareXuid),
             slot.toString(),
         );
 
@@ -556,7 +575,7 @@ export class AresFileShareService {
             return this.fileshareSubscriptionResponse({
                 status: !subscriptionHash.isUnsubscribing ? 'Subscribed' : 'Expired',
                 subscriptionHash: subscriptionHash.currentHash,
-                nextOfferId: OFFER_IDS.HALO3_BUNGIE_PRO,
+                nextOfferId: 0n,
                 hqButton: 'Bungie Pro',
                 hqMessage: 'Expand your file share with Bungie Pro!',
                 fileShareButton: 'Bungie Pro',
@@ -578,32 +597,36 @@ export class AresFileShareService {
         uploaderXuid: BigInt,
         shareXuid: BigInt,
         slot: number,
-        uniqueId: number,
+        uniqueId: BigInt,
         fileType: number,
         uncompressedSize: number,
         compressedSize: number,
-    ) => {
+    ): Promise<string> => {
         if (!IS_FILESHARE_ENABLED) {
-            return new ServiceUnavailableException();
+            this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload into share but fileshare is disabled.`);
+            throw new ServiceUnavailableException();
         }
 
         if (uploaderXuid !== shareXuid) {
+            this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload into share ${shareXuid}`);
             throw new UnauthorizedException("Can't upload to someone elses file share.")
         }
 
         // if the slot is already full they can't upload without first deleting.
-        if (await this.prisma.ares_file_share_slot.findUnique({ where: { share_id_slot: { share_id: shareXuid.toString(), slot } } })) {
+        if (await this.prisma.ares_file_share_file.findUnique({ where: { share_id_slot: { share_id: shareXuid.toString(), slot }, is_uploaded: true } })) {
+            this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload into filled slot ${slot}`);
             throw new BadRequestException('File share slot already full!');
         }
 
         // if the fileshare is full or there isn't enough space for this file, reject.
         const fileshare = await this.getFileShare(uploaderXuid, shareXuid);
-        const quotaSlots = fileshare?.quota_slots ?? UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
+        const quotaSlots = fileshare?.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA;
         if (slot > quotaSlots) {
+            this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot quota.`);
             throw new BadRequestException("This slot is unavailable.")
         }
 
-        const usedSlots = await this.prisma.ares_file_share_slot.findMany({
+        const usedSlots = await this.prisma.ares_file_share_file.findMany({
             where: {
                 share_id: shareXuid.toString()
             },
@@ -611,26 +634,38 @@ export class AresFileShareService {
                 compressed_size: true,
             }
         })
-        const quotaSpace = fileshare?.quota_bytes ?? UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA;
+        const quotaSpace = fileshare?.quota_bytes ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA;
         const usedSpace = usedSlots.map(slot => slot.compressed_size).reduce((acc, cur) => acc + cur, 0)
         if (usedSpace + compressedSize > quotaSpace) {
+            this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot byte quota.`);
             throw new BadRequestException("This file is too large to store.");
         }
 
-        const fileShareSlot = await this.prisma.ares_file_share_slot.create({
-            data: {
-                share_id: shareXuid.toString(),
-                slot,
-                compressed_size: compressedSize,
-                file_type: fileType,
-                size_in_bytes: uncompressedSize,
-                unique_id: uniqueId,
-            }
+        return await this.prisma.$transaction(async (tx) => {
+            await tx.ares_file_share_file.deleteMany({
+                where: {
+                    share_id: shareXuid.toString(),
+                    slot,
+                    is_uploaded: false,
+                }
+            })
+            const fileShareSlot = await tx.ares_file_share_file.create({
+                data: {
+                    share_id: shareXuid.toString(),
+                    slot,
+                    compressed_size: compressedSize,
+                    file_type: fileType,
+                    size_in_bytes: uncompressedSize,
+                    unique_id: uniqueId.toString(),
+                }
+            });
+
+            this.logger.log(`[FileShare] User ${uploaderXuid} started uploading into slot ${slot}`);
+
+            return fileShareSlot.id;
         });
 
-        this.logger.log(`[FileShare] User ${uploaderXuid} started uploading into slot ${slot}`);
 
-        return fileShareSlot.id.replaceAll('-', '');
     }
 
     public deleteFile = async (userXuid: BigInt, shareXuid: BigInt, slot: number, serverId: string) => {
@@ -643,7 +678,19 @@ export class AresFileShareService {
             throw new UnauthorizedException();
         }
 
-        await this.prisma.ares_file_share_slot.delete({
+        if (!await this.prisma.ares_file_share_file.findUnique( {
+            where: {
+                share_id_slot: {
+                    share_id: shareXuid.toString(),
+                    slot
+                }
+            }
+        })) {
+            // Sometimes the game send delete requests twice, so we need to handle that gracefully.
+            return;
+        }
+
+        await this.prisma.ares_file_share_file.delete({
             where: {
                 share_id_slot: {
                     share_id: shareXuid.toString(),
@@ -655,7 +702,7 @@ export class AresFileShareService {
         const filePath = join(
             process.cwd(),
             ARES_FILESHARE_FOLDER,
-            shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(shareXuid),
             slot.toString(),
         )
 
@@ -664,8 +711,8 @@ export class AresFileShareService {
 
     public handleFileUpload = async (
         file: Express.Multer.File, 
-        uploaderXuid: number, 
-        shareXuid: number, 
+        uploaderXuid: BigInt, 
+        shareXuid: BigInt, 
         slot: number, 
         serverId: string
     ) => {
@@ -676,7 +723,7 @@ export class AresFileShareService {
         this.applyDebugMime(file);
 
         if (file.mimetype !== HALO3_SHAREDFILE_MIME) {
-            throw new BadRequestException('Invalid filetype.')
+            throw new BadRequestException(`Invalid filetype ${file.mimetype}`)
         }
 
         if (uploaderXuid !== shareXuid) {
@@ -684,27 +731,22 @@ export class AresFileShareService {
         }
 
         const contentHeader = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_content_header(file.buffer);
-        if (!contentHeader) throw new BadRequestException('No header found for upload.');
-
-        if (contentHeader.build_number !== HALO3_BUILD_NUMBER
-            && contentHeader.build_number !== HALO3_TU1_BUILD_NUMBER
-            && contentHeader.build_number !== HALO3_TU2_BUILD_NUMBER
-            && contentHeader.build_number !== HALO3_ODST_BUILD_NUMBER) {
-            this.logger.warn(`[FileShare] Got a file with build number ${contentHeader.build_number}, rejecting.`)
-            throw new BadRequestException("Bad Version: The file is unsupported.")
+        if (!contentHeader) { 
+            await this.uploadService.storeUploadedFile(file);
+            throw new BadRequestException('No header found for upload.'); 
         }
 
         const destinationFolder = join(
             process.cwd(),
             ARES_FILESHARE_FOLDER,
-            shareXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(shareXuid),
         );
         await mkdir(destinationFolder, { recursive: true })
         await writeFile(join(
             destinationFolder,
             slot.toString(),
         ), file.buffer, { flag: 'a+' });
-        await this.prisma.ares_file_share_slot.update({
+        await this.prisma.ares_file_share_file.update({
             where: {
                 id: serverId,
             },
@@ -712,6 +754,7 @@ export class AresFileShareService {
                 share_id: shareXuid.toString(),
                 slot,
                 compressed_size: file.buffer.length,
+                is_uploaded: true,
 
                 author: contentHeader.metadata.author,
                 author_id: contentHeader.metadata.author_id.toString(),
@@ -735,7 +778,7 @@ export class AresFileShareService {
 
     public handleBlindFileUpload = async (
         file: Express.Multer.File, 
-        uploaderXuid: number, 
+        uploaderXuid: BigInt, 
         gameId: bigint,
     ) => {
         if (!IS_FILESHARE_ENABLED) {
@@ -745,55 +788,74 @@ export class AresFileShareService {
         this.applyDebugMime(file);
 
         if (file.mimetype !== HALO3_SHAREDFILE_MIME) {
+            this.logger.warn(`[FileShare] Got a file with a bad mime ${file.mimetype}, rejecting.`)
             throw new BadRequestException('Invalid filetype.')
         }
 
-        const screenshot = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_blind_screenshot(file.buffer);
-        if (!screenshot) throw new BadRequestException('No header found for upload.');
+        let chdr: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_content_header | undefined = undefined;
+        let scnc: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_screenshot_camera | undefined = undefined;
+        let scnd: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_screenshot_data | undefined = undefined;
 
-        if (screenshot.chdr.build_number !== HALO3_BUILD_NUMBER
-            && screenshot.chdr.build_number !== HALO3_TU1_BUILD_NUMBER
-            && screenshot.chdr.build_number !== HALO3_TU2_BUILD_NUMBER
-        ) {
-            this.logger.warn(`[FileShare] Got a file with build number ${screenshot.chdr.build_number}, rejecting.`)
-            throw new BadRequestException("Bad Version: The file is unsupported.")
+        const screenshot = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_blind_screenshot(file.buffer);
+
+        chdr = (screenshot?.chdr) ?? undefined;
+        scnc = screenshot?.scnc ?? undefined;
+        scnd = (screenshot?.scnd) ?? undefined;
+
+        if (!chdr || !scnd || !scnc) { 
+            await this.uploadService.storeUploadedFile(file);
+            throw new BadRequestException('Unsupported screenshot file.'); 
         }
 
         const destinationFolder = join(
             process.cwd(),
             SCREENSHOTS_FOLDER,
             'ares',
-            uploaderXuid.toString(16).toUpperCase().padStart(16, '0'),
+            xuidToHexString(uploaderXuid),
         );
         await mkdir(destinationFolder, { recursive: true })
+
+        if (await this.prisma.ares_blind_screenshot.findUnique({
+            where: {
+                unique_id_date_game_id: {
+                  unique_id: chdr.metadata.unique_id.toString(),
+                  date: chdr.metadata.date,
+                  game_id: gameId.toString()
+                }
+            }
+        })) {
+            this.logger.log("Ignoring duplicate screenshot.")
+            return;
+        }
+
         const screenshotData = await this.prisma.ares_blind_screenshot.create({
             data: {
-                author: screenshot.chdr.metadata.author,
+                author: chdr.metadata.author,
                 author_id: uploaderXuid.toString(),
-                author_is_xuid_online: screenshot.chdr.metadata.author_is_xuid_online,
-                campaign_difficulty: screenshot.chdr.metadata.campaign_difficulty,
-                campaign_id: screenshot.chdr.metadata.campaign_id,
-                date: screenshot.chdr.metadata.date,
-                description: screenshot.chdr.metadata.description,
-                file_type: screenshot.chdr.metadata.file_type,
-                game_engine_type: screenshot.chdr.metadata.game_engine_type,
+                author_is_xuid_online: chdr.metadata.author_is_xuid_online,
+                campaign_difficulty: chdr.metadata.campaign_difficulty,
+                campaign_id: chdr.metadata.campaign_id,
+                date: chdr.metadata.date,
+                description: chdr.metadata.description,
+                file_type: chdr.metadata.file_type,
+                game_engine_type: chdr.metadata.game_engine_type,
                 game_id: gameId.toString(),
-                length_seconds: screenshot.chdr.metadata.length_seconds,
-                map_id: screenshot.chdr.metadata.map_id,
-                name: screenshot.chdr.metadata.name,
-                size_in_bytes: screenshot.chdr.metadata.size_in_bytes.toString(),
-                unique_id: screenshot.chdr.metadata.unique_id.toString(),
-                hopper_id: screenshot.chdr.metadata.hopper_id,
-                game_tick: screenshot.scnc.game_tick,
-                film_tick: screenshot.scnc.film_tick,
-                jpeg_length: screenshot.scnc.jpeg_data_length,
-                pixel_width: screenshot.scnc.camera.camera.render_pixel_bounds.x.upper,
-                pixel_height: screenshot.scnc.camera.camera.render_pixel_bounds.y.upper,
+                length_seconds: chdr.metadata.length_seconds,
+                map_id: chdr.metadata.map_id,
+                name: chdr.metadata.name,
+                size_in_bytes: chdr.metadata.size_in_bytes.toString(),
+                unique_id: chdr.metadata.unique_id.toString(),
+                hopper_id: chdr.metadata.hopper_id,
+                game_tick: scnc.game_tick,
+                film_tick: scnc.film_tick,
+                jpeg_length: scnc.jpeg_data_length,
+                pixel_width: scnc.camera.camera.render_pixel_bounds.x.upper,
+                pixel_height: scnc.camera.camera.render_pixel_bounds.y.upper,
                 camera_position: [
-                    screenshot.scnc.camera.camera.position.x,
-                    screenshot.scnc.camera.camera.position.y,
-                    screenshot.scnc.camera.camera.position.z,
-                ]
+                    scnc.camera.camera.position.x,
+                    scnc.camera.camera.position.y,
+                    scnc.camera.camera.position.z,
+                ] 
             },
             select: {
                 id: true,
@@ -801,6 +863,7 @@ export class AresFileShareService {
         });
         
         if (!screenshotData) {
+            this.logger.warn(`[FileShare] Failed to save screenshot to DB.`)
             throw new InternalServerErrorException('Failed to save screenshot.');
         }
 
@@ -811,10 +874,10 @@ export class AresFileShareService {
 
         // Try to send a discord message, but dont wait on it.
         this.discordWebhookService.sendAresScreenshot({
-            authorXuid: screenshot.chdr.metadata.author_id,
-            authorName: screenshot.chdr.metadata.author,
-            name: screenshot.chdr.metadata.name,
-            description: screenshot.chdr.metadata.description,
+            authorXuid: chdr.metadata.author_id,
+            authorName: chdr.metadata.author,
+            name: chdr.metadata.name,
+            description: chdr.metadata.description,
             imageUrl: `https://halo3.blam.network/ares/screenshots/${screenshotData.id}/view`
         }).catch((err) => this.logger.error(`Failed to send screenshot to discord: ${err}`))
     }

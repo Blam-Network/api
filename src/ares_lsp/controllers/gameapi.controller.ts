@@ -13,6 +13,8 @@ import {
   NotImplementedException,
   ParseBoolPipe,
   BadRequestException,
+  HttpCode,
+  Req,
 } from '@nestjs/common';
 import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
@@ -20,13 +22,14 @@ import { AresUserService } from '../ares/user.service';
 import { EXAMPLE_XUID } from '../../constants';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from '../services/upload.service';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { ParseXUIDPipe } from '../../xbox/parse-xuid.pipe';
 import { AresFileShareService } from '../ares/fileshare.service';
 import { hexStringXuidSchema } from 'src/xbox/xuid';
 import { z } from 'zod';
 import { ParseBigIntPipe } from 'src/utils/parse-big-int.pipe';
 import { UuidWithoutDashesPipe } from 'src/utils/uuid-without-dashes.pipe';
+import { dashedUuidFromHex } from 'src/utils/uuid';
 
 const TITLE_IDS = {
   LEGACY: 0,
@@ -71,7 +74,7 @@ export class GameApiController {
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'highestSkill', type: 'number' })
   async userUpdatePlayerStats(
-    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) title,
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), new ParseIntPipe({optional: true})) title,
     @Query('userId', ParseXUIDPipe) userId: BigInt,
     @Query('highestSkill', ParseIntPipe) highestSkill: number,
   ) {
@@ -136,7 +139,7 @@ export class GameApiController {
   @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
   @ApiQuery({ name: 'locale', example: 'en' })
   async getFileshare(
-    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) titleID,
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), new ParseIntPipe({optional: true})) titleID,
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('locale', new DefaultValuePipe('en')) locale,
@@ -154,7 +157,7 @@ export class GameApiController {
   @Get('/FilesNewUpload.ashx')
   @ApiOperation({
     summary: 'Start File Upload',
-    description: 'Begins a file share upload for Halo 3 / ODST. Returns the ID of the file.'
+    description: 'Begins a file share upload. Returns the ID of the file.'
   })
   @ApiTags('File Share')
   @ApiQuery({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
@@ -166,21 +169,21 @@ export class GameApiController {
   @ApiQuery({ name: 'uncompressedSize' })
   @ApiQuery({ name: 'compressedSize' })
   async startFileUpload(
-    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) titleID,
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), new ParseIntPipe({optional: true})) title,
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('uniqueId', new ParseBigIntPipe({hex: true})) uniqueID: number,
+    @Query('uniqueId', new ParseBigIntPipe({hex: true})) uniqueID: BigInt,
     @Query('fileType', ParseIntPipe) fileType: number,
     @Query('uncompressedSize', ParseIntPipe) uncompressedSize: number,
     @Query('compressedSize', ParseIntPipe) compressedSize: number,
   ) {
     // This function returns a server ID, but we don't really use it so it's not important.
-    switch (titleID) {
+    switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
       case TITLE_IDS.LEGACY:
-        return await this.halo3FileShareService.initiateNewUpload(
+        const uuid = await this.halo3FileShareService.initiateNewUpload(
           userID,
           shareID,
           slot,
@@ -189,6 +192,7 @@ export class GameApiController {
           uncompressedSize,
           compressedSize
         )
+        return uuid.replace(/-/g, '');
       default:
         throw new NotImplementedException('Not implemented for provided title.');
     }
@@ -208,7 +212,7 @@ export class GameApiController {
   @ApiQuery({ name: 'profileRegion', example: '100', description: 'ODST only', required: false })
   @ApiQuery({ name: 'isDebug', example: 'false', description: 'ODST only', required: false })
   async getBnetSubscription(
-    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), ParseIntPipe) title: number,
+    @Query('title', new DefaultValuePipe(TITLE_IDS.LEGACY), new ParseIntPipe({optional: true})) title: number,
     @Query('userId', ParseXUIDPipe) userId: BigInt,
     @Query('locale') locale: string,
     @Query('gameRegion', new ParseIntPipe({ optional: true })) gameRegion?: number,
@@ -225,6 +229,7 @@ export class GameApiController {
     }
   }
 
+  @HttpCode(200)
   @Post('/FilesUpload.ashx')
   @ApiOperation({
     summary: 'Upload File',
@@ -250,19 +255,25 @@ export class GameApiController {
   @ApiHeader({ name: 'serverid' })
   @UseInterceptors(FileInterceptor('upload'))
   async uploadFile(
+    @Req() req: Request,
     @UploadedFile() upload: Express.Multer.File | undefined,
     @Headers() headers: Record<string, string>,
-    @Res({ passthrough: true }) res: Response,
   ) {
     if (!upload) throw new BadRequestException();
-
-    const { title, userid: uploaderXuid, shareid: shareXuid, slot, serverid } = z.object({
+    
+    const { title, userid: uploaderXuid, shareid: shareXuid, slot, serverid, startposition } = z.object({
       title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
       userid: parseBungieHeader(hexStringXuidSchema),
       shareid: parseBungieHeader(hexStringXuidSchema),
       slot: parseBungieHeader(z.coerce.number()),
-      serverid: parseBungieHeader(z.string().uuid()),
+      serverid: parseBungieHeader(dashedUuidFromHex),
+      startposition: parseBungieHeader(z.coerce.number().default(0))
     }).parse(headers);
+
+    if (upload.buffer.length == 0 && startposition) {
+      // it's probably finished so let's return OK.
+      return;
+    }
 
     switch (title) {
       case TITLE_IDS.HALO3:
@@ -273,9 +284,8 @@ export class GameApiController {
       default:
         throw new NotImplementedException();
     }
-    res.setHeader('Content-Length', 0);
-    res.writeHead(200)
-    res.write('')
+
+    return "ok"
   }
 
   @Get('/FilesStageForDownload.ashx')
@@ -293,16 +303,26 @@ export class GameApiController {
   @ApiQuery({ name: 'fromAutoQueue' })
   @ApiQuery({ name: 'view' })
   async stageFileDownload(
-    @Query('title', ParseIntPipe, new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
+    @Query('title', new ParseIntPipe({optional: true}), new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('serverId', UuidWithoutDashesPipe) serverId: string,
+    @Query('serverId') serverId: string | undefined,
     @Query('startPosition', ParseIntPipe) startPosition: number,
     @Query('fromAutoQueue', ParseIntPipe) fromAutoQueue: number,
-    @Query('view') view: number,
+    @Query('view', new ParseIntPipe({optional: true})) view: number,
     @Query('preview', ParseIntPipe) preview: number,
   ) {
+
+    // downloads fromAutoQueue pass a 64 bit int id. We don't use these.
+    if (serverId) {
+      if (serverId.length < 32) {
+        serverId = undefined;
+      } else {
+        serverId = new UuidWithoutDashesPipe().transform(serverId, { type: 'custom' });
+      }
+    }
+
     switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
@@ -339,7 +359,7 @@ export class GameApiController {
     @Query('userId', ParseXUIDPipe) userid: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('serverId') serverId: string,
+    @Query('serverId', UuidWithoutDashesPipe) serverId: string,
     @Query('startPosition', ParseIntPipe) startPosition: number,
     @Res() res: Response,
   ) {
@@ -389,7 +409,7 @@ export class GameApiController {
     @Query('userId', ParseXUIDPipe) userid: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('serverId') serverId: string,
+    @Query('serverId', UuidWithoutDashesPipe) serverId: string,
     @Query('startPosition', ParseIntPipe) startPosition: number,
     @Res() res: Response,
   ) {
@@ -434,7 +454,7 @@ export class GameApiController {
   @ApiQuery({ name: 'slot', example: 1 })
   @ApiQuery({ name: 'serverId' })
   async deleteFile(
-    @Query('title', ParseIntPipe, new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
+    @Query('title', new ParseIntPipe({optional: true}), new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
     @Query('userId', ParseXUIDPipe) userid: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
@@ -444,10 +464,13 @@ export class GameApiController {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
       case TITLE_IDS.LEGACY:
-        return await this.halo3FileShareService.deleteFile(userid, shareID, slot, serverId);
+        await this.halo3FileShareService.deleteFile(userid, shareID, slot, serverId);
+        break;
       default:
         throw new NotImplementedException();
     }
+    
+    return "ok";
   }
 
   @Get('/FilesGetUploadProgress.ashx')
@@ -462,12 +485,13 @@ export class GameApiController {
   @ApiQuery({ name: 'slot', example: 1 })
   @ApiQuery({ name: 'serverId' })
   async getUploadProgress(
-    @Query('title', ParseIntPipe, new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
+    @Query('title', new ParseIntPipe({optional: true}), new DefaultValuePipe(TITLE_IDS.LEGACY)) title: number,
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('slot', ParseIntPipe) slot: number,
-    @Query('serverId') serverId: string,
+    @Query('serverId', UuidWithoutDashesPipe) serverId: string,
   ) {
+    serverId = dashedUuidFromHex.parse(serverId)
     switch (title) {
       case TITLE_IDS.HALO3:
       case TITLE_IDS.HALO3_MYTHIC:
@@ -478,6 +502,7 @@ export class GameApiController {
     }
   }
 
+  @HttpCode(200)
   @Post('/FilesUploadBlind.ashx')
   @ApiOperation({
     summary: 'Upload Screenshot',
@@ -511,14 +536,20 @@ export class GameApiController {
       gameid: parseBungieHeader(z.coerce.bigint()),
     }).parse(headers);
 
-    switch (title) {
-      case TITLE_IDS.LEGACY:
-      case TITLE_IDS.HALO3:
-      case TITLE_IDS.HALO3_MYTHIC:
-        return await this.halo3FileShareService.handleBlindFileUpload(upload, uploaderXuid, gameid);
-      default:
-        throw new NotImplementedException();
-    }
+    // This endpoint wants a swift response,
+    // so we don't await this and respond while processing the uploaded data.
+    (async () => {
+      switch (title) {
+        case TITLE_IDS.LEGACY:
+        case TITLE_IDS.HALO3:
+        case TITLE_IDS.HALO3_MYTHIC:
+          return await this.halo3FileShareService.handleBlindFileUpload(upload, uploaderXuid, gameid);
+        default:
+          throw new NotImplementedException();
+      }
+    })().catch(e => this.logger.error(e));
+
+    return "ok";
   }
 
   @Get('/UserBeginConsume.ashx')

@@ -510,6 +510,134 @@ export class Halo3Controller {
             })),
         };
     }
+
+    @Get('/fileshare/files')
+    @ApiOperation({
+        summary: 'List All Fileshare Files',
+        description: 'Returns a paginated list of all fileshare files with optional filtering by file type.'
+    })
+    async listAllFileshareFiles(
+        @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
+        @Query('fileType') fileType?: string,
+    ) {
+        const skip = (page - 1) * pageSize;
+        
+        // Build file type filter condition
+        let fileTypes: number[] = [];
+        if (fileType) {
+            switch (fileType) {
+                case 'maps':
+                    fileTypes = [10];
+                    break;
+                case 'gametypes':
+                    fileTypes = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+                    break;
+                case 'films':
+                    fileTypes = [11, 12];
+                    break;
+                case 'screenshots':
+                    fileTypes = [13];
+                    break;
+            }
+        }
+        const fileTypeFilter = fileTypes.length > 0 
+            ? `AND file_type IN (${fileTypes.join(', ')})` 
+            : '';
+
+        // Use a subquery to get distinct unique_ids with the most recent file for each
+        const filesQuery = `
+            WITH ranked_files AS (
+                SELECT 
+                    id, slot, unique_id, name, description, author, file_type,
+                    author_is_xuid_online, author_id, size_in_bytes, date,
+                    length_seconds, campaign_id, map_id, game_engine_type,
+                    campaign_difficulty, hopper_id, game_id, campaign_insertion_point,
+                    share_id,
+                    ROW_NUMBER() OVER (PARTITION BY unique_id ORDER BY date DESC NULLS LAST) as rn
+                FROM halo3.file_share_slot
+                WHERE is_uploaded = true ${fileTypeFilter}
+            )
+            SELECT 
+                id, slot, unique_id, name, description, author, file_type,
+                author_is_xuid_online, author_id, size_in_bytes, date,
+                length_seconds, campaign_id, map_id, game_engine_type,
+                campaign_difficulty, hopper_id, game_id, campaign_insertion_point,
+                share_id
+            FROM ranked_files
+            WHERE rn = 1
+            ORDER BY date DESC NULLS LAST
+            LIMIT ${pageSize} OFFSET ${skip}
+        `;
+
+        const files = await this.prisma.$queryRawUnsafe<Array<{
+            id: string;
+            slot: number;
+            unique_id: bigint;
+            name: string | null;
+            description: string | null;
+            author: string | null;
+            file_type: number;
+            author_is_xuid_online: boolean | null;
+            author_id: bigint | null;
+            size_in_bytes: bigint;
+            date: Date | null;
+            length_seconds: number | null;
+            campaign_id: number | null;
+            map_id: number | null;
+            game_engine_type: number | null;
+            campaign_difficulty: number | null;
+            hopper_id: number | null;
+            game_id: bigint | null;
+            campaign_insertion_point: number | null;
+            share_id: string;
+        }>>(filesQuery);
+
+        // Get total count of distinct unique_ids
+        const totalQuery = `
+            SELECT COUNT(DISTINCT unique_id) as count
+            FROM halo3.file_share_slot
+            WHERE is_uploaded = true ${fileTypeFilter}
+        `;
+        const totalResult = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(totalQuery);
+        const total = Number(totalResult[0]?.count ?? 0);
+
+        return {
+            data: files.map(f => ({
+                id: f.id,
+                uniqueId: String(f.unique_id ?? ''),
+                slotNumber: f.slot,
+                shareId: f.share_id,
+                header: {
+                    buildNumber: 0,
+                    mapVersion: 0,
+                    uniqueId: String(f.unique_id ?? ''),
+                    filename: f.name ?? '',
+                    description: f.description ?? '',
+                    author: f.author ?? '',
+                    filetype: f.file_type,
+                    authorXuidIsOnline: !!f.author_is_xuid_online,
+                    authorXuid: f.author_id ? String(f.author_id) : '',
+                    size: Number(f.size_in_bytes ?? 0),
+                    date: f.date?.toISOString() ?? '',
+                    lengthSeconds: f.length_seconds ?? 0,
+                    campaignId: f.campaign_id ?? 0,
+                    mapId: f.map_id ?? 0,
+                    gameEngineType: f.game_engine_type ?? 0,
+                    campaignDifficulty: f.campaign_difficulty ?? 0,
+                    hopperId: f.hopper_id ?? 0,
+                    gameId: f.game_id ? Number(f.game_id) : 0,
+                    campaignInsertionPoint: f.campaign_insertion_point ?? 0,
+                    campaignSurvivalEnabled: false,
+                }
+            })),
+            total,
+            page,
+            pageSize,
+            totalPages: Math.ceil(total / pageSize),
+        };
+    }
+
     @Get('/screenshots/:id/view')
     @ApiOperation({
         summary: 'View Screenshot',

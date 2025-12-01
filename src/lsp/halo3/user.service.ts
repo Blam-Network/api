@@ -169,54 +169,58 @@ export class Halo3UserService {
     }
 
     public getRecentPlayersFile = async (playerXuid: BigInt) => {
-        const carnageReports = await this.prisma.halo3_carnage_report.findMany({
-            where: {
-                carnage_report_player: {
-                    some: {
-                        player_xuid: playerXuid.toString()
-                    }
-                },
-                NOT: {
-                    carnage_report_matchmaking_options: null
-                }
-            },
-            select: {
-                carnage_report_player: {
-                    select: {
-                        player_xuid: true,
-                    }
-                },
-                carnage_report_matchmaking_options: {
-                    select: {
-                        hopper_identifier: true,
-                    }
-                }
-            },
-            take: 100,
-            orderBy: {
-                finish_time: 'desc'
-            }
-        })
-
-        let players: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_user_recent_players['players'] = [];
-
-        if (carnageReports) {
-            for (const carnageReport of carnageReports) {
-                if (players.length >= 100) break;
-                if (!carnageReport.carnage_report_matchmaking_options?.hopper_identifier) continue;
-
-                for (const player of carnageReport.carnage_report_player) {
-                    players.push({
-                        hopper_identifier: carnageReport.carnage_report_matchmaking_options.hopper_identifier,
-                        xuid: BigInt(player.player_xuid.toString())
-                    })
-                }
-            }
+        let furp: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_user_recent_players = {
+            players: []
         }
 
-        return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_recent_players_file({
-            players
-        })
+        const playersDataPromise = this.prisma.$transaction(async (tx) => {
+            const carnageReports = await tx.halo3_carnage_report.findMany({
+                where: {
+                    carnage_report_player: {
+                        some: {
+                            player_xuid: playerXuid.toString()
+                        }
+                    },
+                    NOT: {
+                        carnage_report_matchmaking_options: null
+                    }
+                },
+                select: {
+                    carnage_report_player: {
+                        select: {
+                            player_xuid: true,
+                        }
+                    },
+                    carnage_report_matchmaking_options: {
+                        select: {
+                            hopper_identifier: true,
+                        }
+                    }
+                },
+                take: 100,
+                orderBy: {
+                    finish_time: 'desc'
+                },
+            })
+
+            if (carnageReports) {
+                for (const carnageReport of carnageReports) {
+                    if (furp.players.length >= 100) break;
+                    if (!carnageReport.carnage_report_matchmaking_options?.hopper_identifier) continue;
+
+                    for (const player of carnageReport.carnage_report_player) {
+                        furp.players.push({
+                            hopper_identifier: carnageReport.carnage_report_matchmaking_options.hopper_identifier,
+                            xuid: BigInt(player.player_xuid.toString())
+                        })
+                    }
+                }
+            }
+        }, {timeout: 3000})
+
+        await Promise.allSettled([playersDataPromise]);
+
+        return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_recent_players_file(furp);
     }
 
     public updateHighestSkill = async (xuid: BigInt, highestSkill: number) => {

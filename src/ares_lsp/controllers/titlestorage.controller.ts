@@ -67,7 +67,7 @@ export class TitleStorageController {
     description: "Returns the world map population image shown on Halo 3's Matchmaking menu.",
   })
   @Header('Content-Type', 'image/jpg')
-  @Get('/ares/untracked/:username/:branch/:hopper_directory/dynamic_matchmaking_nightmap.jpg')
+  @Get('/untracked/:username/:branch/:hopper_directory/dynamic_matchmaking_nightmap.jpg')
   async aresUntrackedNightmap() {
     const nightmap = await this.halo3PopulationService.getNightmap();
     return new StreamableFile(nightmap, { disposition: "filename=dynamic_matchmaking_nightmap.jpg" });

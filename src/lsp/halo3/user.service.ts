@@ -22,8 +22,8 @@ export class Halo3UserService {
         let osri: undefined | BLF.halo3odst_13895_09_04_27_2201_atlas_release.s_blf_chunk_odst_service_record = undefined;
         let filq: undefined | BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_file_transfers = undefined;
         
-        const serviceRecordPromise = this.prisma.$transaction(async (prisma) => {
-            const serviceRecord = await prisma.halo3_service_record.findUnique({
+        const userFileDataPromise = this.prisma.$transaction(async (tx) => {
+            const serviceRecord = await tx.halo3_service_record.findUnique({
                 where: { player_xuid }, select: {
                     player_name: true,
                     appearance_flags: true,
@@ -56,11 +56,35 @@ export class Halo3UserService {
                 }
             });
 
-            srid = serviceRecord ? serviceRecord : undefined;
-        }, {timeout: 5000});
+            const playerData = await tx.halo3_player_data.findUnique({ where: { player_xuid } });
 
-        const playerDataPromise = this.prisma.$transaction(async (prisma) => {
-            const playerData = await prisma.halo3_player_data.findUnique({ where: { player_xuid } });
+            const transfers = await tx.halo3_file_share_transfer.findMany({
+                where: {
+                    player_xuid,
+                    file: {
+                        is_uploaded: true,
+                    },
+                },
+                include: {
+                    file: {
+                        select: {
+                            slot: true,
+                            share_id: true,
+                            name: true,
+                            description: true,
+                            file_type: true,
+                            campaign_id: true,
+                            map_id: true,
+                            game_engine_type: true,
+                            size_in_bytes: true
+                        }
+                    },
+                },
+                take: HALO3_MAX_ACTIVE_TRANSFERS, // max filq can handle.
+            })
+
+            
+            srid = serviceRecord ? serviceRecord : undefined;
 
             if (playerData) {
                 let bungie_user_role = 0;
@@ -74,13 +98,7 @@ export class Halo3UserService {
                     bungie_user_role,
                     hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
                 }
-            }
-        })
 
-        const odstServiceRecordPromise = this.prisma.$transaction(async (prisma) => {
-            const playerData = await prisma.halo3_player_data.findUnique({ where: { player_xuid } });
-
-            if (playerData) {
                 osri = {
                     extras_portal_debug: playerData.odst_extras_portal_debug ?? false,
                     vidmaster: clamp_to_byte(i32_to_u32(playerData.odst_vidmaster_flag)) ?? 0,
@@ -116,33 +134,6 @@ export class Halo3UserService {
                     total_exp: 0,
                 }
             }
-        })
-
-        const activeTransfersPromise = this.prisma.$transaction(async (prisma) => {
-            const transfers = await prisma.halo3_file_share_transfer.findMany({
-                where: {
-                    player_xuid,
-                    file: {
-                        is_uploaded: true,
-                    },
-                },
-                include: {
-                    file: {
-                        select: {
-                            slot: true,
-                            share_id: true,
-                            name: true,
-                            description: true,
-                            file_type: true,
-                            campaign_id: true,
-                            map_id: true,
-                            game_engine_type: true,
-                            size_in_bytes: true
-                        }
-                    },
-                },
-                take: HALO3_MAX_ACTIVE_TRANSFERS, // max filq can handle.
-            })
 
             if (transfers.length > 0) {
                 filq = {
@@ -160,9 +151,9 @@ export class Halo3UserService {
                     } satisfies BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_file_transfers['transfers'][0]))
                 }
             }
-        })
+        }, {timeout: 3000});
 
-        await Promise.allSettled([serviceRecordPromise, playerDataPromise, odstServiceRecordPromise, activeTransfersPromise]);
+        await Promise.allSettled([userFileDataPromise]);
 
         // Typescript is dumb
         // @ts-ignore

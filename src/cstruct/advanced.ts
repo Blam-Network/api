@@ -57,13 +57,14 @@ export class CString<L extends number> extends AdvancedType<string> {
     }
 }
 
-export class MagicNumber<N extends number, PT extends PrimitiveType> extends AdvancedType<N> {
+export class CMagicNumber<N extends number, PT extends PrimitiveType> extends AdvancedType<N> {
     private magic: N;
     private type: PT;
 
     constructor(magic: N, type: PT) {
         super();
         this.magic = magic;
+        this.type = type;
     }
     
     getSize(): number {
@@ -71,21 +72,21 @@ export class MagicNumber<N extends number, PT extends PrimitiveType> extends Adv
     }
 
     read(buffer: Buffer, offset: number, endian: c.Endian): N {
-        const value = readPrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset + offset), offset, this.type, endian === 'little');
+        const value = readPrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset), offset, this.type, endian === 'little');
 
         if (value !== this.magic) {
-            throw new Error(`Magic number mismatch: expected ${this.magic}, got ${value}`);
+            throw new Error(`Magic number mismatch: expected ${this.magic}, got ${value} at offset ${offset}`);
         }
 
         return this.magic;
     }
     
     write(buffer: Buffer, offset: number, value: N, endian: c.Endian): void {
-        writePrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset + offset), offset, this.type, value, endian === 'little');
+        writePrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset), offset, this.type, value, endian === 'little');
     }
 }
 
-export class MagicString<S extends string> extends AdvancedType<S> {
+export class CMagicString<S extends string> extends AdvancedType<S> {
     private magic: S;
 
     constructor(magic: S) {

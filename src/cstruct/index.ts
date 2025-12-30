@@ -4,7 +4,7 @@ import { FlattenIntersection, Tuple, UnionToIntersection } from "./utils";
 
 interface StructField {
     name: string;
-    type: PrimitiveType | CStruct<any> | AdvancedType<any> | { __schemaType: StructSchema };
+    type: PrimitiveType | CStruct<any> | AdvancedType<any>;
     count?: number; // For arrays
 }
 
@@ -27,15 +27,7 @@ type ProcessField<F> = F extends { type: any; name: any }
                         ? { [K in N]: PrimitiveTypeToTS<T> }
                         : { [K in N]: Tuple<PrimitiveTypeToTS<T>, C> }
                     : { [K in N]: PrimitiveTypeToTS<T> }
-                : T extends { __schemaType: infer S }
-                    ? S extends StructSchema
-                        ? C extends number
-                            ? C extends 1
-                                ? { [K in N]: StructSchemaToTS<S> }
-                                : { [K in N]: Tuple<StructSchemaToTS<S>, C> }
-                            : { [K in N]: StructSchemaToTS<S> }
-                        : never
-                    : T extends CStruct<infer S>
+                : T extends CStruct<infer S>
                         ? S extends StructSchema
                             ? C extends number
                                 ? C extends 1
@@ -55,11 +47,7 @@ type ProcessField<F> = F extends { type: any; name: any }
         ? N extends string
             ? T extends PrimitiveType
                 ? { [K in N]: PrimitiveTypeToTS<T> }
-                : T extends { __schemaType: infer S }
-                    ? S extends StructSchema
-                        ? { [K in N]: StructSchemaToTS<S> }
-                        : never
-                    : T extends CStruct<infer S>
+                : T extends CStruct<infer S>
                         ? S extends StructSchema
                             ? { [K in N]: StructSchemaToTS<S> }
                             : never
@@ -87,7 +75,6 @@ class CStruct<S extends StructSchema = StructSchema> {
     private pack: number;
     private fields: readonly StructField[];
     private size: number;
-    public readonly __schemaType!: S; // Type marker for TypeScript
 
     private constructor(schema: S) {
         this.endian = schema.endian || 'little';
@@ -310,11 +297,7 @@ const endian = {
 export namespace c {
     export type infer<T> = T extends CStruct<infer S>
         ? StructSchemaToTS<S>
-        : T extends { __schemaType: infer S }
-            ? S extends StructSchema
-                ? StructSchemaToTS<S>
-                : never
-            : never;
+        : never;
 
     export type Endian = 'little' | 'big';
 }

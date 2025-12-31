@@ -1,4 +1,4 @@
-import { AdvancedType, CString, CMagicNumber, CMagicString } from "./advanced";
+import { AdvancedType, CString, CMagicNumber, CMagicString, CBitfield } from "./advanced";
 import { getPrimitiveTypeSize, PrimitiveType, PrimitiveTypeToTS, readPrimitiveValue, writePrimitiveValue } from "./primitive";
 import { FlattenIntersection, Tuple, UnionToIntersection } from "./utils";
 
@@ -342,4 +342,5 @@ export namespace c {
     export const String = CString;
     export const MagicString = CMagicString;
     export const MagicNumber = CMagicNumber;
+    export const Bitfield = CBitfield;
 }

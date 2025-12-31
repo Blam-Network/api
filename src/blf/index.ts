@@ -38,6 +38,13 @@ export namespace blf {
         }[number]>>): Buffer {
             let buffer = Buffer.alloc(0);
             for (const chunk of this.chunks) {
+                if (chunk.signature === '_eof') {
+                    // Update totalFileSize in the data before writing
+                    const eofData = data['_eof'] as any;
+                    if (eofData) {
+                        eofData.totalFileSize = buffer.length;
+                    }
+                }
                 buffer = Buffer.concat([buffer, chunk.write(data[chunk.signature])]);
             }
             return buffer;
@@ -140,4 +147,21 @@ export namespace blf {
             ? c.infer<SCHEMA_STRUCT>
             : Omit<c.infer<SCHEMA_STRUCT>, 'header'>
         : never;
+
+    export const SBlfChunkEndOfFileSchema = blf.createChunkSchema({
+        name: '_eof',
+        majorVersion: 1,
+        minorVersion: 1,
+        endian: 'big',
+        fields: [
+            { name: 'authenticationType', type: 'u32' },
+            { name: 'totalFileSize', type: 'u32' },
+        ],
+    });
+
+    export type s_blf_chunk_end_of_file = blf.infer<typeof blf.SBlfChunkEndOfFileSchema, false>;
 }
+
+// Re-export for convenience
+export const SBlfChunkEndOfFileSchema = blf.SBlfChunkEndOfFileSchema;
+export type s_blf_chunk_end_of_file = blf.s_blf_chunk_end_of_file;

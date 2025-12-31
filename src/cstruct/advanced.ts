@@ -110,3 +110,45 @@ export class CMagicString<S extends string> extends AdvancedType<S> {
         buffer.write(this.magic, offset);
     }
 }
+
+export class CBitfield<const K extends readonly string[], T extends PrimitiveType> extends AdvancedType<{
+    [Key in K[number]]: boolean;
+}> {
+    private keys: readonly string[];
+    private type: T;
+
+    constructor(keys: K, type: T) {
+        super();
+        this.keys = keys;
+        this.type = type;
+    }
+
+    getSize(): number {
+        return getPrimitiveTypeSize(this.type);
+    }
+
+    read(buffer: Buffer, offset: number, endian: c.Endian): {
+        [Key in K[number]]: boolean;
+    } {
+        const value = readPrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset), offset, this.type, endian === 'little');
+        const result: any = {};
+        for (let i = 0; i < this.keys.length; i++) {
+            const key = this.keys[i];
+            result[key] = (((value as number) >> i) & 1) === 1;
+        }
+        return result as {
+            [Key in K[number]]: boolean;
+        };
+    }
+    
+    write(buffer: Buffer, offset: number, value: {
+        [Key in K[number]]: boolean;
+    }, endian: c.Endian): void {
+        let result = 0;
+        for (let i = 0; i < this.keys.length; i++) {
+            const key = this.keys[i];
+            result |= (value[key as K[number]] ? 1 : 0) << i;
+        }
+        writePrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset), offset, this.type, result, endian === 'little');
+    }
+}

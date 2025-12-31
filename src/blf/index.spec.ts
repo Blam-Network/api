@@ -1,7 +1,7 @@
 import { c } from "../cstruct";
 import { blf } from ".";
 
-const BlfChunkStartOfFileSchema = blf.createChunkSchema({
+const SBlfChunkStartOfFileSchema = blf.createChunkSchema({
     name: '_blf',
     majorVersion: 1,
     minorVersion: 2,
@@ -13,7 +13,7 @@ const BlfChunkStartOfFileSchema = blf.createChunkSchema({
     ]
 });
 
-const BlfChunkAuthorSchema = blf.createChunkSchema({
+const SBlfChunkAuthorSchema = blf.createChunkSchema({
     name: 'athr',
     majorVersion: 3,
     minorVersion: 1,
@@ -27,14 +27,14 @@ const BlfChunkAuthorSchema = blf.createChunkSchema({
     ]
 });
 
-const BlfFileSchema = blf.createFileSchema([BlfChunkStartOfFileSchema, BlfChunkAuthorSchema]);
+const BlfFileSchema = blf.createFileSchema([SBlfChunkStartOfFileSchema, SBlfChunkAuthorSchema]);
 
 type s_blf_file = blf.infer<typeof BlfFileSchema>;
 
 test('read BlfChunkAuthor', () => {
     const hexDump = '617468720000005000030001626C665F6C69622076312E31352E37000000000100002F2631323037302E30382E30392E30352E323033312E68616C6F335F736800000000000000000000000000000000';
     const buffer = Buffer.from(hexDump, 'hex');
-    const unpacked = BlfChunkAuthorSchema.read(buffer);
+    const unpacked = SBlfChunkAuthorSchema.read(buffer);
     expect(unpacked.programName).toEqual('blf_lib v1.15.7');
     expect(unpacked.buildNumberSequence).toEqual(1);
     expect(unpacked.buildNumber).toEqual(12070);

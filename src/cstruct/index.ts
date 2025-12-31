@@ -1,4 +1,4 @@
-import { AdvancedType, CString, CMagicNumber, CMagicString, CBitfield } from "./advanced";
+import { AdvancedType, CString, CWString, CMagicNumber, CMagicString, CBitfield } from "./advanced";
 import { getPrimitiveTypeSize, PrimitiveType, PrimitiveTypeToTS, readPrimitiveValue, writePrimitiveValue } from "./primitive";
 import { FlattenIntersection, Tuple, UnionToIntersection } from "./utils";
 
@@ -114,6 +114,7 @@ export namespace c {
             return Math.ceil(offset / pack) * pack;
         }
 
+
         /**
          * Get the size of a field
          */
@@ -130,18 +131,91 @@ export namespace c {
         }
 
         /**
+         * Get the natural alignment of a struct (max alignment of its fields, capped by its pack value)
+         */
+        private getStructNaturalAlignment(struct: Struct): number {
+            const structPack = (struct as any).pack || 1;
+            
+            // Calculate natural alignment from fields first
+            let maxAlignment = 1;
+            let hasNestedStructWithPack = false;
+            for (const field of struct.fields) {
+                let fieldAlignment = 1;
+                if (field.type instanceof Struct) {
+                    // For nested structs, use their natural alignment (which may be their pack value)
+                    fieldAlignment = this.getStructNaturalAlignment(field.type);
+                    const nestedPack = (field.type as any).pack || 1;
+                    // If nested struct has pack >= our pack, we need to use our pack value
+                    if (nestedPack >= structPack && structPack > 1) {
+                        hasNestedStructWithPack = true;
+                    }
+                } else if (field.type instanceof AdvancedType) {
+                    // AdvancedType fields (String, WString) have alignment 1 (byte arrays)
+                    fieldAlignment = 1;
+                } else if (field.type !== 'padding') {
+                    const fieldSize = getPrimitiveTypeSize(field.type as PrimitiveType);
+                    fieldAlignment = Math.min(fieldSize, 8);
+                }
+                maxAlignment = Math.max(maxAlignment, fieldAlignment);
+            }
+            
+            // If struct has pack > 1 and contains a nested struct with pack >= that value,
+            // use pack as alignment requirement (the nested struct needs that alignment)
+            // Otherwise, use natural alignment capped by pack
+            // Example: OnlinePropertySchema (pack: 8, contains OnlineDataSchema with pack: 8) -> returns 8
+            // Example: OnlineContextSchema (pack: 8, only u32 fields) -> returns min(4, 8) = 4
+            if (structPack > 1 && hasNestedStructWithPack) {
+                return structPack;
+            }
+            return Math.min(maxAlignment, structPack);
+        }
+
+        /**
+         * Get the alignment requirement for a field type
+         */
+        private getFieldAlignment(field: c.StructField, parentPack: number): number {
+            if (field.type instanceof Struct) {
+                // For structs, use natural alignment (max field alignment capped by struct pack)
+                // This matches C++ behavior where structs without explicit pack use natural alignment
+                return this.getStructNaturalAlignment(field.type);
+            } else if (field.type instanceof AdvancedType) {
+                // For advanced types (String, WString, etc.), alignment is 1 (byte arrays)
+                // They don't need alignment beyond what pack provides
+                return 1;
+            } else if (field.type === 'padding') {
+                return 1;
+            } else {
+                // For primitives, use size as alignment, capped at 8
+                const size = getPrimitiveTypeSize(field.type as PrimitiveType);
+                return Math.min(size, 8);
+            }
+        }
+
+        /**
          * Calculate the total size of the struct
          */
         private calculateSize(schema: c.StructSchema): number {
             let totalSize = 0;
-            const pack = schema.pack;
+            const pack = schema.pack || 1;
 
             for (const field of schema.fields) {
-                // Align offset before field
-                totalSize = this.alignOffset(totalSize, pack);
+                // For arrays, align based on element type's natural alignment
+                // For single fields, align based on field's natural alignment capped by parent pack
+                let alignment = pack;
+                if (field.count && field.count > 1) {
+                    // Array: use element type's natural alignment
+                    alignment = this.getFieldAlignment(field, pack);
+                } else {
+                    // Single field: use field's natural alignment, capped by parent pack
+                    alignment = this.getFieldAlignment(field, pack);
+                }
+                const offsetBeforeAlign = totalSize;
+                totalSize = this.alignOffset(totalSize, alignment);
 
                 const fieldSize = this.getFieldSize(field);
-                totalSize += fieldSize * (field.count || 1);
+                const count = field.count || 1;
+                const sizeToAdd = fieldSize * count;
+                totalSize += sizeToAdd;
             }
             
             // Align final size
@@ -160,8 +234,17 @@ export namespace c {
             const littleEndian = this.endian === 'little';
 
             for (const field of this.fields) {
-                // Align offset before field
-                currentOffset = this.alignOffset(currentOffset, this.pack);
+                // For arrays, align based on element type's natural alignment
+                // For single fields, align based on parent pack (standard C struct behavior)
+                let alignment = this.pack;
+                if (field.count && field.count > 1) {
+                    // Array: use element type's natural alignment
+                    alignment = this.getFieldAlignment(field, this.pack);
+                } else {
+                    // Single field: use field's natural alignment, capped by parent pack
+                    alignment = this.getFieldAlignment(field, this.pack);
+                }
+                currentOffset = this.alignOffset(currentOffset, alignment);
 
                 if (field.type instanceof Struct) {
                     const nestedStruct = field.type;
@@ -171,6 +254,7 @@ export namespace c {
                         result[field.name] = nestedStruct.read(buffer, offset + currentOffset);
                         currentOffset += nestedStruct.size;
                     } else {
+                        // For arrays, elements are placed contiguously (no alignment between elements)
                         result[field.name] = [];
                         for (let i = 0; i < count; i++) {
                             result[field.name].push(nestedStruct.read(buffer, offset + currentOffset));
@@ -233,8 +317,17 @@ export namespace c {
             const littleEndian = this.endian === 'little';
 
             for (const field of this.fields) {
-                // Align offset before field
-                currentOffset = this.alignOffset(currentOffset, this.pack);
+                // For arrays, align based on element type's natural alignment
+                // For single fields, align based on parent pack (standard C struct behavior)
+                let alignment = this.pack;
+                if (field.count && field.count > 1) {
+                    // Array: use element type's natural alignment
+                    alignment = this.getFieldAlignment(field, this.pack);
+                } else {
+                    // Single field: use field's natural alignment, capped by parent pack
+                    alignment = this.getFieldAlignment(field, this.pack);
+                }
+                currentOffset = this.alignOffset(currentOffset, alignment);
 
                 if (field.type instanceof Struct) {
                     const nestedStruct = field.type;
@@ -246,6 +339,7 @@ export namespace c {
                         nestedBuffer.copy(buffer, currentOffset);
                         currentOffset += nestedStruct.size;
                     } else {
+                        // For arrays, elements are placed contiguously (no alignment between elements)
                         const array = value || [];
                         for (let i = 0; i < count; i++) {
                             const nestedBuffer = nestedStruct.write(array[i] || {});
@@ -340,6 +434,7 @@ export namespace c {
     
     export const createCStruct = Struct.createCStruct;
     export const String = CString;
+    export const WString = CWString;
     export const MagicString = CMagicString;
     export const MagicNumber = CMagicNumber;
     export const Bitfield = CBitfield;

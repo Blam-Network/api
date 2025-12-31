@@ -159,7 +159,7 @@ export class SessionService {
             orderBy: {
                 created_at: 'desc',
             },
-            take: 10, // Max 10 results per schema
+            take: 50, // Max 50 results per schema
         });
 
         this.logger.log(`Found ${sessions.length} sessions with matchmaking flag`);
@@ -169,7 +169,7 @@ export class SessionService {
         const usableAddresses: number[] = [];
 
         // Convert sessions to search results
-        for (let i = 0; i < sessions.length && i < 10; i++) {
+        for (let i = 0; i < sessions.length && i < 50; i++) {
             const session = sessions[i];
 
             // Parse usable address to IPv4 in network byte order
@@ -191,27 +191,24 @@ export class SessionService {
             const result: s_online_session_search_result = {
                 sessionName: '',
                 description: {
-                    id: { data: Array.from(Buffer.from(session.identifier, 'hex')) as any },
-                    hostAddress: { data: Array.from(Buffer.from(session.secure_address, 'hex')) as any },
-                    key: { data: Array.from(Buffer.from(session.key, 'hex')) as any },
+                    id: { data: Array.from(Buffer.from(session.identifier || '0000000000000000', 'hex')) as any },
+                    hostAddress: { data: Array.from(Buffer.from(session.secure_address || '0'.repeat(640), 'hex')) as any },
+                    key: { data: Array.from(Buffer.from(session.key || '0'.repeat(32), 'hex')) as any },
                 },
                 openPublicSlots: session.max_public_slots,
                 openPrivateSlots: session.max_private_slots,
                 filledPublicSlots: 0, // TODO: Calculate from actual player count
                 filledPrivateSlots: 0, // TODO: Calculate from actual player count
                 propertyCount: 0,
-                properties: Array(10).fill(null).map(() => ({
+                properties: Array(3).fill(null).map(() => ({
                     id: 0,
-                    padding: 0,
                     value: {
                         type: 0,
-                        dataAsLong: BigInt(0),
-                        dataAsDouble: 0,
-                        extension: BigInt(0),
+                        unionData: Array(16).fill(0) as any,
                     },
                 })) as any,
                 contextCount: 0,
-                contexts: Array(10).fill(null).map(() => ({
+                contexts: Array(2).fill(null).map(() => ({
                     id: 0,
                     value: 0,
                 })) as any,
@@ -221,7 +218,7 @@ export class SessionService {
         }
 
         // Pad arrays to required lengths
-        while (results.length < 10) {
+        while (results.length < 50) {
             results.push({
                 sessionName: '',
                 description: {
@@ -234,25 +231,22 @@ export class SessionService {
                 filledPublicSlots: 0,
                 filledPrivateSlots: 0,
                 propertyCount: 0,
-                properties: Array(10).fill(null).map(() => ({
+                properties: Array(3).fill(null).map(() => ({
                     id: 0,
-                    padding: 0,
                     value: {
                         type: 0,
-                        dataAsLong: BigInt(0),
-                        dataAsDouble: 0,
-                        extension: BigInt(0),
+                        unionData: Array(16).fill(0) as any,
                     },
                 })) as any,
                 contextCount: 0,
-                contexts: Array(10).fill(null).map(() => ({
+                contexts: Array(2).fill(null).map(() => ({
                     id: 0,
                     value: 0,
                 })) as any,
             });
         }
 
-        while (usableAddresses.length < 16) {
+        while (usableAddresses.length < 50) {
             usableAddresses.push(0);
         }
 
@@ -262,7 +256,7 @@ export class SessionService {
             xssr: {
                 resultCount: sessions.length,
                 results: results as any,
-                usableAddresses: usableAddresses.slice(0, 16) as any,
+                usableAddresses: usableAddresses.slice(0, 50) as any,
             },
             _eof: DEFAULT_EOF_CHUNK,
         });

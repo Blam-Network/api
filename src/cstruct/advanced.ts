@@ -57,6 +57,64 @@ export class CString<L extends number> extends AdvancedType<string> {
     }
 }
 
+/**
+ * Wide string type for fixed-length wchar_t arrays (UTF-16LE, 2 bytes per character)
+ * Takes character count as a generic parameter (not byte count)
+ */
+export class CWString<L extends number> extends AdvancedType<string> {
+    public readonly length!: L;
+
+    constructor(length: L) {
+        super();
+        this.length = length;
+    }
+
+    /**
+     * Read a wide string from buffer (UTF-16LE)
+     */
+    read(buffer: Buffer, offset: number, endian: c.Endian): string {
+        const byteLength = this.length * 2;
+        const bytes = buffer.subarray(offset, offset + byteLength);
+        
+        // Find null terminator (two zero bytes) if present
+        let nullIndex = -1;
+        for (let i = 0; i < bytes.length - 1; i += 2) {
+            if (bytes[i] === 0 && bytes[i + 1] === 0) {
+                nullIndex = i;
+                break;
+            }
+        }
+        
+        const lengthToRead = nullIndex === -1 ? byteLength : nullIndex;
+        // Convert UTF-16LE bytes to string
+        return bytes.subarray(0, lengthToRead).toString('utf16le');
+    }
+
+    /**
+     * Write a wide string to buffer (UTF-16LE)
+     */
+    write(buffer: Buffer, offset: number, value: string, endian: c.Endian): void {
+        const byteLength = this.length * 2;
+        // Convert string to UTF-16LE bytes
+        const stringBytes = Buffer.from(value, 'utf16le');
+        
+        // Trim if too long
+        const bytesToWrite = stringBytes.length > byteLength ? stringBytes.subarray(0, byteLength) : stringBytes;
+        
+        // Write the string bytes
+        bytesToWrite.copy(buffer, offset);
+        
+        // Pad with zeros if necessary
+        if (bytesToWrite.length < byteLength) {
+            buffer.fill(0, offset + bytesToWrite.length, offset + byteLength);
+        }
+    }
+
+    getSize(): number {
+        return this.length * 2; // Each wchar_t is 2 bytes
+    }
+}
+
 export class CMagicNumber<N extends number, PT extends PrimitiveType> extends AdvancedType<N> {
     private magic: N;
     private type: PT;

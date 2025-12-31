@@ -9,7 +9,7 @@ import { SBlfChunkAuthorSchema, SBlfChunkStartOfFileSchema } from "../chunks";
  * These schemas define the binary structure of BLF chunks used for session operations
  */
 
-const TransportSecureAddressSchema = c.createCStruct({
+export const TransportSecureAddressSchema = c.createCStruct({
     endian: 'little',
     pack: 1,
     fields: [
@@ -19,7 +19,7 @@ const TransportSecureAddressSchema = c.createCStruct({
 
 export type s_transport_secure_address = c.infer<typeof TransportSecureAddressSchema>;
 
-const TransportSessionIdSchema = c.createCStruct({
+export const TransportSessionIdSchema = c.createCStruct({
     endian: 'little',
     pack: 1,
     fields: [
@@ -34,7 +34,7 @@ export function randomTransportSessionId(): s_transport_secure_identifier {
     };
 }
 
-const TransportSessionKeySchema = c.createCStruct({
+export const TransportSessionKeySchema = c.createCStruct({
     endian: 'little',
     pack: 1,
     fields: [
@@ -50,7 +50,7 @@ export function randomTransportSessionKey(): s_transport_session_key {
 export type s_transport_session_key = c.infer<typeof TransportSessionKeySchema>;
 
 // Transport Session Description Schema (shared by multiple session chunks)
-const TransportSessionDescriptionSchema = c.createCStruct({
+export const TransportSessionDescriptionSchema = c.createCStruct({
     endian: 'little',
     pack: 1,
     fields: [
@@ -61,33 +61,148 @@ const TransportSessionDescriptionSchema = c.createCStruct({
 });
 
 // Online Data Schema (used by session search)
-const OnlineDataSchema = c.createCStruct({
+// C++ struct has: type (1 byte) + padding (7 bytes) + union (16 bytes) = 24 bytes total
+// The union contains various types, largest member is 16 bytes (string/binary structs)
+// We represent the union as a 16-byte array and provide helper functions to read/write different types
+// Pack alignment will automatically add 7 bytes of padding after 'type' to align 'unionData' to offset 8
+export const OnlineDataSchema = c.createCStruct({
     endian: 'little',
-    pack: 1,
+    pack: 8,
     fields: [
         { name: 'type', type: 'u8' },
-        { name: 'padding', type: 'padding', count: 7 },
-        { name: 'dataAsLong', type: 'u64' },
-        { name: 'dataAsDouble', type: 'f64' },
-        { name: 'extension', type: 'u64' },
+        { name: 'unionData', type: 'u8', count: 16 }, // Union data (16 bytes, aligned to offset 8 by pack)
     ],
 });
 
+export type s_online_data = c.infer<typeof OnlineDataSchema>;
+
+/**
+ * Helper functions for reading/writing s_online_data union values
+ */
+export const OnlineDataHelpers = {
+    /**
+     * Read a long (i32) value from the union (first 4 bytes)
+     */
+    readDataAsLong(data: s_online_data): number {
+        const buffer = Buffer.from(data.unionData);
+        return buffer.readInt32LE(0);
+    },
+
+    /**
+     * Write a long (i32) value to the union (first 4 bytes)
+     */
+    writeDataAsLong(data: s_online_data, value: number): void {
+        const buffer = Buffer.from(data.unionData);
+        buffer.writeInt32LE(value, 0);
+        data.unionData = Array.from(buffer) as any;
+    },
+
+    /**
+     * Read an unsigned long long (u64) value from the union (first 8 bytes)
+     */
+    readDataAsQword(data: s_online_data): bigint {
+        const buffer = Buffer.from(data.unionData);
+        return buffer.readBigUint64LE(0);
+    },
+
+    /**
+     * Write an unsigned long long (u64) value to the union (first 8 bytes)
+     */
+    writeDataAsQword(data: s_online_data, value: bigint): void {
+        const buffer = Buffer.from(data.unionData);
+        buffer.writeBigUInt64LE(value, 0);
+        data.unionData = Array.from(buffer) as any;
+    },
+
+    /**
+     * Read a double (f64) value from the union (first 8 bytes)
+     */
+    readDataAsDouble(data: s_online_data): number {
+        const buffer = Buffer.from(data.unionData);
+        return buffer.readDoubleLE(0);
+    },
+
+    /**
+     * Write a double (f64) value to the union (first 8 bytes)
+     */
+    writeDataAsDouble(data: s_online_data, value: number): void {
+        const buffer = Buffer.from(data.unionData);
+        buffer.writeDoubleLE(value, 0);
+        data.unionData = Array.from(buffer) as any;
+    },
+
+    /**
+     * Read a float (f32) value from the union (first 4 bytes)
+     */
+    readDataAsFloat(data: s_online_data): number {
+        const buffer = Buffer.from(data.unionData);
+        return buffer.readFloatLE(0);
+    },
+
+    /**
+     * Write a float (f32) value to the union (first 4 bytes)
+     */
+    writeDataAsFloat(data: s_online_data, value: number): void {
+        const buffer = Buffer.from(data.unionData);
+        buffer.writeFloatLE(value, 0);
+        data.unionData = Array.from(buffer) as any;
+    },
+
+    /**
+     * Read the string struct from the union (first 16 bytes: size at offset 0, pointer at offset 8)
+     * Note: The pointer is a memory address in the C++ code, not useful in TypeScript
+     */
+    readStringStruct(data: s_online_data): { size: number; pointer: bigint } {
+        const buffer = Buffer.from(data.unionData);
+        return {
+            size: buffer.readInt32LE(0),
+            pointer: buffer.readBigUint64LE(8),
+        };
+    },
+
+    /**
+     * Read the binary struct from the union (first 16 bytes: size at offset 0, pointer at offset 8)
+     * Note: The pointer is a memory address in the C++ code, not useful in TypeScript
+     */
+    readBinaryStruct(data: s_online_data): { size: number; pointer: bigint } {
+        const buffer = Buffer.from(data.unionData);
+        return {
+            size: buffer.readInt32LE(0),
+            pointer: buffer.readBigUint64LE(8),
+        };
+    },
+
+    /**
+     * Read FILETIME (u64) from the union (first 8 bytes)
+     */
+    readDayTime(data: s_online_data): bigint {
+        return this.readDataAsQword(data);
+    },
+
+    /**
+     * Write FILETIME (u64) to the union (first 8 bytes)
+     */
+    writeDayTime(data: s_online_data, value: bigint): void {
+        this.writeDataAsQword(data, value);
+    },
+};
+
 // Online Property Schema
-const OnlinePropertySchema = c.createCStruct({
+// C++: id (4 bytes at 0x0) + padding (4 bytes) + value (24 bytes at 0x8) = 32 bytes
+// Pack alignment will automatically add 4 bytes of padding after 'id' to align 'value' to offset 8
+export const OnlinePropertySchema = c.createCStruct({
     endian: 'little',
-    pack: 1,
+    pack: 8,
     fields: [
         { name: 'id', type: 'u32' },
-        { name: 'padding', type: 'u32' },
-        { name: 'value', type: OnlineDataSchema },
+        { name: 'value', type: OnlineDataSchema }, // Aligned to offset 8 by pack
     ],
 });
 
 // Online Context Schema
-const OnlineContextSchema = c.createCStruct({
+export const OnlineContextSchema = c.createCStruct({
     endian: 'little',
-    pack: 1,
+    pack: 8,
     fields: [
         { name: 'id', type: 'u32' },
         { name: 'value', type: 'u32' },
@@ -204,21 +319,20 @@ export const SBlfChunkSessionGetBySecureAddressResponseSchema = blf.createChunkS
 });
 
 // Session Search Result Schema
-const OnlineSessionSearchResultSchema = c.createCStruct({
+export const OnlineSessionSearchResultSchema = c.createCStruct({
     endian: 'little',
-    pack: 1,
+    pack: 8,
     fields: [
-        { name: 'sessionName', type: new c.String(64) },
+        { name: 'sessionName', type: new c.WString(32) }, // wchar_t[32] = 64 bytes
         { name: 'description', type: TransportSessionDescriptionSchema },
         { name: 'openPublicSlots', type: 'u32' },
         { name: 'openPrivateSlots', type: 'u32' },
         { name: 'filledPublicSlots', type: 'u32' },
         { name: 'filledPrivateSlots', type: 'u32' },
         { name: 'propertyCount', type: 'u32' },
-        { name: 'padding', type: 'padding', count: 1 },
-        { name: 'properties', type: OnlinePropertySchema, count: 10 }, // Max 10 properties
+        { name: 'properties', type: OnlinePropertySchema, count: 3 }, // Max 3 properties
         { name: 'contextCount', type: 'u32' },
-        { name: 'contexts', type: OnlineContextSchema, count: 10 }, // Max 10 contexts
+        { name: 'contexts', type: OnlineContextSchema, count: 2 }, // Max 2 contexts
     ],
 });
 
@@ -231,8 +345,8 @@ export const SBlfChunkSessionSearchResponseSchema = blf.createChunkSchema({
     pack: 1,
     fields: [
         { name: 'resultCount', type: 'u32' },
-        { name: 'results', type: OnlineSessionSearchResultSchema, count: 10 }, // Max 10 results
-        { name: 'usableAddresses', type: 'u32', count: 16 }, // Max 16 addresses
+        { name: 'results', type: OnlineSessionSearchResultSchema, count: 50 }, // Max 50 results
+        { name: 'usableAddresses', type: 'u32', count: 50 }, // Max 50 addresses
     ],
 });
 
@@ -298,7 +412,6 @@ export type s_blf_chunk_session_search_response = blf.infer<typeof SBlfChunkSess
 
 // Helper type exports for nested structures
 export type s_transport_session_description = c.infer<typeof TransportSessionDescriptionSchema>;
-export type s_online_data = c.infer<typeof OnlineDataSchema>;
 export type s_online_property = c.infer<typeof OnlinePropertySchema>;
 export type s_online_context = c.infer<typeof OnlineContextSchema>;
 export type s_online_session_search_result = c.infer<typeof OnlineSessionSearchResultSchema>;

@@ -130,7 +130,10 @@ export class CMagicNumber<N extends number, PT extends PrimitiveType> extends Ad
     }
 
     read(buffer: Buffer, offset: number, endian: c.Endian): N {
-        const value = readPrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength), offset, this.type, endian === 'little');
+        // Create DataView that accounts for the offset - the view should start at buffer.byteOffset + offset
+        // and have length buffer.byteLength - offset to ensure we don't read past the buffer
+        const view = new DataView(buffer.buffer, buffer.byteOffset + offset, buffer.byteLength - offset);
+        const value = readPrimitiveValue(view, 0, this.type, endian === 'little');
 
         if (value !== this.magic) {
             throw new Error(`Magic number mismatch: expected ${this.magic}, got ${value} at offset ${offset}`);
@@ -140,7 +143,10 @@ export class CMagicNumber<N extends number, PT extends PrimitiveType> extends Ad
     }
     
     write(buffer: Buffer, offset: number, value: N, endian: c.Endian): void {
-        writePrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength), offset, this.type, value, endian === 'little');
+        // Create DataView that accounts for the offset - the view should start at buffer.byteOffset + offset
+        // and have length buffer.byteLength - offset to ensure we don't write past the buffer
+        const view = new DataView(buffer.buffer, buffer.byteOffset + offset, buffer.byteLength - offset);
+        writePrimitiveValue(view, 0, this.type, value, endian === 'little');
     }
 }
 
@@ -188,7 +194,10 @@ export class CBitfield<const K extends readonly string[], T extends PrimitiveTyp
     read(buffer: Buffer, offset: number, endian: c.Endian): {
         [Key in K[number]]: boolean;
     } {
-        const value = readPrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength), offset, this.type, endian === 'little');
+        // Create DataView that accounts for the offset - the view should start at buffer.byteOffset + offset
+        // and have length buffer.byteLength - offset to ensure we don't read past the buffer
+        const view = new DataView(buffer.buffer, buffer.byteOffset + offset, buffer.byteLength - offset);
+        const value = readPrimitiveValue(view, 0, this.type, endian === 'little');
         const result: any = {};
         for (let i = 0; i < this.keys.length; i++) {
             const key = this.keys[i];
@@ -207,7 +216,10 @@ export class CBitfield<const K extends readonly string[], T extends PrimitiveTyp
             const key = this.keys[i];
             result |= (value[key as K[number]] ? 1 : 0) << i;
         }
-        writePrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength), offset, this.type, result, endian === 'little');
+        // Create DataView that accounts for the offset - the view should start at buffer.byteOffset + offset
+        // and have length buffer.byteLength - offset to ensure we don't write past the buffer
+        const view = new DataView(buffer.buffer, buffer.byteOffset + offset, buffer.byteLength - offset);
+        writePrimitiveValue(view, 0, this.type, result, endian === 'little');
     }
 }
 
@@ -263,7 +275,10 @@ export class CEnum<const T extends readonly string[] | Record<string, number>, P
     }
 
     read(buffer: Buffer, offset: number, endian: c.Endian): EnumKeys<T> {
-        const value = readPrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength), offset, this.type, endian === 'little');
+        // Create DataView that accounts for the offset - the view should start at buffer.byteOffset + offset
+        // and have length buffer.byteLength - offset to ensure we don't read past the buffer
+        const view = new DataView(buffer.buffer, buffer.byteOffset + offset, buffer.byteLength - offset);
+        const value = readPrimitiveValue(view, 0, this.type, endian === 'little');
         const numericValue = Number(value);
         const key = this.keyMap.get(numericValue);
         if (key !== undefined) {
@@ -277,7 +292,10 @@ export class CEnum<const T extends readonly string[] | Record<string, number>, P
         if (mappedValue === undefined) {
             throw new Error(`Invalid enum key: ${value}`);
         }
-        writePrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength), offset, this.type, mappedValue, endian === 'little');
+        // Create DataView that accounts for the offset - the view should start at buffer.byteOffset + offset
+        // and have length buffer.byteLength - offset to ensure we don't write past the buffer
+        const view = new DataView(buffer.buffer, buffer.byteOffset + offset, buffer.byteLength - offset);
+        writePrimitiveValue(view, 0, this.type, mappedValue, endian === 'little');
     }
 }
 

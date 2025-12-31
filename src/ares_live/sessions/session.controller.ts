@@ -40,12 +40,29 @@ export class SessionController {
     @UseInterceptors(FileInterceptor('file'))
     async create(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
         try {
+            if (!file) {
+                this.logger.warn('Session create request missing file');
+                throw new HttpException(
+                    'File is required in multipart/form-data with field name "file"',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            if (!file.buffer || file.buffer.length === 0) {
+                this.logger.warn('Session create request has empty file buffer');
+                throw new HttpException(
+                    'File buffer is empty',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            this.logger.log(`Session create request received: filename=${file.originalname}, size=${file.size}, contentType=${file.mimetype}`);
             return await this.sessionService.createSessionAsync(file, req);
         } catch (error) {
-            this.logger.error(`Unexpected error creating session: ${error}`);
             if (error instanceof HttpException) {
                 throw error;
             }
+            this.logger.error(`Unexpected error creating session: ${error}`);
             throw new HttpException(
                 'An internal server error occurred while processing the session create request',
                 HttpStatus.INTERNAL_SERVER_ERROR,
@@ -70,6 +87,22 @@ export class SessionController {
     @UseInterceptors(FileInterceptor('file'))
     async modify(@UploadedFile() file: Express.Multer.File) {
         try {
+            if (!file) {
+                this.logger.warn('Session modify request missing file');
+                throw new HttpException(
+                    'File is required in multipart/form-data with field name "file"',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            if (!file.buffer || file.buffer.length === 0) {
+                this.logger.warn('Session modify request has empty file buffer');
+                throw new HttpException(
+                    'File buffer is empty',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
             await this.sessionService.modifySessionAsync(file);
         } catch (error) {
             this.logger.error(`Unexpected error modifying session: ${error}`);
@@ -117,6 +150,22 @@ export class SessionController {
     @UseInterceptors(FileInterceptor('file'))
     async join(@UploadedFile() file: Express.Multer.File) {
         try {
+            if (!file) {
+                this.logger.warn('Session join request missing file');
+                throw new HttpException(
+                    'File is required in multipart/form-data with field name "file"',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            if (!file.buffer || file.buffer.length === 0) {
+                this.logger.warn('Session join request has empty file buffer');
+                throw new HttpException(
+                    'File buffer is empty',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
             await this.sessionService.joinSessionAsync(file);
         } catch (error) {
             this.logger.error(`Unexpected error joining session: ${error}`);
@@ -150,6 +199,22 @@ export class SessionController {
     @UseInterceptors(FileInterceptor('file'))
     async getBySecureAddress(@UploadedFile() file: Express.Multer.File) {
         try {
+            if (!file) {
+                this.logger.warn('Session get-by-secure-address request missing file');
+                throw new HttpException(
+                    'File is required in multipart/form-data with field name "file"',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            if (!file.buffer || file.buffer.length === 0) {
+                this.logger.warn('Session get-by-secure-address request has empty file buffer');
+                throw new HttpException(
+                    'File buffer is empty',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
             return await this.sessionService.getSessionBySecureAddressAsync(file);
         } catch (error) {
             this.logger.error(`Unexpected error getting session by secure address: ${error}`);

@@ -37,12 +37,29 @@ export class StatsController {
     @UseInterceptors(FileInterceptor('file'))
     async query(@UploadedFile() file: Express.Multer.File) {
         try {
+            if (!file) {
+                this.logger.warn('Stats query request missing file');
+                throw new HttpException(
+                    'File is required in multipart/form-data with field name "file"',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            if (!file.buffer || file.buffer.length === 0) {
+                this.logger.warn('Stats query request has empty file buffer');
+                throw new HttpException(
+                    'File buffer is empty',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            this.logger.log(`Stats query request received: filename=${file.originalname}, size=${file.size}, contentType=${file.mimetype}`);
             return await this.statsService.buildStatsQueryResponseBlf(file);
         } catch (error) {
-            this.logger.error(`Unexpected error querying stats: ${error}`);
             if (error instanceof HttpException) {
                 throw error;
             }
+            this.logger.error(`Unexpected error querying stats: ${error}`);
             throw new HttpException(
                 'An internal server error occurred while processing the stats query',
                 HttpStatus.INTERNAL_SERVER_ERROR,

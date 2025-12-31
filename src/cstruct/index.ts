@@ -316,7 +316,7 @@ export namespace c {
          */
         public write(data: Record<string, any>): Buffer {
             const buffer = Buffer.alloc(this.size);
-            const view = new DataView(buffer.buffer, buffer.byteOffset);
+            const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
             let currentOffset = 0;
             const littleEndian = this.endian === 'little';
 

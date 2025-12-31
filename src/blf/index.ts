@@ -83,9 +83,19 @@ export namespace blf {
                 } as any,
             } as c.infer<SCHEMA_STRUCT>;
             const buffer = this.schema.write(dataWithHeader);
-            // Update chunkSize with actual buffer size (use expectedSize if provided, otherwise use actual size)
+            // Update chunkSize with expected size if provided, otherwise use actual buffer size
             const actualChunkSize = this.expectedSize || buffer.length;
-            const view = new DataView(buffer.buffer, buffer.byteOffset);
+            
+            if (this.expectedSize !== undefined && buffer.length !== this.expectedSize) {
+                throw new Error(`Chunk size mismatch: expected ${this.expectedSize} bytes, but struct calculation produced ${buffer.length} bytes`);
+            }
+            
+            // Ensure we have enough space to write the chunkSize field at offset 4
+            if (buffer.length < 8) {
+                throw new Error(`Buffer too small to write chunk header: ${buffer.length} bytes`);
+            }
+            
+            const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
             view.setUint32(4, actualChunkSize, false); // big endian
             return buffer;
         }

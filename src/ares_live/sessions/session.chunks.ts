@@ -103,6 +103,7 @@ export const SBlfChunkSessionCreateSchema = blf.createChunkSchema({
     minorVersion: 0,
     endian: 'little',
     pack: 1,
+    size: 350,
     fields: [
         { name: 'secureAddress', type: TransportSecureAddressSchema },
         { name: 'flags', type: SessionFlagsSchema },

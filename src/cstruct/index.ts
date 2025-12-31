@@ -209,6 +209,8 @@ export namespace c {
                     // Single field: use field's natural alignment, capped by parent pack
                     alignment = this.getFieldAlignment(field, pack);
                 }
+                // Cap alignment at pack value (with pack: 1, this ensures no padding)
+                alignment = Math.min(alignment, pack);
                 const offsetBeforeAlign = totalSize;
                 totalSize = this.alignOffset(totalSize, alignment);
 
@@ -228,7 +230,7 @@ export namespace c {
          * Parse a buffer into an object based on the schema
          */
         public read(buffer: Buffer, offset: number = 0): c.infer<this> {
-            const view = new DataView(buffer.buffer, buffer.byteOffset + offset);
+            const view = new DataView(buffer.buffer, buffer.byteOffset + offset, buffer.byteLength - offset);
             const result: any = {};
             let currentOffset = 0;
             const littleEndian = this.endian === 'little';
@@ -244,6 +246,8 @@ export namespace c {
                     // Single field: use field's natural alignment, capped by parent pack
                     alignment = this.getFieldAlignment(field, this.pack);
                 }
+                // Cap alignment at pack value (with pack: 1, this ensures no padding)
+                alignment = Math.min(alignment, this.pack);
                 currentOffset = this.alignOffset(currentOffset, alignment);
 
                 if (field.type instanceof Struct) {
@@ -327,6 +331,8 @@ export namespace c {
                     // Single field: use field's natural alignment, capped by parent pack
                     alignment = this.getFieldAlignment(field, this.pack);
                 }
+                // Cap alignment at pack value (with pack: 1, this ensures no padding)
+                alignment = Math.min(alignment, this.pack);
                 currentOffset = this.alignOffset(currentOffset, alignment);
 
                 if (field.type instanceof Struct) {

@@ -8,7 +8,7 @@ const getVersion = (): string => {
 };
 
 export const DEFAULT_BLF_CHUNK: s_blf_chunk_start_of_file = {
-    bom: 0xFFFE,
+    bom: 0xFEFF,
     fileName: '',
 };
 

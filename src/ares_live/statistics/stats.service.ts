@@ -4,12 +4,11 @@ import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { 
     SBlfFileStatsQuerySchema,
     SBlfFileStatsQueryResponseSchema,
-    s_online_data,
     s_stats_query_response_leaderboard,
     s_stats_query_response_row,
     s_stats_query_response_column,
 } from './stats.chunks';
-import { ARES_LIVE_AUTHOR, DEFAULT_BLF_CHUNK, DEFAULT_EOF_CHUNK } from '../chunks';
+import { ARES_LIVE_AUTHOR, DEFAULT_BLF_CHUNK, DEFAULT_EOF_CHUNK, s_online_data } from '../chunks';
 
 interface StatsCache {
     hopperStats?: {
@@ -49,9 +48,6 @@ interface StatsCache {
 
 @Injectable()
 export class StatsService {
-    private readonly _online_data_integer = 1;
-    private readonly _online_data_double = 3;
-    private readonly _online_data_null = 255;
     private readonly _online_leaderboard_column_id_skill_mu = 0;
     private readonly _online_leaderboard_column_id_skill_sigma = 1;
     private readonly _online_leaderboard_column_id_global_unarbitrated_custom_games_completed = 2;
@@ -182,10 +178,12 @@ export class StatsService {
         cache: Map<string, StatsCache>,
     ): s_online_data {
         const result: s_online_data = {
-            type: this._online_data_null,
-            dataAsLong: BigInt(0),
-            dataAsDouble: 0,
-            extension: BigInt(0),
+            type: 'null',
+            data: {
+                data_as_null: {
+                    padding: Array(16).fill(0) as any,
+                },
+            },
         };
 
         const key = `${leaderboardId}_${playerXuid}`;
@@ -194,12 +192,20 @@ export class StatsService {
         try {
             if (leaderboardId === this._online_leaderboard_id_skill) {
                 if (columnId === this._online_leaderboard_column_id_skill_mu) {
-                    result.type = this._online_data_double;
-                    result.dataAsDouble = statsCache.hopperSkillStats?.mu ?? 25.0;
+                    result.type = 'double';
+                    result.data = {
+                        data_as_double: {
+                            data: statsCache.hopperSkillStats?.mu ?? 25.0,
+                        },
+                    };
                     return result;
                 } else if (columnId === this._online_leaderboard_column_id_skill_sigma) {
-                    result.type = this._online_data_double;
-                    result.dataAsDouble = statsCache.hopperSkillStats?.sigma ?? 8.333;
+                    result.type = 'double';
+                    result.data = {
+                        data_as_double: {
+                            data: statsCache.hopperSkillStats?.sigma ?? 8.333,
+                        },
+                    };
                     return result;
                 }
             } else if (
@@ -210,56 +216,108 @@ export class StatsService {
 
                 switch (columnId) {
                     case this._online_leaderboard_column_id_global_unarbitrated_custom_games_completed:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = BigInt(globalData?.customGamesCompleted ?? 0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: BigInt(globalData?.customGamesCompleted ?? 0),
+                            },
+                        };
                         return result;
                     case this._online_leaderboard_column_id_global_unarbitrated_custom_games_won:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = BigInt(globalData?.customGamesWon ?? 0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: BigInt(globalData?.customGamesWon ?? 0),
+                            },
+                        };
                         return result;
                     case this._online_leaderboard_column_id_global_arbitrated_experience_base:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = BigInt(globalData?.experienceBase ?? 0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: BigInt(globalData?.experienceBase ?? 0),
+                            },
+                        };
                         return result;
                     case this._online_leaderboard_column_id_global_arbitrated_experience_penalty:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = BigInt(globalData?.experiencePenalty ?? 0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: BigInt(globalData?.experiencePenalty ?? 0),
+                            },
+                        };
                         return result;
                     case this._online_leaderboard_column_id_global_arbitrated_highest_skill_level_attained:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = BigInt(globalData?.highestSkillLevelAttained ?? 0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: BigInt(globalData?.highestSkillLevelAttained ?? 0),
+                            },
+                        };
                         return result;
                     case this._online_leaderboard_column_id_global_arbitrated_matchmade_ranked_games_completed:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = BigInt(globalData?.matchmadeRankedGamesCompleted ?? 0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: BigInt(globalData?.matchmadeRankedGamesCompleted ?? 0),
+                            },
+                        };
                         return result;
                     case this._online_leaderboard_column_id_global_arbitrated_matchmade_ranked_games_played:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = BigInt(globalData?.matchmadeRankedGamesPlayed ?? 0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: BigInt(globalData?.matchmadeRankedGamesPlayed ?? 0),
+                            },
+                        };
                         return result;
                     case this._online_leaderboard_column_id_global_arbitrated_matchmade_ranked_games_won:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = BigInt(globalData?.matchmadeRankedGamesWon ?? 0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: BigInt(globalData?.matchmadeRankedGamesWon ?? 0),
+                            },
+                        };
                         return result;
                     case this._online_leaderboard_column_id_global_arbitrated_matchmade_unranked_games_completed:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = BigInt(globalData?.matchmadeUnrankedGamesCompleted ?? 0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: BigInt(globalData?.matchmadeUnrankedGamesCompleted ?? 0),
+                            },
+                        };
                         return result;
                     case this._online_leaderboard_column_id_global_arbitrated_matchmade_unranked_games_played:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = BigInt(globalData?.matchmadeUnrankedGamesPlayed ?? 0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: BigInt(globalData?.matchmadeUnrankedGamesPlayed ?? 0),
+                            },
+                        };
                         return result;
                     case this._online_leaderboard_column_id_global_arbitrated_matchmade_unranked_games_won:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = BigInt(globalData?.matchmadeUnrankedGamesWon ?? 0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: BigInt(globalData?.matchmadeUnrankedGamesWon ?? 0),
+                            },
+                        };
                         return result;
                     case this._online_leaderboard_column_id_global_arbitrated_first_game_played_date:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = globalData?.firstGamePlayedDate ?? BigInt(0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: globalData?.firstGamePlayedDate ?? BigInt(0),
+                            },
+                        };
                         return result;
                     case this._online_leaderboard_column_id_global_arbitrated_last_game_played_date:
-                        result.type = this._online_data_integer;
-                        result.dataAsLong = globalData?.lastGamePlayedDate ?? BigInt(0);
+                        result.type = 'integer';
+                        result.data = {
+                            data_as_long: {
+                                data: globalData?.lastGamePlayedDate ?? BigInt(0),
+                            },
+                        };
                         return result;
                 }
             } else if (
@@ -275,30 +333,36 @@ export class StatsService {
 
                     const hopperData = statsCache.hopperStats;
 
-                    result.type = this._online_data_integer;
+                    result.type = 'integer';
+                    let value: bigint;
                     switch (columnType) {
                         case 0:
-                            result.dataAsLong = BigInt(hopperData?.skill ?? 0);
+                            value = BigInt(hopperData?.skill ?? 0);
                             break;
                         case 1:
-                            result.dataAsLong = BigInt(hopperData?.gamesCompleted ?? 0);
+                            value = BigInt(hopperData?.gamesCompleted ?? 0);
                             break;
                         case 2:
-                            result.dataAsLong = BigInt(hopperData?.gamesPlayed ?? 0);
+                            value = BigInt(hopperData?.gamesPlayed ?? 0);
                             break;
                         case 3:
-                            result.dataAsLong = BigInt(hopperData?.gamesWon ?? 0);
+                            value = BigInt(hopperData?.gamesWon ?? 0);
                             break;
                         case 4:
-                            result.dataAsLong = BigInt(hopperData?.expBase ?? 0);
+                            value = BigInt(hopperData?.expBase ?? 0);
                             break;
                         case 5:
-                            result.dataAsLong = BigInt(hopperData?.expPenalty ?? 0);
+                            value = BigInt(hopperData?.expPenalty ?? 0);
                             break;
                         default:
-                            result.dataAsLong = BigInt(0);
+                            value = BigInt(0);
                             break;
                     }
+                    result.data = {
+                        data_as_long: {
+                            data: value,
+                        },
+                    };
                     return result;
                 }
             }
@@ -308,8 +372,12 @@ export class StatsService {
             );
         }
 
-        result.type = this._online_data_null;
-        result.dataAsLong = BigInt(0);
+        result.type = 'null';
+        result.data = {
+            data_as_null: {
+                padding: Array(16).fill(0) as any,
+            },
+        };
         return result;
     }
 
@@ -367,10 +435,12 @@ export class StatsService {
                     stats.push({
                         id: 0,
                         data: {
-                            type: this._online_data_null,
-                            dataAsLong: BigInt(0),
-                            dataAsDouble: 0,
-                            extension: BigInt(0),
+                            type: 'null' as const,
+                            data: {
+                                data_as_null: {
+                                    padding: Array(16).fill(0) as any,
+                                },
+                            },
                         },
                     });
                 }
@@ -393,10 +463,12 @@ export class StatsService {
                     stats: Array(64).fill(null).map(() => ({
                         id: 0,
                         data: {
-                            type: this._online_data_null,
-                            dataAsLong: BigInt(0),
-                            dataAsDouble: 0,
-                            extension: BigInt(0),
+                            type: 'null' as const,
+                            data: {
+                                data_as_null: {
+                                    padding: Array(16).fill(0) as any,
+                                },
+                            },
                         },
                     })) as any,
                 });
@@ -422,10 +494,12 @@ export class StatsService {
                     stats: Array(64).fill(null).map(() => ({
                         id: 0,
                         data: {
-                            type: this._online_data_null,
-                            dataAsLong: BigInt(0),
-                            dataAsDouble: 0,
-                            extension: BigInt(0),
+                            type: 'null' as const,
+                            data: {
+                                data_as_null: {
+                                    padding: Array(16).fill(0) as any,
+                                },
+                            },
                         },
                     })) as any,
                 })) as any,

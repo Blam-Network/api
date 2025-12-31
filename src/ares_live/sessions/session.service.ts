@@ -203,8 +203,12 @@ export class SessionService {
                 properties: Array(3).fill(null).map(() => ({
                     id: 0,
                     value: {
-                        type: 0,
-                        unionData: Array(16).fill(0) as any,
+                        type: 'null' as const,
+                        data: {
+                            data_as_null: {
+                                padding: Array(16).fill(0) as any,
+                            },
+                        },
                     },
                 })) as any,
                 contextCount: 0,
@@ -234,8 +238,12 @@ export class SessionService {
                 properties: Array(3).fill(null).map(() => ({
                     id: 0,
                     value: {
-                        type: 0,
-                        unionData: Array(16).fill(0) as any,
+                        type: 'null' as const,
+                        data: {
+                            data_as_null: {
+                                padding: Array(16).fill(0) as any,
+                            },
+                        },
                     },
                 })) as any,
                 contextCount: 0,

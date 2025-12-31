@@ -1,4 +1,4 @@
-import { AdvancedType, CString, CWString, CMagicNumber, CMagicString, CBitfield } from "./advanced";
+import { AdvancedType, CString, CWString, CMagicNumber, CMagicString, CBitfield, CEnum, CUnion } from "./advanced";
 import { getPrimitiveTypeSize, PrimitiveType, PrimitiveTypeToTS, readPrimitiveValue, writePrimitiveValue } from "./primitive";
 import { FlattenIntersection, Tuple, UnionToIntersection } from "./utils";
 
@@ -438,4 +438,6 @@ export namespace c {
     export const MagicString = CMagicString;
     export const MagicNumber = CMagicNumber;
     export const Bitfield = CBitfield;
+    export const Enum = CEnum;
+    export const Union = CUnion;
 }

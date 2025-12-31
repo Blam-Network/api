@@ -55,3 +55,78 @@ export const SBlfChunkAuthorSchema = blf.createChunkSchema({
 });
 
 export type s_blf_chunk_author = blf.infer<typeof SBlfChunkAuthorSchema, false>;
+
+// Online Data Schema (used by session search and stats query response)
+// C++ struct has: type (1 byte) + padding (7 bytes) + union (16 bytes) = 24 bytes total
+// The union contains various types, largest member is 16 bytes (string/binary structs)
+// Pack alignment will automatically add 7 bytes of padding after 'type' to align 'data' to offset 8
+export const OnlineDataSchema = c.createCStruct({
+    endian: 'little',
+    pack: 8,
+    fields: [
+        { name: 'type', type: new c.Enum({
+            context: 0,
+            integer: 1,
+            qword: 2,
+            double: 3,
+            unicode: 4,
+            float: 5,
+            binary: 6,
+            date_time: 7,
+            null: 255,
+        } satisfies Record<string, number>, 'u8') },
+        { name: 'data', type: new c.Union({
+            data_as_long: c.createCStruct({
+                endian: 'little',
+                pack: 8,
+                fields: [
+                    { name: 'data', type: 'u64' },
+                ],
+            }),
+            data_as_qword: c.createCStruct({
+                endian: 'little',
+                pack: 8,
+                fields: [
+                    { name: 'data', type: 'u64' },
+                ],
+            }),
+            data_as_double: c.createCStruct({
+                endian: 'little',
+                pack: 8,
+                fields: [
+                    { name: 'data', type: 'f64' },
+                ],
+            }),
+            data_as_float: c.createCStruct({
+                endian: 'little',
+                pack: 8,
+                fields: [
+                    { name: 'data', type: 'f32' },
+                ],
+            }),
+            data_as_binary: c.createCStruct({
+                endian: 'little',
+                pack: 8,
+                fields: [
+                    { name: 'data', type: 'u8', count: 16 },
+                ],
+            }),
+            data_as_date_time: c.createCStruct({
+                endian: 'little',
+                pack: 8,
+                fields: [
+                    { name: 'data', type: 'u64' },
+                ],
+            }),
+            data_as_null: c.createCStruct({
+                endian: 'little',
+                pack: 8,
+                fields: [
+                    { name: 'padding', type: 'padding', count: 16 },
+                ],
+            }),
+        }) },
+    ],
+});
+
+export type s_online_data = c.infer<typeof OnlineDataSchema>;

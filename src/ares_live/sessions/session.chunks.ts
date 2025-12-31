@@ -2,7 +2,7 @@ import { c } from "../../cstruct";
 import { blf, SBlfChunkEndOfFileSchema } from "../../blf";
 import { randomBytes } from "crypto";
 import { Tuple } from "src/cstruct/utils";
-import { SBlfChunkAuthorSchema, SBlfChunkStartOfFileSchema } from "../chunks";
+import { SBlfChunkAuthorSchema, SBlfChunkStartOfFileSchema, OnlineDataSchema } from "../chunks";
 
 /**
  * BLF Chunk Schemas for Ares Session API
@@ -60,132 +60,6 @@ export const TransportSessionDescriptionSchema = c.createCStruct({
     ],
 });
 
-// Online Data Schema (used by session search)
-// C++ struct has: type (1 byte) + padding (7 bytes) + union (16 bytes) = 24 bytes total
-// The union contains various types, largest member is 16 bytes (string/binary structs)
-// We represent the union as a 16-byte array and provide helper functions to read/write different types
-// Pack alignment will automatically add 7 bytes of padding after 'type' to align 'unionData' to offset 8
-export const OnlineDataSchema = c.createCStruct({
-    endian: 'little',
-    pack: 8,
-    fields: [
-        { name: 'type', type: 'u8' },
-        { name: 'unionData', type: 'u8', count: 16 }, // Union data (16 bytes, aligned to offset 8 by pack)
-    ],
-});
-
-export type s_online_data = c.infer<typeof OnlineDataSchema>;
-
-/**
- * Helper functions for reading/writing s_online_data union values
- */
-export const OnlineDataHelpers = {
-    /**
-     * Read a long (i32) value from the union (first 4 bytes)
-     */
-    readDataAsLong(data: s_online_data): number {
-        const buffer = Buffer.from(data.unionData);
-        return buffer.readInt32LE(0);
-    },
-
-    /**
-     * Write a long (i32) value to the union (first 4 bytes)
-     */
-    writeDataAsLong(data: s_online_data, value: number): void {
-        const buffer = Buffer.from(data.unionData);
-        buffer.writeInt32LE(value, 0);
-        data.unionData = Array.from(buffer) as any;
-    },
-
-    /**
-     * Read an unsigned long long (u64) value from the union (first 8 bytes)
-     */
-    readDataAsQword(data: s_online_data): bigint {
-        const buffer = Buffer.from(data.unionData);
-        return buffer.readBigUint64LE(0);
-    },
-
-    /**
-     * Write an unsigned long long (u64) value to the union (first 8 bytes)
-     */
-    writeDataAsQword(data: s_online_data, value: bigint): void {
-        const buffer = Buffer.from(data.unionData);
-        buffer.writeBigUInt64LE(value, 0);
-        data.unionData = Array.from(buffer) as any;
-    },
-
-    /**
-     * Read a double (f64) value from the union (first 8 bytes)
-     */
-    readDataAsDouble(data: s_online_data): number {
-        const buffer = Buffer.from(data.unionData);
-        return buffer.readDoubleLE(0);
-    },
-
-    /**
-     * Write a double (f64) value to the union (first 8 bytes)
-     */
-    writeDataAsDouble(data: s_online_data, value: number): void {
-        const buffer = Buffer.from(data.unionData);
-        buffer.writeDoubleLE(value, 0);
-        data.unionData = Array.from(buffer) as any;
-    },
-
-    /**
-     * Read a float (f32) value from the union (first 4 bytes)
-     */
-    readDataAsFloat(data: s_online_data): number {
-        const buffer = Buffer.from(data.unionData);
-        return buffer.readFloatLE(0);
-    },
-
-    /**
-     * Write a float (f32) value to the union (first 4 bytes)
-     */
-    writeDataAsFloat(data: s_online_data, value: number): void {
-        const buffer = Buffer.from(data.unionData);
-        buffer.writeFloatLE(value, 0);
-        data.unionData = Array.from(buffer) as any;
-    },
-
-    /**
-     * Read the string struct from the union (first 16 bytes: size at offset 0, pointer at offset 8)
-     * Note: The pointer is a memory address in the C++ code, not useful in TypeScript
-     */
-    readStringStruct(data: s_online_data): { size: number; pointer: bigint } {
-        const buffer = Buffer.from(data.unionData);
-        return {
-            size: buffer.readInt32LE(0),
-            pointer: buffer.readBigUint64LE(8),
-        };
-    },
-
-    /**
-     * Read the binary struct from the union (first 16 bytes: size at offset 0, pointer at offset 8)
-     * Note: The pointer is a memory address in the C++ code, not useful in TypeScript
-     */
-    readBinaryStruct(data: s_online_data): { size: number; pointer: bigint } {
-        const buffer = Buffer.from(data.unionData);
-        return {
-            size: buffer.readInt32LE(0),
-            pointer: buffer.readBigUint64LE(8),
-        };
-    },
-
-    /**
-     * Read FILETIME (u64) from the union (first 8 bytes)
-     */
-    readDayTime(data: s_online_data): bigint {
-        return this.readDataAsQword(data);
-    },
-
-    /**
-     * Write FILETIME (u64) to the union (first 8 bytes)
-     */
-    writeDayTime(data: s_online_data, value: bigint): void {
-        this.writeDataAsQword(data, value);
-    },
-};
 
 // Online Property Schema
 // C++: id (4 bytes at 0x0) + padding (4 bytes) + value (24 bytes at 0x8) = 32 bytes

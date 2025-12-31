@@ -4,10 +4,10 @@ import {
     TransportSecureAddressSchema,
     TransportSessionDescriptionSchema,
     OnlineContextSchema,
-    OnlineDataSchema,
     OnlinePropertySchema,
     OnlineSessionSearchResultSchema,
 } from './session.chunks';
+import { OnlineDataSchema } from '../chunks';
 
 describe('Transport Struct Sizes', () => {
     // From transport.h
@@ -98,13 +98,17 @@ describe('Struct Alignment and Layout', () => {
             filledPublicSlots: 0,
             filledPrivateSlots: 0,
             propertyCount: 0,
-                properties: Array(3).fill(null).map(() => ({
-                    id: 0,
-                    value: {
-                        type: 0,
-                        unionData: Array(16).fill(0) as any,
+            properties: Array(3).fill(null).map(() => ({
+                id: 0,
+                value: {
+                    type: 'null' as const,
+                    data: {
+                        data_as_null: {
+                            padding: Array(16).fill(0) as any,
+                        },
                     },
-                })) as any,
+                },
+            })) as any,
             contextCount: 0,
             contexts: Array(2).fill(null).map(() => ({
                 id: 0,
@@ -144,8 +148,12 @@ describe('Struct Alignment and Layout', () => {
         const testData = {
             id: 0x12345678,
             value: {
-                type: 0,
-                unionData: Array(16).fill(0) as any,
+                type: 'null' as const,
+                data: {
+                    data_as_null: {
+                        padding: Array(16).fill(0) as any,
+                    },
+                },
             },
         };
 

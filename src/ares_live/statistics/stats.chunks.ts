@@ -1,24 +1,11 @@
 import { c } from "../../cstruct";
 import { blf, SBlfChunkEndOfFileSchema } from "../../blf";
-import { SBlfChunkAuthorSchema, SBlfChunkStartOfFileSchema } from "../chunks";
+import { SBlfChunkAuthorSchema, SBlfChunkStartOfFileSchema, OnlineDataSchema } from "../chunks";
 
 /**
  * BLF Chunk Schemas for Ares Statistics API
  * These schemas define the binary structure of BLF chunks used for statistics operations
  */
-
-// Online Data Schema (used by stats query response)
-const OnlineDataSchema = c.createCStruct({
-    endian: 'little',
-    pack: 1,
-    fields: [
-        { name: 'type', type: 'u8' },
-        { name: 'padding', type: 'padding', count: 7 },
-        { name: 'dataAsLong', type: 'u64' },
-        { name: 'dataAsDouble', type: 'f64' },
-        { name: 'extension', type: 'u64' },
-    ],
-});
 
 // Stats Query Spec Schema
 const StatsQuerySpecSchema = c.createCStruct({
@@ -113,7 +100,6 @@ export type s_blf_chunk_stats_query = blf.infer<typeof SBlfChunkStatsQuerySchema
 export type s_blf_chunk_stats_query_response = blf.infer<typeof SBlfChunkStatsQueryResponseSchema, false>;
 
 // Helper type exports for nested structures
-export type s_online_data = c.infer<typeof OnlineDataSchema>;
 export type s_stats_query_spec = c.infer<typeof StatsQuerySpecSchema>;
 export type s_stats_query_response_column = c.infer<typeof StatsQueryResponseColumnSchema>;
 export type s_stats_query_response_row = c.infer<typeof StatsQueryResponseRowSchema>;

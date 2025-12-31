@@ -210,3 +210,176 @@ export class CBitfield<const K extends readonly string[], T extends PrimitiveTyp
         writePrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset), offset, this.type, result, endian === 'little');
     }
 }
+
+type EnumKeys<T> = T extends readonly string[] 
+    ? T[number]
+    : T extends Record<infer K, number>
+    ? K extends string
+        ? K
+        : keyof T & string
+    : never;
+
+/**
+ * Enum type for C-style enums where a numeric value represents one of several named options
+ * Takes either:
+ * - An array of enum key names (for 0-based sequential enums)
+ * - An object mapping enum key names to their numeric values (for non-sequential enums)
+ * Reads/writes as the numeric value of the enum
+ */
+export class CEnum<const T extends readonly string[] | Record<string, number>, PT extends PrimitiveType> extends AdvancedType<EnumKeys<T>> {
+    private keys: readonly string[];
+    private valueMap: Map<string, number>;
+    private keyMap: Map<number, string>;
+    private type: PT;
+
+    constructor(keysOrMap: T, type: PT) {
+        super();
+        this.type = type;
+        
+        if (Array.isArray(keysOrMap)) {
+            // Sequential enum (0-based)
+            this.keys = keysOrMap;
+            this.valueMap = new Map();
+            this.keyMap = new Map();
+            for (let i = 0; i < keysOrMap.length; i++) {
+                const key = keysOrMap[i];
+                this.valueMap.set(key, i);
+                this.keyMap.set(i, key);
+            }
+        } else {
+            // Non-sequential enum with explicit values
+            this.keys = Object.keys(keysOrMap) as readonly string[];
+            this.valueMap = new Map();
+            this.keyMap = new Map();
+            for (const [key, value] of Object.entries(keysOrMap)) {
+                this.valueMap.set(key, value);
+                this.keyMap.set(value, key);
+            }
+        }
+    }
+
+    getSize(): number {
+        return getPrimitiveTypeSize(this.type);
+    }
+
+    read(buffer: Buffer, offset: number, endian: c.Endian): EnumKeys<T> {
+        const value = readPrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset), offset, this.type, endian === 'little');
+        const numericValue = Number(value);
+        const key = this.keyMap.get(numericValue);
+        if (key !== undefined) {
+            return key as EnumKeys<T>;
+        }
+        throw new Error(`Enum value ${numericValue} is not a valid enum value`);
+    }
+    
+    write(buffer: Buffer, offset: number, value: EnumKeys<T>, endian: c.Endian): void {
+        const mappedValue = this.valueMap.get(value);
+        if (mappedValue === undefined) {
+            throw new Error(`Invalid enum key: ${value}`);
+        }
+        writePrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset), offset, this.type, mappedValue, endian === 'little');
+    }
+}
+
+/**
+ * Union type for C-style unions where multiple structs share the same memory location
+ * Takes an object where keys are member names and values are Struct instances
+ * The size is the maximum size of all structs
+ * 
+ * All structs start at the same offset and share the same memory.
+ * You can read/write any struct by its member name.
+ */
+export class CUnion<S extends Record<string, c.Struct<c.StructSchema>>> extends AdvancedType<{
+    [K in keyof S]?: c.infer<S[K]>
+}> {
+    private members: S;
+    private memberNames: string[];
+    private structs: c.Struct<c.StructSchema>[];
+    private maxSize: number;
+
+    constructor(members: S) {
+        super();
+        this.members = members;
+        this.memberNames = Object.keys(members);
+        this.structs = Object.values(members);
+        
+        // Calculate maximum size of all structs
+        this.maxSize = 0;
+        for (const struct of this.structs) {
+            const structSize = struct.getSize();
+            this.maxSize = Math.max(this.maxSize, structSize);
+        }
+    }
+
+    getSize(): number {
+        return this.maxSize;
+    }
+
+    /**
+     * Read a union value. Returns an object with all members.
+     * All members are read from the same offset (they share memory).
+     * If any member fails to read, it will be undefined.
+     */
+    read(buffer: Buffer, offset: number, endian: c.Endian): {
+        [K in keyof S]?: c.infer<S[K]>
+    } {
+        const result: {
+            [K in keyof S]?: c.infer<S[K]>
+        } = {};
+        for (let i = 0; i < this.memberNames.length; i++) {
+            const name = this.memberNames[i];
+            const struct = this.structs[i];
+            try {
+                result[name as keyof S] = struct.read(buffer, offset) as c.infer<S[keyof S]>;
+            } catch {
+                // If member fails to read, keep it undefined
+                result[name as keyof S] = undefined;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Write a union value. The value should be an object with member names as keys.
+     * All members are written to the same offset (they share memory).
+     * If multiple members are provided, the last one wins (they overwrite each other).
+     */
+    write(buffer: Buffer, offset: number, value: {
+        [K in keyof S]?: c.infer<S[K]>
+    }, endian: c.Endian): void {
+        // Write the first provided member
+        for (const name of this.memberNames) {
+            if (value[name] !== undefined) {
+                const struct = this.members[name];
+                const structBuffer = struct.write(value[name]);
+                structBuffer.copy(buffer, offset);
+                return; // Only write one member since they all share memory
+            }
+        }
+        // If no member was provided, throw an error
+        throw new Error('No union member provided for write operation');
+    }
+
+    /**
+     * Read a specific union member by name
+     */
+    readMember<K extends keyof S>(buffer: Buffer, offset: number, memberName: K): c.infer<S[K]> {
+        const struct = this.members[memberName];
+        if (!struct) {
+            throw new Error(`Union member '${String(memberName)}' not found`);
+        }
+        return struct.read(buffer, offset) as c.infer<S[K]>;
+    }
+
+    /**
+     * Write a specific union member by name
+     */
+    writeMember<K extends keyof S>(buffer: Buffer, offset: number, memberName: K, value: c.infer<S[K]>): void {
+        const struct = this.members[memberName];
+        if (!struct) {
+            throw new Error(`Union member '${String(memberName)}' not found`);
+        }
+        const structBuffer = struct.write(value);
+        structBuffer.copy(buffer, offset);
+    }
+}

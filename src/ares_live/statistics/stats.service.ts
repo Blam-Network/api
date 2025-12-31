@@ -1,4 +1,4 @@
-import { Injectable, Inject, StreamableFile } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from 'src/db/prisma.service';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { 
@@ -313,7 +313,7 @@ export class StatsService {
         return result;
     }
 
-    async buildStatsQueryResponseBlf(file: Express.Multer.File): Promise<StreamableFile> {
+    async buildStatsQueryResponseBlf(file: Express.Multer.File): Promise<{ buffer: Buffer; size: number }> {
         this.logger.log(`Building stats query response - file size: ${file.buffer.length}, buffer preview: ${file.buffer.slice(0, 16).toString('hex')}`);
         
         let fileData;
@@ -432,7 +432,7 @@ export class StatsService {
             });
         }
 
-        return new StreamableFile(SBlfFileStatsQueryResponseSchema.write({
+        const buffer = SBlfFileStatsQueryResponseSchema.write({
             _blf: DEFAULT_BLF_CHUNK,
             athr: ARES_LIVE_AUTHOR,
             xsqr: {
@@ -440,7 +440,8 @@ export class StatsService {
                 leaderboards: leaderboards as any,
             },
             _eof: DEFAULT_EOF_CHUNK,
-        }));
+        });
+        return { buffer, size: buffer.length };
     }
 }
 

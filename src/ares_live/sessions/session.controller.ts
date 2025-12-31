@@ -9,13 +9,14 @@ import {
     HttpStatus,
     Req,
     HttpCode,
+    Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { SessionService } from './session.service';
-import { Request } from 'express';
-import { FileResponseInterceptor } from '../interceptors/file-response.interceptor';
+import { Request, Response } from 'express';
+import { StreamableFile } from '@nestjs/common';
 
 @ApiTags('Session')
 @Controller('api/session')
@@ -40,8 +41,8 @@ export class SessionController {
             },
         },
     })
-    @UseInterceptors(FileInterceptor('upload'), FileResponseInterceptor)
-    async create(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
+    @UseInterceptors(FileInterceptor('upload'))
+    async create(@UploadedFile() file: Express.Multer.File, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
         this.logger.log(`[SessionController] create() called - file: ${file ? 'present' : 'missing'}, method: ${req.method}, url: ${req.url}`);
         try {
             if (!file) {
@@ -61,7 +62,10 @@ export class SessionController {
             }
 
             this.logger.log(`Session create request received: filename=${file.originalname}, size=${file.size}, contentType=${file.mimetype}, bufferLength=${file.buffer.length}`);
-            return await this.sessionService.createSessionAsync(file, req);
+            const { buffer, size } = await this.sessionService.createSessionAsync(file, req);
+            res.setHeader('Content-Type', 'application/octet-stream');
+            res.setHeader('Content-Length', size.toString());
+            return new StreamableFile(buffer);
         } catch (error) {
             if (error instanceof HttpException) {
                 throw error;
@@ -134,11 +138,13 @@ export class SessionController {
 
     @Get('search')
     @HttpCode(200)
-    @UseInterceptors(FileResponseInterceptor)
     @ApiOperation({ summary: 'Search for sessions' })
-    async search() {
+    async search(@Res({ passthrough: true }) res: Response) {
         try {
-            return await this.sessionService.searchSessionsAsync();
+            const { buffer, size } = await this.sessionService.searchSessionsAsync();
+            res.setHeader('Content-Type', 'application/octet-stream');
+            res.setHeader('Content-Length', size.toString());
+            return new StreamableFile(buffer);
         } catch (error) {
             this.logger.error(`Unexpected error searching sessions: ${error}`);
             throw new HttpException(
@@ -213,8 +219,8 @@ export class SessionController {
             },
         },
     })
-    @UseInterceptors(FileInterceptor('upload'), FileResponseInterceptor)
-    async getBySecureAddress(@UploadedFile() file: Express.Multer.File) {
+    @UseInterceptors(FileInterceptor('upload'))
+    async getBySecureAddress(@UploadedFile() file: Express.Multer.File, @Res({ passthrough: true }) res: Response) {
         try {
             if (!file) {
                 this.logger.warn('Session get-by-secure-address request missing file');
@@ -232,7 +238,10 @@ export class SessionController {
                 );
             }
 
-            return await this.sessionService.getSessionBySecureAddressAsync(file);
+            const { buffer, size } = await this.sessionService.getSessionBySecureAddressAsync(file);
+            res.setHeader('Content-Type', 'application/octet-stream');
+            res.setHeader('Content-Length', size.toString());
+            return new StreamableFile(buffer);
         } catch (error) {
             this.logger.error(`Unexpected error getting session by secure address: ${error}`);
             if (error instanceof HttpException) {

@@ -1,4 +1,4 @@
-import { Injectable, Inject, StreamableFile } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from 'src/db/prisma.service';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { 
@@ -27,7 +27,7 @@ export class SessionService {
     async createSessionAsync(
         file: Express.Multer.File,
         req: Request,
-    ): Promise<StreamableFile> {
+    ): Promise<{ buffer: Buffer; size: number }> {
         this.logger.log(`Creating session - file size: ${file.buffer.length}, buffer preview: ${file.buffer.slice(0, 16).toString('hex')}`);
         
         let fileData;
@@ -89,7 +89,7 @@ export class SessionService {
             `Created session with ID ${identifierHexString}, Nonce: ${sessionNonce}`,
         );
 
-        return new StreamableFile(SBlfFileSessionCreateResponseSchema.write({
+        const buffer = SBlfFileSessionCreateResponseSchema.write({
             _blf: DEFAULT_BLF_CHUNK,
             athr: ARES_LIVE_AUTHOR,
             xscr: {
@@ -101,7 +101,8 @@ export class SessionService {
                 nonce: sessionNonce,
             },
             _eof: DEFAULT_EOF_CHUNK,
-        }));
+        });
+        return { buffer, size: buffer.length };
     }
 
     async modifySessionAsync(file: Express.Multer.File): Promise<void> {
@@ -149,7 +150,7 @@ export class SessionService {
         );
     }
 
-    async searchSessionsAsync(): Promise<StreamableFile> {
+    async searchSessionsAsync(): Promise<{ buffer: Buffer; size: number }> {
         // Query sessions with matchmaking flag set
         const sessions = await this.prisma.ares_session.findMany({
             where: {
@@ -255,7 +256,7 @@ export class SessionService {
             usableAddresses.push(0);
         }
 
-        return new StreamableFile(SBlfFileSessionSearchResponseSchema.write({
+        const buffer = SBlfFileSessionSearchResponseSchema.write({
             _blf: DEFAULT_BLF_CHUNK,
             athr: ARES_LIVE_AUTHOR,
             xssr: {
@@ -264,7 +265,8 @@ export class SessionService {
                 usableAddresses: usableAddresses.slice(0, 16) as any,
             },
             _eof: DEFAULT_EOF_CHUNK,
-        }));
+        });
+        return { buffer, size: buffer.length };
     }
 
     async joinSessionAsync(file: Express.Multer.File): Promise<void> {
@@ -328,7 +330,7 @@ export class SessionService {
         );
     }
 
-    async getSessionBySecureAddressAsync(file: Express.Multer.File): Promise<StreamableFile> {
+    async getSessionBySecureAddressAsync(file: Express.Multer.File): Promise<{ buffer: Buffer; size: number }> {
         let fileData;
         try {
             fileData = SBlfFileSessionGetBySecureAddressSchema.read(file.buffer);
@@ -361,14 +363,15 @@ export class SessionService {
         // Parse session ID from hex string
         const sessionIdData = Array.from(Buffer.from(sessionPlayer.session_id, 'hex')) as any;
 
-        return new StreamableFile(SBlfFileSessionGetBySecureAddressResponseSchema.write({
+        const buffer = SBlfFileSessionGetBySecureAddressResponseSchema.write({
             _blf: DEFAULT_BLF_CHUNK,
             athr: ARES_LIVE_AUTHOR,
             xsgr: {
                 sessionId: { data: sessionIdData },
             },
             _eof: DEFAULT_EOF_CHUNK,
-        }));
+        });
+        return { buffer, size: buffer.length };
     }
 }
 

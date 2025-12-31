@@ -7,12 +7,14 @@ import {
     HttpException,
     HttpStatus,
     HttpCode,
+    Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { FileResponseInterceptor } from '../interceptors/file-response.interceptor';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { StatsService } from './stats.service';
+import { StreamableFile } from '@nestjs/common';
 
 @ApiTags('Stats')
 @Controller('api/stats')
@@ -37,8 +39,8 @@ export class StatsController {
             },
         },
     })
-    @UseInterceptors(FileInterceptor('upload'), FileResponseInterceptor)
-    async query(@UploadedFile() file: Express.Multer.File) {
+    @UseInterceptors(FileInterceptor('upload'))
+    async query(@UploadedFile() file: Express.Multer.File, @Res({ passthrough: true }) res: Response) {
         this.logger.log(`[StatsController] query() called - file: ${file ? 'present' : 'missing'}`);
         try {
             if (!file) {
@@ -58,7 +60,10 @@ export class StatsController {
             }
 
             this.logger.log(`Stats query request received: filename=${file.originalname}, size=${file.size}, contentType=${file.mimetype}, bufferLength=${file.buffer.length}`);
-            return await this.statsService.buildStatsQueryResponseBlf(file);
+            const { buffer, size } = await this.statsService.buildStatsQueryResponseBlf(file);
+            res.setHeader('Content-Type', 'application/octet-stream');
+            res.setHeader('Content-Length', size.toString());
+            return new StreamableFile(buffer);
         } catch (error) {
             if (error instanceof HttpException) {
                 throw error;

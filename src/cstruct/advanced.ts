@@ -132,7 +132,11 @@ export class CMagicNumber<N extends number, PT extends PrimitiveType> extends Ad
     read(buffer: Buffer, offset: number, endian: c.Endian): N {
         // Create DataView that accounts for the offset - the view should start at buffer.byteOffset + offset
         // and have length buffer.byteLength - offset to ensure we don't read past the buffer
-        const view = new DataView(buffer.buffer, buffer.byteOffset + offset, buffer.byteLength - offset);
+        const remainingLength = buffer.byteLength - offset;
+        if (remainingLength < getPrimitiveTypeSize(this.type)) {
+            throw new Error(`Cannot read ${this.type} at offset ${offset}: only ${remainingLength} bytes remaining in buffer (need ${getPrimitiveTypeSize(this.type)})`);
+        }
+        const view = new DataView(buffer.buffer, buffer.byteOffset + offset, remainingLength);
         const value = readPrimitiveValue(view, 0, this.type, endian === 'little');
 
         if (value !== this.magic) {
@@ -196,7 +200,11 @@ export class CBitfield<const K extends readonly string[], T extends PrimitiveTyp
     } {
         // Create DataView that accounts for the offset - the view should start at buffer.byteOffset + offset
         // and have length buffer.byteLength - offset to ensure we don't read past the buffer
-        const view = new DataView(buffer.buffer, buffer.byteOffset + offset, buffer.byteLength - offset);
+        const remainingLength = buffer.byteLength - offset;
+        if (remainingLength < getPrimitiveTypeSize(this.type)) {
+            throw new Error(`Cannot read ${this.type} at offset ${offset}: only ${remainingLength} bytes remaining in buffer (need ${getPrimitiveTypeSize(this.type)})`);
+        }
+        const view = new DataView(buffer.buffer, buffer.byteOffset + offset, remainingLength);
         const value = readPrimitiveValue(view, 0, this.type, endian === 'little');
         const result: any = {};
         for (let i = 0; i < this.keys.length; i++) {
@@ -277,7 +285,11 @@ export class CEnum<const T extends readonly string[] | Record<string, number>, P
     read(buffer: Buffer, offset: number, endian: c.Endian): EnumKeys<T> {
         // Create DataView that accounts for the offset - the view should start at buffer.byteOffset + offset
         // and have length buffer.byteLength - offset to ensure we don't read past the buffer
-        const view = new DataView(buffer.buffer, buffer.byteOffset + offset, buffer.byteLength - offset);
+        const remainingLength = buffer.byteLength - offset;
+        if (remainingLength < getPrimitiveTypeSize(this.type)) {
+            throw new Error(`Cannot read ${this.type} at offset ${offset}: only ${remainingLength} bytes remaining in buffer (need ${getPrimitiveTypeSize(this.type)})`);
+        }
+        const view = new DataView(buffer.buffer, buffer.byteOffset + offset, remainingLength);
         const value = readPrimitiveValue(view, 0, this.type, endian === 'little');
         const numericValue = Number(value);
         const key = this.keyMap.get(numericValue);

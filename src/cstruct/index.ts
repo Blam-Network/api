@@ -297,9 +297,18 @@ export namespace c {
                 const fieldSize = getPrimitiveTypeSize(type);
 
                 if (count === 1) {
+                    // Check bounds before reading
+                    if (currentOffset + fieldSize > view.byteLength) {
+                        throw new Error(`Cannot read ${type} at offset ${currentOffset}: only ${view.byteLength - currentOffset} bytes remaining in DataView (need ${fieldSize})`);
+                    }
                     result[field.name] = readPrimitiveValue(view, currentOffset, type, littleEndian);
                     currentOffset += fieldSize;
                 } else {
+                    // Check bounds before reading array
+                    const totalSize = fieldSize * count;
+                    if (currentOffset + totalSize > view.byteLength) {
+                        throw new Error(`Cannot read ${count} ${type} values at offset ${currentOffset}: only ${view.byteLength - currentOffset} bytes remaining in DataView (need ${totalSize})`);
+                    }
                     result[field.name] = [];
                     for (let i = 0; i < count; i++) {
                         result[field.name].push(readPrimitiveValue(view, currentOffset, type, littleEndian));

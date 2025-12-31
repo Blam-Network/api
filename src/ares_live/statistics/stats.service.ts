@@ -314,7 +314,16 @@ export class StatsService {
     }
 
     async buildStatsQueryResponseBlf(file: Express.Multer.File): Promise<StreamableFile> {
-        const request = SBlfChunkStatsQuerySchema.read(file.buffer);
+        this.logger.log(`Building stats query response - file size: ${file.buffer.length}, buffer preview: ${file.buffer.slice(0, 16).toString('hex')}`);
+        
+        let request;
+        try {
+            request = SBlfChunkStatsQuerySchema.read(file.buffer);
+        } catch (error) {
+            this.logger.error(`Failed to parse stats query BLF: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Buffer length: ${file.buffer.length}, first 64 bytes: ${file.buffer.slice(0, 64).toString('hex')}`);
+            throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
+        }
         const { xuidCount, xuids, specCount, specs } = request;
 
         const actualLeaderboardCount = Math.min(specCount, 4);

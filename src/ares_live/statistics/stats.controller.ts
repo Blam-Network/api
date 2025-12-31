@@ -36,6 +36,7 @@ export class StatsController {
     })
     @UseInterceptors(FileInterceptor('file'))
     async query(@UploadedFile() file: Express.Multer.File) {
+        this.logger.log(`[StatsController] query() called - file: ${file ? 'present' : 'missing'}`);
         try {
             if (!file) {
                 this.logger.warn('Stats query request missing file');
@@ -53,13 +54,21 @@ export class StatsController {
                 );
             }
 
-            this.logger.log(`Stats query request received: filename=${file.originalname}, size=${file.size}, contentType=${file.mimetype}`);
+            this.logger.log(`Stats query request received: filename=${file.originalname}, size=${file.size}, contentType=${file.mimetype}, bufferLength=${file.buffer.length}`);
             return await this.statsService.buildStatsQueryResponseBlf(file);
         } catch (error) {
             if (error instanceof HttpException) {
                 throw error;
             }
-            this.logger.error(`Unexpected error querying stats: ${error}`);
+            if (error instanceof Error && error.message.includes('Invalid BLF format')) {
+                this.logger.error(`BLF parsing error in stats query: ${error.message}`);
+                throw new HttpException(
+                    `Invalid file format: ${error.message}`,
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+            this.logger.error(`Unexpected error querying stats: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
             throw new HttpException(
                 'An internal server error occurred while processing the stats query',
                 HttpStatus.INTERNAL_SERVER_ERROR,

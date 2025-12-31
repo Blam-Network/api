@@ -37,7 +37,7 @@ export const createAresLiveServer = async () => {
 
     shutdownObserver.addHttpServer(httpServer);
 
-    const logger = app.get<ILogger>(ILoggerSymbol)
+    const logger = app.get<ILogger>(ILoggerSymbol);
     logger.log(`[Ares Live] Listening on port: ${ARES_LIVE_PORT}`)
 }
 

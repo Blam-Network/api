@@ -39,6 +39,7 @@ export class SessionController {
     })
     @UseInterceptors(FileInterceptor('file'))
     async create(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
+        this.logger.log(`[SessionController] create() called - file: ${file ? 'present' : 'missing'}, method: ${req.method}, url: ${req.url}`);
         try {
             if (!file) {
                 this.logger.warn('Session create request missing file');
@@ -56,13 +57,21 @@ export class SessionController {
                 );
             }
 
-            this.logger.log(`Session create request received: filename=${file.originalname}, size=${file.size}, contentType=${file.mimetype}`);
+            this.logger.log(`Session create request received: filename=${file.originalname}, size=${file.size}, contentType=${file.mimetype}, bufferLength=${file.buffer.length}`);
             return await this.sessionService.createSessionAsync(file, req);
         } catch (error) {
             if (error instanceof HttpException) {
                 throw error;
             }
-            this.logger.error(`Unexpected error creating session: ${error}`);
+            if (error instanceof Error && error.message.includes('Invalid BLF format')) {
+                this.logger.error(`BLF parsing error in session create: ${error.message}`);
+                throw new HttpException(
+                    `Invalid file format: ${error.message}`,
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+            this.logger.error(`Unexpected error creating session: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
             throw new HttpException(
                 'An internal server error occurred while processing the session create request',
                 HttpStatus.INTERNAL_SERVER_ERROR,

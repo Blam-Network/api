@@ -28,7 +28,16 @@ export class SessionService {
         file: Express.Multer.File,
         req: Request,
     ): Promise<StreamableFile> {
-        const request = SBlfChunkSessionCreateSchema.read(file.buffer);
+        this.logger.log(`Creating session - file size: ${file.buffer.length}, buffer preview: ${file.buffer.slice(0, 16).toString('hex')}`);
+        
+        let request;
+        try {
+            request = SBlfChunkSessionCreateSchema.read(file.buffer);
+        } catch (error) {
+            this.logger.error(`Failed to parse session create BLF: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Buffer length: ${file.buffer.length}, first 64 bytes: ${file.buffer.slice(0, 64).toString('hex')}`);
+            throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
+        }
 
         const { flags, secureAddress, maxPublicSlots, maxPrivateSlots, userXuid } = request;
 

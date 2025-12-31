@@ -383,6 +383,7 @@ export class StatsService {
 
     async buildStatsQueryResponseBlf(file: Express.Multer.File): Promise<{ buffer: Buffer; size: number }> {
         this.logger.log(`Building stats query response - file size: ${file.buffer.length}, buffer preview: ${file.buffer.slice(0, 16).toString('hex')}`);
+        this.logger.log(`Full buffer hex dump (${file.buffer.length} bytes): ${file.buffer.toString('hex')}`);
         
         let fileData;
         try {

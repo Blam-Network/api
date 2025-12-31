@@ -29,6 +29,7 @@ export class SessionService {
         req: Request,
     ): Promise<{ buffer: Buffer; size: number }> {
         this.logger.log(`Creating session - file size: ${file.buffer.length}, buffer preview: ${file.buffer.slice(0, 16).toString('hex')}`);
+        this.logger.log(`Full buffer hex dump (${file.buffer.length} bytes): ${file.buffer.toString('hex')}`);
         
         let fileData;
         try {

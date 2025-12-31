@@ -318,7 +318,7 @@ export class StatsService {
         
         let fileData;
         try {
-            // Read as a full BLF file (assumes _eof is present)
+            // Read as a full BLF file (matches s_blffile_stats_query structure)
             fileData = SBlfFileStatsQuerySchema.read(file.buffer);
         } catch (error) {
             this.logger.error(`Failed to parse stats query BLF: ${error instanceof Error ? error.message : String(error)}`);

@@ -9,6 +9,7 @@ import { StatsController } from './statistics/stats.controller';
 import { SessionService } from './sessions/session.service';
 import { StatsService } from './statistics/stats.service';
 import { AllExceptionsFilter } from './filters/http-exception.filter';
+import { AresLiveHeadersMiddleware } from './middleware/ares-live-headers.middleware';
 
 @Module({
     imports: [
@@ -35,7 +36,9 @@ import { AllExceptionsFilter } from './filters/http-exception.filter';
 })
 export class AresLiveModule implements NestModule {
     configure(consumer: MiddlewareConsumer): void {
-        consumer.apply(AppLoggerMiddleware).forRoutes('*');
+        consumer
+            .apply(AresLiveHeadersMiddleware, AppLoggerMiddleware)
+            .forRoutes('*');
     }
 }
 

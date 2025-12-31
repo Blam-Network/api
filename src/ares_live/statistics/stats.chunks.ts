@@ -93,6 +93,7 @@ export const SBlfChunkStatsQueryResponseSchema = blf.createChunkSchema({
 });
 
 // File schema for reading stats query requests (full BLF file with _eof)
+// Matches s_blffile_stats_query structure from game code
 export const SBlfFileStatsQuerySchema = blf.createFileSchema([
     SBlfChunkStartOfFileSchema,
     SBlfChunkAuthorSchema,

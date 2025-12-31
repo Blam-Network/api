@@ -9,6 +9,7 @@ import {
     HttpCode,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { FileResponseInterceptor } from '../interceptors/file-response.interceptor';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { StatsService } from './stats.service';
@@ -36,7 +37,7 @@ export class StatsController {
             },
         },
     })
-    @UseInterceptors(FileInterceptor('upload'))
+    @UseInterceptors(FileInterceptor('upload'), FileResponseInterceptor)
     async query(@UploadedFile() file: Express.Multer.File) {
         this.logger.log(`[StatsController] query() called - file: ${file ? 'present' : 'missing'}`);
         try {

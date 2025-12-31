@@ -15,6 +15,7 @@ import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { SessionService } from './session.service';
 import { Request } from 'express';
+import { FileResponseInterceptor } from '../interceptors/file-response.interceptor';
 
 @ApiTags('Session')
 @Controller('api/session')
@@ -39,7 +40,7 @@ export class SessionController {
             },
         },
     })
-    @UseInterceptors(FileInterceptor('upload'))
+    @UseInterceptors(FileInterceptor('upload'), FileResponseInterceptor)
     async create(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
         this.logger.log(`[SessionController] create() called - file: ${file ? 'present' : 'missing'}, method: ${req.method}, url: ${req.url}`);
         try {
@@ -133,6 +134,7 @@ export class SessionController {
 
     @Get('search')
     @HttpCode(200)
+    @UseInterceptors(FileResponseInterceptor)
     @ApiOperation({ summary: 'Search for sessions' })
     async search() {
         try {
@@ -211,7 +213,7 @@ export class SessionController {
             },
         },
     })
-    @UseInterceptors(FileInterceptor('upload'))
+    @UseInterceptors(FileInterceptor('upload'), FileResponseInterceptor)
     async getBySecureAddress(@UploadedFile() file: Express.Multer.File) {
         try {
             if (!file) {

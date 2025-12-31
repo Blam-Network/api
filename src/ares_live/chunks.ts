@@ -1,8 +1,15 @@
 import { blf, s_blf_chunk_end_of_file } from "src/blf";
 import { c } from "src/cstruct";
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const packageJson = require('../../package.json');
+// Use environment variable or fallback to a default version
+// This avoids loading package.json at build time which can cause memory issues
+const getVersion = (): string => {
+    if (typeof process !== 'undefined' && process.env?.APP_VERSION) {
+        return process.env.APP_VERSION;
+    }
+    // Fallback version - can be set via build script
+    return '2.0.0';
+};
 
 export const DEFAULT_BLF_CHUNK: s_blf_chunk_start_of_file = {
     bom: 0xFFFE,
@@ -13,7 +20,7 @@ export const ARES_LIVE_AUTHOR: s_blf_chunk_author = {
     programName: 'web_private',
     buildNumberSequence: 1,
     buildNumber: 0,
-    buildString: packageJson.version,
+    buildString: getVersion(),
     authorName: 'Blam Network',
 };
 

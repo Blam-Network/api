@@ -6,6 +6,7 @@ import {
     Inject,
     HttpException,
     HttpStatus,
+    HttpCode,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';

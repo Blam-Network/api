@@ -1,14 +1,10 @@
 import { blf, s_blf_chunk_end_of_file } from "src/blf";
 import { c } from "src/cstruct";
 
-// Use environment variable or fallback to a default version
-// This avoids loading package.json at build time which can cause memory issues
+// Hardcoded version to avoid any runtime memory issues
+// Can be overridden via APP_VERSION environment variable if needed
 const getVersion = (): string => {
-    if (typeof process !== 'undefined' && process.env?.APP_VERSION) {
-        return process.env.APP_VERSION;
-    }
-    // Fallback version - can be set via build script
-    return '2.0.0';
+    return (typeof process !== 'undefined' && process.env?.APP_VERSION) || '2.0.0';
 };
 
 export const DEFAULT_BLF_CHUNK: s_blf_chunk_start_of_file = {

@@ -5,10 +5,10 @@ import {
     randomNonce, 
     randomTransportSessionId, 
     randomTransportSessionKey, 
-    SBlfChunkSessionCreateSchema,
-    SBlfChunkSessionModifySchema,
-    SBlfChunkSessionJoinSchema,
-    SBlfChunkSessionGetBySecureAddressSchema,
+    SBlfFileSessionCreateSchema,
+    SBlfFileSessionModifySchema,
+    SBlfFileSessionJoinSchema,
+    SBlfFileSessionGetBySecureAddressSchema,
     SBlfFileSessionCreateResponseSchema,
     SBlfFileSessionSearchResponseSchema,
     SBlfFileSessionGetBySecureAddressResponseSchema,
@@ -30,15 +30,15 @@ export class SessionService {
     ): Promise<StreamableFile> {
         this.logger.log(`Creating session - file size: ${file.buffer.length}, buffer preview: ${file.buffer.slice(0, 16).toString('hex')}`);
         
-        let request;
+        let fileData;
         try {
-            request = SBlfChunkSessionCreateSchema.read(file.buffer);
+            fileData = SBlfFileSessionCreateSchema.read(file.buffer);
         } catch (error) {
             this.logger.error(`Failed to parse session create BLF: ${error instanceof Error ? error.message : String(error)}`);
             this.logger.error(`Buffer length: ${file.buffer.length}, first 64 bytes: ${file.buffer.slice(0, 64).toString('hex')}`);
             throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
         }
-
+        const request = fileData.xscc;
         const { flags, secureAddress, maxPublicSlots, maxPrivateSlots, userXuid } = request;
 
         const sessionIdentifier = randomTransportSessionId();
@@ -105,7 +105,14 @@ export class SessionService {
     }
 
     async modifySessionAsync(file: Express.Multer.File): Promise<void> {
-        const request = SBlfChunkSessionModifySchema.read(file.buffer);
+        let fileData;
+        try {
+            fileData = SBlfFileSessionModifySchema.read(file.buffer);
+        } catch (error) {
+            this.logger.error(`Failed to parse session modify BLF: ${error instanceof Error ? error.message : String(error)}`);
+            throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        const request = fileData.xscm;
         const { identifier, flags, maxPublicSlots, maxPrivateSlots } = request;
 
         const identifierHexString = Buffer.from(identifier.data).toString('hex');
@@ -261,7 +268,14 @@ export class SessionService {
     }
 
     async joinSessionAsync(file: Express.Multer.File): Promise<void> {
-        const request = SBlfChunkSessionJoinSchema.read(file.buffer);
+        let fileData;
+        try {
+            fileData = SBlfFileSessionJoinSchema.read(file.buffer);
+        } catch (error) {
+            this.logger.error(`Failed to parse session join BLF: ${error instanceof Error ? error.message : String(error)}`);
+            throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        const request = fileData['xsj '];
         const { sessionId, playerCount, players } = request;
 
         if (playerCount === 0 || playerCount > 16) {
@@ -315,7 +329,14 @@ export class SessionService {
     }
 
     async getSessionBySecureAddressAsync(file: Express.Multer.File): Promise<StreamableFile> {
-        const request = SBlfChunkSessionGetBySecureAddressSchema.read(file.buffer);
+        let fileData;
+        try {
+            fileData = SBlfFileSessionGetBySecureAddressSchema.read(file.buffer);
+        } catch (error) {
+            this.logger.error(`Failed to parse session get-by-secure-address BLF: ${error instanceof Error ? error.message : String(error)}`);
+            throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        const request = fileData.xsga;
         const { secureAddress } = request;
 
         // Convert secure address to hex string for database lookup

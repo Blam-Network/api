@@ -236,6 +236,36 @@ export const SBlfChunkSessionSearchResponseSchema = blf.createChunkSchema({
     ],
 });
 
+// File schemas for reading session requests (full BLF files with _eof)
+export const SBlfFileSessionCreateSchema = blf.createFileSchema([
+    SBlfChunkStartOfFileSchema,
+    SBlfChunkAuthorSchema,
+    SBlfChunkSessionCreateSchema,
+    SBlfChunkEndOfFileSchema,
+]);
+
+export const SBlfFileSessionModifySchema = blf.createFileSchema([
+    SBlfChunkStartOfFileSchema,
+    SBlfChunkAuthorSchema,
+    SBlfChunkSessionModifySchema,
+    SBlfChunkEndOfFileSchema,
+]);
+
+export const SBlfFileSessionJoinSchema = blf.createFileSchema([
+    SBlfChunkStartOfFileSchema,
+    SBlfChunkAuthorSchema,
+    SBlfChunkSessionJoinSchema,
+    SBlfChunkEndOfFileSchema,
+]);
+
+export const SBlfFileSessionGetBySecureAddressSchema = blf.createFileSchema([
+    SBlfChunkStartOfFileSchema,
+    SBlfChunkAuthorSchema,
+    SBlfChunkSessionGetBySecureAddressSchema,
+    SBlfChunkEndOfFileSchema,
+]);
+
+// File schemas for writing session responses
 export const SBlfFileSessionCreateResponseSchema = blf.createFileSchema([
     SBlfChunkStartOfFileSchema,
     SBlfChunkAuthorSchema,

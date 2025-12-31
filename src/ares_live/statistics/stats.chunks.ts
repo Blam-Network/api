@@ -92,6 +92,14 @@ export const SBlfChunkStatsQueryResponseSchema = blf.createChunkSchema({
     ],
 });
 
+// File schema for reading stats query requests (full BLF file with _eof)
+export const SBlfFileStatsQuerySchema = blf.createFileSchema([
+    SBlfChunkStartOfFileSchema,
+    SBlfChunkAuthorSchema,
+    SBlfChunkStatsQuerySchema,
+    SBlfChunkEndOfFileSchema,
+]);
+
 export const SBlfFileStatsQueryResponseSchema = blf.createFileSchema([
     SBlfChunkStartOfFileSchema,
     SBlfChunkAuthorSchema,

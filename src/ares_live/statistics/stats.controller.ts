@@ -27,21 +27,21 @@ export class StatsController {
         schema: {
             type: 'object',
             properties: {
-                file: {
+                upload: {
                     type: 'string',
                     format: 'binary',
                 },
             },
         },
     })
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(FileInterceptor('upload'))
     async query(@UploadedFile() file: Express.Multer.File) {
         this.logger.log(`[StatsController] query() called - file: ${file ? 'present' : 'missing'}`);
         try {
             if (!file) {
                 this.logger.warn('Stats query request missing file');
                 throw new HttpException(
-                    'File is required in multipart/form-data with field name "file"',
+                    'File is required in multipart/form-data with field name "upload"',
                     HttpStatus.BAD_REQUEST,
                 );
             }

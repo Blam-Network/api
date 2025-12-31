@@ -30,21 +30,21 @@ export class SessionController {
         schema: {
             type: 'object',
             properties: {
-                file: {
+                upload: {
                     type: 'string',
                     format: 'binary',
                 },
             },
         },
     })
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(FileInterceptor('upload'))
     async create(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
         this.logger.log(`[SessionController] create() called - file: ${file ? 'present' : 'missing'}, method: ${req.method}, url: ${req.url}`);
         try {
             if (!file) {
                 this.logger.warn('Session create request missing file');
                 throw new HttpException(
-                    'File is required in multipart/form-data with field name "file"',
+                    'File is required in multipart/form-data with field name "upload"',
                     HttpStatus.BAD_REQUEST,
                 );
             }
@@ -86,20 +86,20 @@ export class SessionController {
         schema: {
             type: 'object',
             properties: {
-                file: {
+                upload: {
                     type: 'string',
                     format: 'binary',
                 },
             },
         },
     })
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(FileInterceptor('upload'))
     async modify(@UploadedFile() file: Express.Multer.File) {
         try {
             if (!file) {
                 this.logger.warn('Session modify request missing file');
                 throw new HttpException(
-                    'File is required in multipart/form-data with field name "file"',
+                    'File is required in multipart/form-data with field name "upload"',
                     HttpStatus.BAD_REQUEST,
                 );
             }
@@ -149,20 +149,20 @@ export class SessionController {
         schema: {
             type: 'object',
             properties: {
-                file: {
+                upload: {
                     type: 'string',
                     format: 'binary',
                 },
             },
         },
     })
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(FileInterceptor('upload'))
     async join(@UploadedFile() file: Express.Multer.File) {
         try {
             if (!file) {
                 this.logger.warn('Session join request missing file');
                 throw new HttpException(
-                    'File is required in multipart/form-data with field name "file"',
+                    'File is required in multipart/form-data with field name "upload"',
                     HttpStatus.BAD_REQUEST,
                 );
             }
@@ -198,20 +198,20 @@ export class SessionController {
         schema: {
             type: 'object',
             properties: {
-                file: {
+                upload: {
                     type: 'string',
                     format: 'binary',
                 },
             },
         },
     })
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(FileInterceptor('upload'))
     async getBySecureAddress(@UploadedFile() file: Express.Multer.File) {
         try {
             if (!file) {
                 this.logger.warn('Session get-by-secure-address request missing file');
                 throw new HttpException(
-                    'File is required in multipart/form-data with field name "file"',
+                    'File is required in multipart/form-data with field name "upload"',
                     HttpStatus.BAD_REQUEST,
                 );
             }

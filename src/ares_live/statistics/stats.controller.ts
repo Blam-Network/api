@@ -21,6 +21,7 @@ export class StatsController {
     ) {}
 
     @Post('query')
+    @HttpCode(200)
     @ApiOperation({ summary: 'Query player statistics' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({

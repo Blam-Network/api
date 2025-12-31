@@ -8,6 +8,7 @@ import {
     HttpException,
     HttpStatus,
     Req,
+    HttpCode,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
@@ -24,6 +25,7 @@ export class SessionController {
     ) {}
 
     @Post('create')
+    @HttpCode(200)
     @ApiOperation({ summary: 'Create a new session' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({
@@ -80,6 +82,7 @@ export class SessionController {
     }
 
     @Post('modify')
+    @HttpCode(200)
     @ApiOperation({ summary: 'Modify an existing session' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({
@@ -129,6 +132,7 @@ export class SessionController {
     }
 
     @Get('search')
+    @HttpCode(200)
     @ApiOperation({ summary: 'Search for sessions' })
     async search() {
         try {
@@ -143,6 +147,7 @@ export class SessionController {
     }
 
     @Post('join')
+    @HttpCode(200)
     @ApiOperation({ summary: 'Join a session' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({
@@ -192,6 +197,7 @@ export class SessionController {
     }
 
     @Post('get-by-secure-address')
+    @HttpCode(200)
     @ApiOperation({ summary: 'Get session by secure address' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({

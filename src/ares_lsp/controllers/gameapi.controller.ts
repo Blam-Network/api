@@ -108,7 +108,7 @@ export class GameApiController {
   })
   @Post('/MachineUpdateNetworkStats.ashx')
   @ApiHeader({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
-  @ApiHeader({ name: 'machineId' })
+  @ApiHeader({ name: 'machineid' })
   @UseInterceptors(FileInterceptor('upload'))
   async machineUpdateNetworkStats(
     @Headers() headers: Record<string, string>,
@@ -116,12 +116,12 @@ export class GameApiController {
   ) {
     if (!upload) throw new BadRequestException();
 
-    const { title, machineId } = z.object({
+    const { title, machineid } = z.object({
       title: parseBungieHeader(z.coerce.number().default(TITLE_IDS.LEGACY)),
-      machineId: parseBungieHeader(hexStringXuidSchema),
+      machineid: parseBungieHeader(hexStringXuidSchema),
     }).parse(headers);
 
-    this.logger.log(`[MACHINE] Got machine network stats for machine ${machineId}, title ${title}`)
+    this.logger.log(`[MACHINE] Got machine network stats for machine ${machineid}, title ${title}`)
     this.logger.log(`[MACHINE] Mime type = ${upload.mimetype}`)
     await this.uploadService.handleDebug(upload);
     await this.uploadService.storeUploadedFile(upload);

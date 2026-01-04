@@ -110,6 +110,7 @@ export class GameApiController {
   @ApiHeader({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiHeader({ name: 'machineid' })
   @UseInterceptors(FileInterceptor('upload'))
+  @HttpCode(200)
   async machineUpdateNetworkStats(
     @Headers() headers: Record<string, string>,
     @UploadedFile() upload: Express.Multer.File | undefined,
@@ -126,8 +127,6 @@ export class GameApiController {
     await this.uploadService.handleDebug(upload);
     await this.uploadService.storeUploadedFile(upload);
     // TODO: Store this
-
-    return "DONE";
   }
 
   @ApiOperation({

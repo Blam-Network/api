@@ -126,6 +126,8 @@ export class GameApiController {
     await this.uploadService.handleDebug(upload);
     await this.uploadService.storeUploadedFile(upload);
     // TODO: Store this
+
+    return "DONE";
   }
 
   @ApiOperation({

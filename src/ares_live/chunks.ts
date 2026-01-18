@@ -8,7 +8,7 @@ const getVersion = (): string => {
 };
 
 export const DEFAULT_BLF_CHUNK: s_blf_chunk_start_of_file = {
-    bom: 0xFFFE,
+    bom: 0xFEFF,
     fileName: '',
 };
 
@@ -32,7 +32,7 @@ export const SBlfChunkStartOfFileSchema = blf.createChunkSchema({
     minorVersion: 2,
     endian: 'big',
     fields: [
-        { name: 'bom', type: new c.MagicNumber(0xFFFE, 'u16') },
+        { name: 'bom', type: new c.MagicNumber(0xFEFF, 'u16') }, // chunk is BE except the BOM
         { name: 'fileName', type: new c.String(32) },
         { name: 'padding', type: 'padding', count: 2 },
     ],

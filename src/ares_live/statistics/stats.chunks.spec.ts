@@ -17,9 +17,6 @@ describe('Stats Query BLF Parsing', () => {
         const chunk2Size = buffer.readUInt32BE(offset + 4);
         offset += chunk2Size;
         const chunk3Size = buffer.readUInt32BE(offset + 4);
-        console.log('Chunk sizes:', chunk1Size, chunk2Size, chunk3Size);
-        console.log('Chunk 3 (xsqq) starts at:', offset, 'length:', chunk3Size);
-        console.log('Remaining buffer from chunk 3 start:', buffer.length - offset);
         
         // Parse the BLF file
         const fileData = SBlfFileStatsQuerySchema.read(buffer);
@@ -32,7 +29,7 @@ describe('Stats Query BLF Parsing', () => {
         
         // Verify _blf chunk
         expect(fileData._blf.fileName).toBe('stats query');
-        expect(fileData._blf.bom).toBe(0xFFFE);
+        expect(fileData._blf.bom).toBe(0xFEFF);
         
         // Verify athr chunk
         expect(fileData.athr.programName).toBeDefined();
@@ -162,7 +159,7 @@ describe('Stats Query BLF Parsing', () => {
         
         // Verify _blf chunk
         expect(fileData._blf.fileName).toBeDefined();
-        expect(fileData._blf.bom).toBe(0xFFFE); // BOM is conceptually 0xFEFF (MagicNumber normalizes it)
+        expect(fileData._blf.bom).toBe(0xFEFF);
         
         // Verify athr chunk
         expect(fileData.athr.programName).toBeDefined();

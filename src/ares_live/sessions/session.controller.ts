@@ -7,7 +7,7 @@ import {
     Inject,
     HttpException,
     HttpStatus,
-    Req,
+    Ip,
     HttpCode,
     Res,
 } from '@nestjs/common';
@@ -15,8 +15,28 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { SessionService } from './session.service';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { StreamableFile } from '@nestjs/common';
+
+/**
+ * Normalizes an IP address to IPv4 format, handling IPv4-mapped IPv6 addresses
+ */
+function normalizeIpAddress(ip: string): string {
+    if (!ip) {
+        return '0.0.0.0';
+    }
+    // Handle IPv4-mapped IPv6 addresses (::ffff:xxx.xxx.xxx.xxx)
+    const ipv4Match = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (ipv4Match) {
+        return ipv4Match[1];
+    }
+    // Return IPv4 addresses as-is
+    if (ip.includes('.')) {
+        return ip;
+    }
+    // Default for other cases (pure IPv6, etc.)
+    return '0.0.0.0';
+}
 
 @ApiTags('Session')
 @Controller('api/session')
@@ -42,8 +62,8 @@ export class SessionController {
         },
     })
     @UseInterceptors(FileInterceptor('upload'))
-    async create(@UploadedFile() file: Express.Multer.File, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-        this.logger.log(`[SessionController] create() called - file: ${file ? 'present' : 'missing'}, method: ${req.method}, url: ${req.url}`);
+    async create(@UploadedFile() file: Express.Multer.File, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
+        this.logger.log(`[SessionController] create() called - file: ${file ? 'present' : 'missing'}, ip: ${ip}`);
         try {
             if (!file) {
                 this.logger.warn('Session create request missing file');
@@ -62,7 +82,8 @@ export class SessionController {
             }
 
             this.logger.log(`Session create request received: filename=${file.originalname}, size=${file.size}, contentType=${file.mimetype}, bufferLength=${file.buffer.length}`);
-            const { buffer, size } = await this.sessionService.createSessionAsync(file, req);
+            const usableAddress = normalizeIpAddress(ip);
+            const { buffer, size } = await this.sessionService.createSessionAsync(file, usableAddress);
             res.setHeader('Content-Type', 'application/octet-stream');
             res.setHeader('Content-Length', size.toString());
             return new StreamableFile(buffer);
@@ -154,9 +175,9 @@ export class SessionController {
         }
     }
 
-    @Post('join')
+    @Post('delete')
     @HttpCode(200)
-    @ApiOperation({ summary: 'Join a session' })
+    @ApiOperation({ summary: 'Delete a session' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({
         schema: {
@@ -170,10 +191,10 @@ export class SessionController {
         },
     })
     @UseInterceptors(FileInterceptor('upload'))
-    async join(@UploadedFile() file: Express.Multer.File) {
+    async delete(@UploadedFile() file: Express.Multer.File, @Ip() ip: string) {
         try {
             if (!file) {
-                this.logger.warn('Session join request missing file');
+                this.logger.warn('Session delete request missing file');
                 throw new HttpException(
                     'File is required in multipart/form-data with field name "upload"',
                     HttpStatus.BAD_REQUEST,
@@ -181,77 +202,45 @@ export class SessionController {
             }
 
             if (!file.buffer || file.buffer.length === 0) {
-                this.logger.warn('Session join request has empty file buffer');
+                this.logger.warn('Session delete request has empty file buffer');
                 throw new HttpException(
                     'File buffer is empty',
                     HttpStatus.BAD_REQUEST,
                 );
             }
 
-            await this.sessionService.joinSessionAsync(file);
-        } catch (error) {
-            this.logger.error(`Unexpected error joining session: ${error}`);
-            if (error instanceof HttpException) {
-                throw error;
-            }
-            if (error instanceof Error && error.message === 'Invalid player count') {
-                throw new HttpException('Invalid player count', HttpStatus.BAD_REQUEST);
-            }
-            throw new HttpException(
-                'An internal server error occurred while processing the session join request',
-                HttpStatus.INTERNAL_SERVER_ERROR,
+            const requesterIpAddress = normalizeIpAddress(ip);
+            const sessionIdHex = file.buffer.length >= 8 
+                ? Buffer.from(file.buffer.slice(0, 8)).toString('hex') 
+                : 'unknown';
+            this.logger.log(
+                `Session delete request: SessionId=${sessionIdHex}, RequesterIP=${requesterIpAddress}`,
             );
-        }
-    }
 
-    @Post('get-by-secure-address')
-    @HttpCode(200)
-    @ApiOperation({ summary: 'Get session by secure address' })
-    @ApiConsumes('multipart/form-data')
-    @ApiBody({
-        schema: {
-            type: 'object',
-            properties: {
-                upload: {
-                    type: 'string',
-                    format: 'binary',
-                },
-            },
-        },
-    })
-    @UseInterceptors(FileInterceptor('upload'))
-    async getBySecureAddress(@UploadedFile() file: Express.Multer.File, @Res({ passthrough: true }) res: Response) {
-        try {
-            if (!file) {
-                this.logger.warn('Session get-by-secure-address request missing file');
-                throw new HttpException(
-                    'File is required in multipart/form-data with field name "upload"',
-                    HttpStatus.BAD_REQUEST,
-                );
+            const success = await this.sessionService.deleteSessionAsync(file, requesterIpAddress);
+
+            if (success) {
+                this.logger.log('Session delete completed successfully');
+            } else {
+                this.logger.log('Session delete: session not found or IP address mismatch (returning success for idempotency)');
             }
 
-            if (!file.buffer || file.buffer.length === 0) {
-                this.logger.warn('Session get-by-secure-address request has empty file buffer');
-                throw new HttpException(
-                    'File buffer is empty',
-                    HttpStatus.BAD_REQUEST,
-                );
-            }
-
-            const { buffer, size } = await this.sessionService.getSessionBySecureAddressAsync(file);
-            res.setHeader('Content-Type', 'application/octet-stream');
-            res.setHeader('Content-Length', size.toString());
-            return new StreamableFile(buffer);
+            return;
         } catch (error) {
-            this.logger.error(`Unexpected error getting session by secure address: ${error}`);
+            this.logger.error(`Unexpected error deleting session: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
             if (error instanceof HttpException) {
                 throw error;
             }
-            if (error instanceof Error && error.message === 'No session found for secure address') {
-                throw new HttpException('No session found for the provided secure address', HttpStatus.NOT_FOUND);
+            if (error instanceof Error && error.message.includes('Invalid BLF format')) {
+                this.logger.error(`BLF parsing error in session delete: ${error.message}`);
+                throw new HttpException(
+                    `Invalid file format: ${error.message}`,
+                    HttpStatus.BAD_REQUEST,
+                );
             }
             throw new HttpException(
-                'An internal server error occurred while processing the session get by secure address request',
+                'An internal server error occurred while processing the session delete request',
                 HttpStatus.INTERNAL_SERVER_ERROR,
             );
         }

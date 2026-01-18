@@ -7,14 +7,11 @@ import {
     randomTransportSessionKey, 
     SBlfFileSessionCreateSchema,
     SBlfFileSessionModifySchema,
-    SBlfFileSessionJoinSchema,
-    SBlfFileSessionGetBySecureAddressSchema,
     SBlfFileSessionCreateResponseSchema,
     SBlfFileSessionSearchResponseSchema,
-    SBlfFileSessionGetBySecureAddressResponseSchema,
+    SBlfFileSessionDeleteSchema,
     s_online_session_search_result,
 } from './session.chunks';
-import { Request } from 'express';
 import { ARES_LIVE_AUTHOR, DEFAULT_BLF_CHUNK, DEFAULT_EOF_CHUNK } from '../chunks';
 
 @Injectable()
@@ -26,7 +23,7 @@ export class SessionService {
 
     async createSessionAsync(
         file: Express.Multer.File,
-        req: Request,
+        usableAddress: string,
     ): Promise<{ buffer: Buffer; size: number }> {
         this.logger.log(`Creating session - file size: ${file.buffer.length}, buffer preview: ${file.buffer.slice(0, 16).toString('hex')}`);
         this.logger.log(`Full buffer hex dump (${file.buffer.length} bytes): ${file.buffer.toString('hex')}`);
@@ -49,19 +46,6 @@ export class SessionService {
         const secureAddressHexString = Buffer.from(secureAddress.data).toString('hex');
         const identifierHexString = Buffer.from(sessionIdentifier.data).toString('hex');
         const keyHexString = Buffer.from(sessionKey.data).toString('hex');
-
-        // Extract IPv4 address from the request as string
-        let usableAddress = '0.0.0.0';
-        const remoteIpAddress = req.ip || req.socket.remoteAddress;
-        if (remoteIpAddress) {
-            // Handle IPv4-mapped IPv6 addresses
-            const ipv4Match = remoteIpAddress.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-            if (ipv4Match) {
-                usableAddress = ipv4Match[1];
-            } else if (remoteIpAddress.includes('.')) {
-                usableAddress = remoteIpAddress;
-            }
-        }
 
         // Store in database
         await this.prisma.ares_session.create({
@@ -272,109 +256,54 @@ export class SessionService {
         return { buffer, size: buffer.length };
     }
 
-    async joinSessionAsync(file: Express.Multer.File): Promise<void> {
+    async deleteSessionAsync(file: Express.Multer.File, requesterIpAddress: string): Promise<boolean> {
         let fileData;
         try {
-            fileData = SBlfFileSessionJoinSchema.read(file.buffer);
+            fileData = SBlfFileSessionDeleteSchema.read(file.buffer);
         } catch (error) {
-            this.logger.error(`Failed to parse session join BLF: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Failed to parse session delete BLF: ${error instanceof Error ? error.message : String(error)}`);
             throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
         }
-        const request = fileData['xsj '];
-        const { sessionId, playerCount, players } = request;
+        const request = fileData.xsdl;
+        const { sessionId } = request;
 
-        if (playerCount === 0 || playerCount > 16) {
-            this.logger.warn(`Invalid player count for join request: ${playerCount}`);
-            throw new Error('Invalid player count');
+        if (!sessionId || sessionId.data.length !== 8) {
+            this.logger.warn('Session delete request has invalid session ID');
+            return false;
+        }
+
+        if (!requesterIpAddress) {
+            this.logger.warn('Requester IP address is null or empty during delete');
+            return false;
         }
 
         const sessionIdHexString = Buffer.from(sessionId.data).toString('hex');
 
-        // Upsert each player
-        for (let i = 0; i < playerCount; i++) {
-            const player = players[i];
+        // Find the session by identifier
+        const sessions = await this.prisma.ares_session.findMany();
+        const session = sessions.find((s) => s.identifier === sessionIdHexString);
 
-            if (player.xuid === BigInt(0)) {
-                this.logger.warn(`Skipping player with zero XUID at index ${i}`);
-                continue;
-            }
+        if (!session) {
+            this.logger.warn(`Session not found for identifier during delete: ${sessionIdHexString}`);
+            return false;
+        }
 
-            // Convert secure address to hex string
-            const secureAddressHex = Buffer.from(player.secureAddress.data).toString('hex');
-
-            if (!secureAddressHex) {
-                this.logger.warn(`Skipping player with empty secure address at index ${i}`);
-                continue;
-            }
-
-            await this.prisma.ares_session_player.upsert({
-                where: {
-                    secure_address: secureAddressHex,
-                },
-                update: {
-                    session_id: sessionIdHexString,
-                    joined_at: new Date(),
-                },
-                create: {
-                    xuid: player.xuid.toString(),
-                    session_id: sessionIdHexString,
-                    secure_address: secureAddressHex,
-                    joined_at: new Date(),
-                },
-            });
-
-            this.logger.log(
-                `Session player: Xuid=${player.xuid}, SecureAddress=${secureAddressHex.substring(0, 32)}, SessionId=${sessionIdHexString}`,
+        if (session.usable_address !== requesterIpAddress) {
+            this.logger.warn(
+                `IP address mismatch during session delete. Session UsableAddress=${session.usable_address}, Requester IP=${requesterIpAddress}, SessionId=${sessionIdHexString}`,
             );
+            return false;
         }
 
-        this.logger.log(
-            `Session join completed: SessionId=${sessionIdHexString}, PlayerCount=${playerCount}`,
-        );
-    }
-
-    async getSessionBySecureAddressAsync(file: Express.Multer.File): Promise<{ buffer: Buffer; size: number }> {
-        let fileData;
-        try {
-            fileData = SBlfFileSessionGetBySecureAddressSchema.read(file.buffer);
-        } catch (error) {
-            this.logger.error(`Failed to parse session get-by-secure-address BLF: ${error instanceof Error ? error.message : String(error)}`);
-            throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
-        }
-        const request = fileData.xsga;
-        const { secureAddress } = request;
-
-        // Convert secure address to hex string for database lookup
-        const secureAddressHex = Buffer.from(secureAddress.data).toString('hex');
-
-        // Query session_players table for matching secure address
-        const sessionPlayer = await this.prisma.ares_session_player.findFirst({
-            where: {
-                secure_address: secureAddressHex,
-            },
+        await this.prisma.ares_session.delete({
+            where: { identifier: sessionIdHexString },
         });
 
-        if (!sessionPlayer) {
-            this.logger.warn(`No session found for secure address: ${secureAddressHex.substring(0, 32)}`);
-            throw new Error('No session found for secure address');
-        }
-
         this.logger.log(
-            `Found session for secure address: SessionId=${sessionPlayer.session_id}, Xuid=${sessionPlayer.xuid}`,
+            `Deleted session with ID ${sessionIdHexString} (verified IP: ${requesterIpAddress})`,
         );
 
-        // Parse session ID from hex string
-        const sessionIdData = Array.from(Buffer.from(sessionPlayer.session_id, 'hex')) as any;
-
-        const buffer = SBlfFileSessionGetBySecureAddressResponseSchema.write({
-            _blf: DEFAULT_BLF_CHUNK,
-            athr: ARES_LIVE_AUTHOR,
-            xsgr: {
-                sessionId: { data: sessionIdData },
-            },
-            _eof: DEFAULT_EOF_CHUNK,
-        });
-        return { buffer, size: buffer.length };
+        return true;
     }
 }
 

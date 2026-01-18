@@ -720,18 +720,6 @@ model ares_session {
   @@schema("ares")
 }
 
-model ares_session_player {
-  xuid           Decimal  @db.Decimal(20, 0)
-  session_id     String    @db.VarChar(16)
-  secure_address String   @db.VarChar(640)
-  joined_at      DateTime @default(now()) @db.Timestamp(6)
-
-  @@id([secure_address])
-  @@unique([xuid, session_id])
-  @@map("session_players")
-  @@schema("ares")
-}
-
 model ares_player_stats_hopper {
   leaderboard_id Decimal @db.Decimal(20, 0)
   player_xuid     Decimal @db.Decimal(20, 0)

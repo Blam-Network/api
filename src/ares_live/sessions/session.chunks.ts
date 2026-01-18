@@ -145,45 +145,9 @@ export const SBlfChunkSessionModifySchema = blf.createChunkSchema({
     ],
 });
 
-// Session Join Player Schema
-const SessionJoinPlayerSchema = c.createCStruct({
-    endian: 'little',
-    pack: 1,
-    fields: [
-        { name: 'xuid', type: 'u64' },
-        { name: 'secureAddress', type: TransportSecureAddressSchema },
-    ],
-});
-
-// Session Join Chunk Schema
-export const SBlfChunkSessionJoinSchema = blf.createChunkSchema({
-    name: 'xsj ',
-    majorVersion: 1,
-    minorVersion: 0,
-    endian: 'little',
-    pack: 1,
-    fields: [
-        { name: 'sessionId', type: TransportSessionIdSchema },
-        { name: 'playerCount', type: 'u32' },
-        { name: 'players', type: SessionJoinPlayerSchema, count: 16 }, // Max 16 players
-    ],
-});
-
-// Session Get By Secure Address Chunk Schema
-export const SBlfChunkSessionGetBySecureAddressSchema = blf.createChunkSchema({
-    name: 'xsga',
-    majorVersion: 1,
-    minorVersion: 0,
-    endian: 'little',
-    pack: 1,
-    fields: [
-        { name: 'secureAddress', type: TransportSecureAddressSchema },
-    ],
-});
-
-// Session Get By Secure Address Response Chunk Schema
-export const SBlfChunkSessionGetBySecureAddressResponseSchema = blf.createChunkSchema({
-    name: 'xsgr',
+// Session Delete Chunk Schema
+export const SBlfChunkSessionDeleteSchema = blf.createChunkSchema({
+    name: 'xsdl',
     majorVersion: 1,
     minorVersion: 0,
     endian: 'little',
@@ -240,17 +204,10 @@ export const SBlfFileSessionModifySchema = blf.createFileSchema([
     SBlfChunkEndOfFileSchema,
 ]);
 
-export const SBlfFileSessionJoinSchema = blf.createFileSchema([
+export const SBlfFileSessionDeleteSchema = blf.createFileSchema([
     SBlfChunkStartOfFileSchema,
     SBlfChunkAuthorSchema,
-    SBlfChunkSessionJoinSchema,
-    SBlfChunkEndOfFileSchema,
-]);
-
-export const SBlfFileSessionGetBySecureAddressSchema = blf.createFileSchema([
-    SBlfChunkStartOfFileSchema,
-    SBlfChunkAuthorSchema,
-    SBlfChunkSessionGetBySecureAddressSchema,
+    SBlfChunkSessionDeleteSchema,
     SBlfChunkEndOfFileSchema,
 ]);
 
@@ -269,21 +226,12 @@ export const SBlfFileSessionSearchResponseSchema = blf.createFileSchema([
     SBlfChunkEndOfFileSchema,
 ]);
 
-export const SBlfFileSessionGetBySecureAddressResponseSchema = blf.createFileSchema([
-    SBlfChunkStartOfFileSchema,
-    SBlfChunkAuthorSchema,
-    SBlfChunkSessionGetBySecureAddressResponseSchema,
-    SBlfChunkEndOfFileSchema,
-]);
-
 // Type exports
 export type s_blf_chunk_session_create = blf.infer<typeof SBlfChunkSessionCreateSchema>;
 export type s_blf_chunk_session_create_response = blf.infer<typeof SBlfChunkSessionCreateResponseSchema, false>;
 export type s_blf_chunk_session_modify = blf.infer<typeof SBlfChunkSessionModifySchema>;
-export type s_blf_chunk_session_join = blf.infer<typeof SBlfChunkSessionJoinSchema>;
-export type s_blf_chunk_session_get_by_secure_address = blf.infer<typeof SBlfChunkSessionGetBySecureAddressSchema>;
-export type s_blf_chunk_session_get_by_secure_address_response = blf.infer<typeof SBlfChunkSessionGetBySecureAddressResponseSchema, false>;
 export type s_blf_chunk_session_search_response = blf.infer<typeof SBlfChunkSessionSearchResponseSchema, false>;
+export type s_blf_chunk_session_delete = blf.infer<typeof SBlfChunkSessionDeleteSchema>;
 
 // Helper type exports for nested structures
 export type s_transport_session_description = c.infer<typeof TransportSessionDescriptionSchema>;

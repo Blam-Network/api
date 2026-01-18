@@ -147,7 +147,7 @@ export class SessionController {
             }
             
             this.logger.log('Session modify completed successfully');
-            return;
+            return "ok";
         } catch (error) {
             this.logger.error(`Unexpected error modifying session: ${error}`);
             if (error instanceof HttpException) {
@@ -364,7 +364,7 @@ export class SessionController {
                 this.logger.log('Session delete: session not found or IP address mismatch (returning success for idempotency)');
             }
 
-            return;
+            return "ok";
         } catch (error) {
             this.logger.error(`Unexpected error deleting session: ${error instanceof Error ? error.message : String(error)}`);
             this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);

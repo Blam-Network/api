@@ -67,6 +67,9 @@ export namespace blf {
         }
 
         public read(buffer: Buffer): c.infer<SCHEMA_STRUCT> {
+            if (buffer.length < 12) {
+                throw new Error(`Buffer too small for chunk header: ${buffer.length} bytes (need at least 12)`);
+            }
             return this.schema.read(buffer);
         }
 
@@ -164,8 +167,8 @@ export namespace blf {
         minorVersion: 1,
         endian: 'big',
         fields: [
-            { name: 'authenticationType', type: 'u32' },
             { name: 'totalFileSize', type: 'u32' },
+            { name: 'authenticationType', type: 'u8' },
         ],
     });
 

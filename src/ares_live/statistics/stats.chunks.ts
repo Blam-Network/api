@@ -9,12 +9,12 @@ import { SBlfChunkAuthorSchema, SBlfChunkStartOfFileSchema, OnlineDataSchema } f
 
 // Stats Query Spec Schema
 const StatsQuerySpecSchema = c.createCStruct({
-    endian: 'big',
+    endian: 'little',
     pack: 1,
     fields: [
         { name: 'viewId', type: 'u32' },
         { name: 'numColumnIds', type: 'u32' },
-        { name: 'columnIds', type: 'u32', count: 64 }, // Max 64 column IDs
+        { name: 'columnIds', type: 'u16', count: 64 }, // Max 64 column IDs (unsigned short in C++)
     ],
 });
 
@@ -23,7 +23,7 @@ export const SBlfChunkStatsQuerySchema = blf.createChunkSchema({
     name: 'xsqq',
     majorVersion: 1,
     minorVersion: 0,
-    endian: 'big',
+    endian: 'little',
     pack: 1,
     fields: [
         { name: 'xuidCount', type: 'u32' },
@@ -51,7 +51,7 @@ const StatsQueryResponseRowSchema = c.createCStruct({
         { name: 'xuid', type: 'u64' },
         { name: 'gamertag', type: new c.String(16) },
         { name: 'statCount', type: 'u32' },
-        { name: 'stats', type: StatsQueryResponseColumnSchema, count: 64 }, // Max 64 stats
+        { name: 'stats', type: StatsQueryResponseColumnSchema, count: 32 }, // Max 32 stats (matches resym: stats[32])
     ],
 });
 
@@ -71,7 +71,7 @@ export const SBlfChunkStatsQueryResponseSchema = blf.createChunkSchema({
     name: 'xsqr',
     majorVersion: 1,
     minorVersion: 0,
-    endian: 'big',
+    endian: 'little',
     pack: 1,
     fields: [
         { name: 'leaderboardCount', type: 'u32' },

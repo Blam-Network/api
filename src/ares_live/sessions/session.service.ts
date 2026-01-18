@@ -43,6 +43,38 @@ export class SessionService {
         const request = fileData.xscc;
         const { flags, secureAddress, maxPublicSlots, maxPrivateSlots, userXuid } = request;
 
+        // Validate secure address length
+        if (!secureAddress || secureAddress.data.length !== 320) {
+            throw new Error('Secure address must be exactly 320 bytes');
+        }
+
+        // Delete existing matchmaking sessions from the same IP if usesMatchmaking is true
+        if (flags.uses_matchmaking && usableAddress) {
+            const existingMatchmakingSessions = await this.prisma.ares_session.findMany({
+                where: {
+                    uses_matchmaking: true,
+                    usable_address: usableAddress,
+                },
+            });
+
+            if (existingMatchmakingSessions.length > 0) {
+                this.logger.log(
+                    `Found ${existingMatchmakingSessions.length} existing matchmaking session(s) from IP ${usableAddress}, deleting them`,
+                );
+                
+                await this.prisma.ares_session.deleteMany({
+                    where: {
+                        uses_matchmaking: true,
+                        usable_address: usableAddress,
+                    },
+                });
+
+                this.logger.log(
+                    `Deleted ${existingMatchmakingSessions.length} existing matchmaking session(s) from IP ${usableAddress}`,
+                );
+            }
+        }
+
         const sessionIdentifier = randomTransportSessionId();
         const sessionKey = randomTransportSessionKey();
         const sessionNonce = randomNonce();
@@ -50,6 +82,10 @@ export class SessionService {
         const secureAddressHexString = Buffer.from(secureAddress.data).toString('hex');
         const identifierHexString = Buffer.from(sessionIdentifier.data).toString('hex');
         const keyHexString = Buffer.from(sessionKey.data).toString('hex');
+
+        this.logger.log(
+            `Session create request: SecureAddress=${secureAddressHexString.substring(0, 32)}... bytes, UsableAddress=${usableAddress}`,
+        );
 
         // Store in database
         await this.prisma.ares_session.create({
@@ -94,7 +130,7 @@ export class SessionService {
         return { buffer, size: buffer.length };
     }
 
-    async modifySessionAsync(file: Express.Multer.File): Promise<void> {
+    async modifySessionAsync(file: Express.Multer.File): Promise<boolean> {
         let fileData;
         try {
             fileData = SBlfFileSessionModifySchema.read(file.buffer);
@@ -105,6 +141,11 @@ export class SessionService {
         const request = fileData.xscm;
         const { identifier, flags, maxPublicSlots, maxPrivateSlots } = request;
 
+        // Validate identifier length
+        if (!identifier || identifier.data.length !== 8) {
+            throw new Error('Identifier must be exactly 8 bytes');
+        }
+
         const identifierHexString = Buffer.from(identifier.data).toString('hex');
 
         // Find the session by identifier
@@ -113,7 +154,7 @@ export class SessionService {
 
         if (!session) {
             this.logger.warn(`Session not found for identifier: ${identifierHexString}`);
-            throw new Error('Session not found');
+            return false;
         }
 
         // Update the session
@@ -137,13 +178,18 @@ export class SessionService {
         this.logger.log(
             `Modified session with ID ${session.identifier}, MaxPublicSlots=${maxPublicSlots}, MaxPrivateSlots=${maxPrivateSlots}`,
         );
+
+        return true;
     }
 
     async searchSessionsAsync(): Promise<{ buffer: Buffer; size: number }> {
-        // Query sessions with matchmaking flag set
+        // Query sessions with matchmaking flag set, excluding 127.0.0.1
         const sessions = await this.prisma.ares_session.findMany({
             where: {
                 uses_matchmaking: true,
+                usable_address: {
+                    not: '127.0.0.1',
+                },
             },
             orderBy: {
                 created_at: 'desc',
@@ -164,15 +210,21 @@ export class SessionService {
             // Parse usable address to IPv4 in network byte order
             let usableAddress = 0;
             if (session.usable_address) {
+                // Use proper IP parsing like C# does
                 const parts = session.usable_address.split('.');
                 if (parts.length === 4) {
-                    // Convert to network byte order (big-endian)
-                    usableAddress =
-                        (parseInt(parts[0]) << 24) |
-                        (parseInt(parts[1]) << 16) |
-                        (parseInt(parts[2]) << 8) |
-                        parseInt(parts[3]);
+                    const bytes = parts.map(p => parseInt(p, 10));
+                    if (bytes.every(b => !isNaN(b) && b >= 0 && b <= 255)) {
+                        // Convert to network byte order (big-endian)
+                        usableAddress = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+                    } else {
+                        this.logger.warn(`Session search: session[${i}] UsableAddress='${session.usable_address}' has invalid byte values`);
+                    }
+                } else {
+                    this.logger.warn(`Session search: session[${i}] UsableAddress='${session.usable_address}' failed to parse as IP address`);
                 }
+            } else {
+                this.logger.warn(`Session search: session[${i}] UsableAddress is null or empty`);
             }
             usableAddresses.push(usableAddress);
 
@@ -417,14 +469,14 @@ export class SessionService {
         // Parse usable address to IPv4 in network byte order
         let usableAddress = 0;
         if (session.usable_address) {
+            // Use proper IP parsing like C# does
             const parts = session.usable_address.split('.');
             if (parts.length === 4) {
-                // Convert to network byte order (big-endian)
-                usableAddress =
-                    (parseInt(parts[0]) << 24) |
-                    (parseInt(parts[1]) << 16) |
-                    (parseInt(parts[2]) << 8) |
-                    parseInt(parts[3]);
+                const bytes = parts.map(p => parseInt(p, 10));
+                if (bytes.every(b => !isNaN(b) && b >= 0 && b <= 255)) {
+                    // Convert to network byte order (big-endian)
+                    usableAddress = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+                }
             }
         }
 

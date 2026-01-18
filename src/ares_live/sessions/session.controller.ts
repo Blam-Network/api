@@ -66,7 +66,6 @@ export class SessionController {
     })
     @UseInterceptors(FileInterceptor('upload'))
     async create(@UploadedFile() file: Express.Multer.File, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
-        this.logger.log(`[SessionController] create() called - file: ${file ? 'present' : 'missing'}, ip: ${ip}`);
         try {
             if (!file) {
                 this.logger.warn('Session create request missing file');
@@ -87,8 +86,11 @@ export class SessionController {
             this.logger.log(`Session create request received: filename=${file.originalname}, size=${file.size}, contentType=${file.mimetype}, bufferLength=${file.buffer.length}`);
             const usableAddress = normalizeIpAddress(ip);
             const { buffer, size } = await this.sessionService.createSessionAsync(file, usableAddress);
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('Content-Disposition', 'inline');
             res.setHeader('Content-Type', 'application/octet-stream');
             res.setHeader('Content-Length', size.toString());
+            this.logger.log(`Returning BLF response: ${size} bytes`);
             return new StreamableFile(buffer);
         } catch (error) {
             if (error instanceof HttpException) {
@@ -138,12 +140,26 @@ export class SessionController {
                 throw new BadRequestException('File buffer is empty');
             }
 
-            await this.sessionService.modifySessionAsync(file);
+            const success = await this.sessionService.modifySessionAsync(file);
             
-            return "ok"
+            if (!success) {
+                throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
+            }
+            
+            this.logger.log('Session modify completed successfully');
+            return;
         } catch (error) {
             this.logger.error(`Unexpected error modifying session: ${error}`);
-            throw new InternalServerErrorException('An internal server error occurred while processing the session modify request');
+            if (error instanceof HttpException) {
+                throw error;
+            }
+            if (error instanceof Error && error.message === 'Session not found') {
+                throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
+            }
+            throw new HttpException(
+                'An internal server error occurred while processing the session modify request',
+                HttpStatus.INTERNAL_SERVER_ERROR,
+            );
         }
     }
 
@@ -152,9 +168,13 @@ export class SessionController {
     @ApiOperation({ summary: 'Search for sessions' })
     async search(@Res({ passthrough: true }) res: Response) {
         try {
+            this.logger.log('Session search request received');
             const { buffer, size } = await this.sessionService.searchSessionsAsync();
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('Content-Disposition', 'inline');
             res.setHeader('Content-Type', 'application/octet-stream');
             res.setHeader('Content-Length', size.toString());
+            this.logger.log(`Returning BLF response: ${size} bytes`);
             return new StreamableFile(buffer);
         } catch (error) {
             this.logger.error(`Unexpected error searching sessions: ${error}`);
@@ -337,12 +357,14 @@ export class SessionController {
             );
 
             const success = await this.sessionService.deleteSessionAsync(file, requesterIpAddress);
-
-            if (!success) {
-                throw new InternalServerErrorException('Session not found or IP address mismatch');
+            
+            if (success) {
+                this.logger.log('Session delete completed successfully');
+            } else {
+                this.logger.log('Session delete: session not found or IP address mismatch (returning success for idempotency)');
             }
 
-            return "ok"
+            return;
         } catch (error) {
             this.logger.error(`Unexpected error deleting session: ${error instanceof Error ? error.message : String(error)}`);
             this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);

@@ -7,6 +7,7 @@ import { SessionController } from './sessions/session.controller';
 import { StatsController } from './statistics/stats.controller';
 import { SessionService } from './sessions/session.service';
 import { StatsService } from './statistics/stats.service';
+import { SessionCleanupService } from './sessions/session-cleanup.service';
 import { AllExceptionsFilter } from './filters/http-exception.filter';
 import { AresLiveHeadersMiddleware } from './middleware/ares-live-headers.middleware';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
@@ -26,6 +27,7 @@ import { loggerWithPrefix } from 'src/utils/logger'
     providers: [
         SessionService,
         StatsService,
+        SessionCleanupService,
         loggerWithPrefix('Ares LIVE'),
         ShutdownObserver,
         {

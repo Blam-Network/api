@@ -183,21 +183,46 @@ export class SessionService {
     }
 
     async searchSessionsAsync(): Promise<{ buffer: Buffer; size: number }> {
-        // Query sessions with matchmaking flag set, excluding 127.0.0.1
-        const sessions = await this.prisma.ares_session.findMany({
-            where: {
-                uses_matchmaking: true,
-                usable_address: {
-                    not: '127.0.0.1',
-                },
-            },
-            orderBy: {
-                created_at: 'desc',
-            },
-            take: 50, // Max 50 results per schema
-        });
+        // Use PostgreSQL DISTINCT ON to efficiently get the most recent session per IP
+        // This performs the aggregation at the database level
+        // Inner query: get most recent session per IP (ORDER BY usable_address, created_at DESC needed for DISTINCT ON)
+        // Outer query: order by created_at DESC to get the 50 most recent unique IPs
+        const sessions = await this.prisma.$queryRaw<Array<{
+            secure_address: string;
+            identifier: string;
+            key: string;
+            usable_address: string;
+            max_public_slots: number;
+            max_private_slots: number;
+            created_at: Date;
+        }>>`
+            SELECT
+                secure_address,
+                identifier,
+                key,
+                usable_address,
+                max_public_slots,
+                max_private_slots,
+                created_at
+            FROM (
+                SELECT DISTINCT ON (usable_address)
+                    secure_address,
+                    identifier,
+                    key,
+                    usable_address,
+                    max_public_slots,
+                    max_private_slots,
+                    created_at
+                FROM ares.sessions
+                WHERE uses_matchmaking = true
+                    AND usable_address != '127.0.0.1'
+                ORDER BY usable_address, created_at DESC
+            ) AS distinct_sessions
+            ORDER BY created_at DESC
+            LIMIT 50
+        `;
 
-        this.logger.log(`Found ${sessions.length} sessions with matchmaking flag`);
+        this.logger.log(`Found ${sessions.length} sessions with matchmaking flag (grouped by IP)`);
 
         // Build results array
         const results: s_online_session_search_result[] = [];

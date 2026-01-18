@@ -123,41 +123,42 @@ export class SessionController {
         },
     })
     @UseInterceptors(FileInterceptor('upload'))
-    async modify(@UploadedFile() file: Express.Multer.File, @Res({ passthrough: true }) res: Response) {
+    async modify(@UploadedFile() file: Express.Multer.File, @Res() res: Response) {
         try {
             if (!file) {
                 this.logger.warn('Session modify request missing file');
-                throw new HttpException(
-                    'File is required in multipart/form-data with field name "upload"',
-                    HttpStatus.BAD_REQUEST,
-                );
+                return res.status(HttpStatus.BAD_REQUEST).json({
+                    message: 'File is required in multipart/form-data with field name "upload"',
+                });
             }
 
             if (!file.buffer || file.buffer.length === 0) {
                 this.logger.warn('Session modify request has empty file buffer');
-                throw new HttpException(
-                    'File buffer is empty',
-                    HttpStatus.BAD_REQUEST,
-                );
+                return res.status(HttpStatus.BAD_REQUEST).json({
+                    message: 'File buffer is empty',
+                });
             }
 
             await this.sessionService.modifySessionAsync(file);
             
             res.setHeader('Connection', 'keep-alive');
             this.logger.log('Session modify completed successfully');
-            return;
+            return res.status(HttpStatus.OK).end();
         } catch (error) {
             this.logger.error(`Unexpected error modifying session: ${error}`);
             if (error instanceof HttpException) {
-                throw error;
+                return res.status(error.getStatus()).json({
+                    message: error.message,
+                });
             }
             if (error instanceof Error && error.message === 'Session not found') {
-                throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
+                return res.status(HttpStatus.NOT_FOUND).json({
+                    message: 'Session not found',
+                });
             }
-            throw new HttpException(
-                'An internal server error occurred while processing the session modify request',
-                HttpStatus.INTERNAL_SERVER_ERROR,
-            );
+            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+                message: 'An internal server error occurred while processing the session modify request',
+            });
         }
     }
 
@@ -195,22 +196,20 @@ export class SessionController {
         },
     })
     @UseInterceptors(FileInterceptor('upload'))
-    async delete(@UploadedFile() file: Express.Multer.File, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
+    async delete(@UploadedFile() file: Express.Multer.File, @Ip() ip: string, @Res() res: Response) {
         try {
             if (!file) {
                 this.logger.warn('Session delete request missing file');
-                throw new HttpException(
-                    'File is required in multipart/form-data with field name "upload"',
-                    HttpStatus.BAD_REQUEST,
-                );
+                return res.status(HttpStatus.BAD_REQUEST).json({
+                    message: 'File is required in multipart/form-data with field name "upload"',
+                });
             }
 
             if (!file.buffer || file.buffer.length === 0) {
                 this.logger.warn('Session delete request has empty file buffer');
-                throw new HttpException(
-                    'File buffer is empty',
-                    HttpStatus.BAD_REQUEST,
-                );
+                return res.status(HttpStatus.BAD_REQUEST).json({
+                    message: 'File buffer is empty',
+                });
             }
 
             const requesterIpAddress = normalizeIpAddress(ip);
@@ -231,24 +230,24 @@ export class SessionController {
                 this.logger.log('Session delete: session not found or IP address mismatch (returning success for idempotency)');
             }
 
-            return;
+            return res.status(HttpStatus.OK).end();
         } catch (error) {
             this.logger.error(`Unexpected error deleting session: ${error instanceof Error ? error.message : String(error)}`);
             this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
             if (error instanceof HttpException) {
-                throw error;
+                return res.status(error.getStatus()).json({
+                    message: error.message,
+                });
             }
             if (error instanceof Error && error.message.includes('Invalid BLF format')) {
                 this.logger.error(`BLF parsing error in session delete: ${error.message}`);
-                throw new HttpException(
-                    `Invalid file format: ${error.message}`,
-                    HttpStatus.BAD_REQUEST,
-                );
+                return res.status(HttpStatus.BAD_REQUEST).json({
+                    message: `Invalid file format: ${error.message}`,
+                });
             }
-            throw new HttpException(
-                'An internal server error occurred while processing the session delete request',
-                HttpStatus.INTERNAL_SERVER_ERROR,
-            );
+            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+                message: 'An internal server error occurred while processing the session delete request',
+            });
         }
     }
 }

@@ -10,6 +10,9 @@ import {
     Ip,
     HttpCode,
     Res,
+    BadRequestException,
+    InternalServerErrorException,
+    ServiceUnavailableException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
@@ -123,42 +126,24 @@ export class SessionController {
         },
     })
     @UseInterceptors(FileInterceptor('upload'))
-    async modify(@UploadedFile() file: Express.Multer.File, @Res() res: Response) {
+    async modify(@UploadedFile() file: Express.Multer.File) {
         try {
             if (!file) {
                 this.logger.warn('Session modify request missing file');
-                return res.status(HttpStatus.BAD_REQUEST).json({
-                    message: 'File is required in multipart/form-data with field name "upload"',
-                });
+                throw new BadRequestException('File is required in multipart/form-data with field name "upload"');
             }
 
             if (!file.buffer || file.buffer.length === 0) {
                 this.logger.warn('Session modify request has empty file buffer');
-                return res.status(HttpStatus.BAD_REQUEST).json({
-                    message: 'File buffer is empty',
-                });
+                throw new BadRequestException('File buffer is empty');
             }
 
             await this.sessionService.modifySessionAsync(file);
             
-            res.setHeader('Connection', 'keep-alive');
-            this.logger.log('Session modify completed successfully');
-            return res.status(HttpStatus.OK).end();
+            return "ok"
         } catch (error) {
             this.logger.error(`Unexpected error modifying session: ${error}`);
-            if (error instanceof HttpException) {
-                return res.status(error.getStatus()).json({
-                    message: error.message,
-                });
-            }
-            if (error instanceof Error && error.message === 'Session not found') {
-                return res.status(HttpStatus.NOT_FOUND).json({
-                    message: 'Session not found',
-                });
-            }
-            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-                message: 'An internal server error occurred while processing the session modify request',
-            });
+            throw new InternalServerErrorException('An internal server error occurred while processing the session modify request');
         }
     }
 
@@ -196,20 +181,16 @@ export class SessionController {
         },
     })
     @UseInterceptors(FileInterceptor('upload'))
-    async delete(@UploadedFile() file: Express.Multer.File, @Ip() ip: string, @Res() res: Response) {
+    async delete(@UploadedFile() file: Express.Multer.File, @Ip() ip: string) {
         try {
             if (!file) {
                 this.logger.warn('Session delete request missing file');
-                return res.status(HttpStatus.BAD_REQUEST).json({
-                    message: 'File is required in multipart/form-data with field name "upload"',
-                });
+                throw new BadRequestException('File is required in multipart/form-data with field name "upload"');
             }
 
             if (!file.buffer || file.buffer.length === 0) {
                 this.logger.warn('Session delete request has empty file buffer');
-                return res.status(HttpStatus.BAD_REQUEST).json({
-                    message: 'File buffer is empty',
-                });
+                throw new BadRequestException('File buffer is empty');
             }
 
             const requesterIpAddress = normalizeIpAddress(ip);
@@ -222,15 +203,11 @@ export class SessionController {
 
             const success = await this.sessionService.deleteSessionAsync(file, requesterIpAddress);
 
-            res.setHeader('Connection', 'keep-alive');
-            
-            if (success) {
-                this.logger.log('Session delete completed successfully');
-            } else {
-                this.logger.log('Session delete: session not found or IP address mismatch (returning success for idempotency)');
+            if (!success) {
+                throw new ServiceUnavailableException('Session not found or IP address mismatch');
             }
 
-            return res.status(HttpStatus.OK).end();
+            return "ok"
         } catch (error) {
             this.logger.error(`Unexpected error deleting session: ${error instanceof Error ? error.message : String(error)}`);
             this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);

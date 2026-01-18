@@ -204,27 +204,14 @@ export class SessionController {
             const success = await this.sessionService.deleteSessionAsync(file, requesterIpAddress);
 
             if (!success) {
-                throw new ServiceUnavailableException('Session not found or IP address mismatch');
+                throw new InternalServerErrorException('Session not found or IP address mismatch');
             }
 
             return "ok"
         } catch (error) {
             this.logger.error(`Unexpected error deleting session: ${error instanceof Error ? error.message : String(error)}`);
             this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
-            if (error instanceof HttpException) {
-                return res.status(error.getStatus()).json({
-                    message: error.message,
-                });
-            }
-            if (error instanceof Error && error.message.includes('Invalid BLF format')) {
-                this.logger.error(`BLF parsing error in session delete: ${error.message}`);
-                return res.status(HttpStatus.BAD_REQUEST).json({
-                    message: `Invalid file format: ${error.message}`,
-                });
-            }
-            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-                message: 'An internal server error occurred while processing the session delete request',
-            });
+            throw new InternalServerErrorException('An internal server error occurred while processing the session delete request');
         }
     }
 }

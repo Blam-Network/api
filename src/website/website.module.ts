@@ -15,6 +15,7 @@ import { DatamineController } from './controllers/datamine.controller';
 import { UserController } from './controllers/user.controller';
 import { BnetUserService } from './services/bnetuser.service';
 import { JwtService } from './services/jwt.service';
+import { loggerWithPrefix } from 'src/utils/logger'
 
 @Module({
     imports: [
@@ -38,7 +39,7 @@ import { JwtService } from './services/jwt.service';
         Halo3PopulationService,
         BnetUserService,
         JwtService,
-        { provide: ILoggerSymbol, useClass: ConsoleLogger },
+        loggerWithPrefix('BNET'),
         ShutdownObserver,
     ],
 })

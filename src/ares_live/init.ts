@@ -5,20 +5,20 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import * as http from 'http';
 import * as express from 'express';
 import { ShutdownObserver } from 'src/ShutdownObserver';
-import { LSPModule } from 'src/lsp/lsp.module';
-import { LSP_PORT_RANGE } from './constants';
+import { AresLiveModule } from 'src/ares_live/ares_live.module';
+import { ARES_LIVE_PORT } from './constants';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 
-export const createLSPServer = async () => {
+export const createAresLiveServer = async () => {
     const server = express();
     const app = await NestFactory.create(
-        LSPModule,
+        AresLiveModule,
         new ExpressAdapter(server),
     );
 
     const config = new DocumentBuilder()
-        .setTitle('Blam Network LSP')
-        .setDescription('LSP Server for Halo 3, Halo 3: ODST and Halo: Reach')
+        .setTitle('Blam Network Ares Live')
+        .setDescription('Live API Server for Ares Session and Statistics')
         .setVersion('beta')
         .setExternalDoc('GitHub', 'https://github.com/Blam-Network/web_private')
         .build();
@@ -32,13 +32,12 @@ export const createLSPServer = async () => {
 
     const shutdownObserver = app.get(ShutdownObserver);
 
-    LSP_PORT_RANGE.forEach(port => {
-        const httpServer = http.createServer(server)
-            .listen(port, process.env.HOSTNAME);
+    const httpServer = http.createServer(server)
+        .listen(ARES_LIVE_PORT, process.env.HOSTNAME);
 
-        shutdownObserver.addHttpServer(httpServer);
-    })
+    shutdownObserver.addHttpServer(httpServer);
 
-    const logger = app.get<ILogger>(ILoggerSymbol)
-    logger.log(`Listening on ports: ${LSP_PORT_RANGE.toString()}`)
+    const logger = app.get<ILogger>(ILoggerSymbol);
+    logger.log(`Listening on port: ${ARES_LIVE_PORT}`)
 }
+

@@ -693,3 +693,77 @@ model ares_file_share_transfer {
   @@map("file_share_transfer")
   @@schema("ares")
 }
+
+model ares_session {
+  secure_address            String   @db.VarChar(640)
+  identifier                String    @db.VarChar(16)
+  key                       String    @db.VarChar(32)
+  nonce                     Decimal  @db.Decimal(20, 0)
+  usable_address            String   @db.VarChar(15)
+  uses_presence             Boolean
+  uses_stats                Boolean
+  uses_matchmaking          Boolean
+  uses_arbitration          Boolean
+  multiplayer               Boolean
+  invites_disabled          Boolean
+  join_via_presence_disabled Boolean
+  join_in_progress_disabled Boolean
+  join_via_presence_friends_only Boolean
+  max_public_slots          Int
+  max_private_slots         Int
+  creator_xuid              Decimal  @db.Decimal(20, 0)
+  created_at                DateTime @default(now()) @db.Timestamp(6)
+
+  @@id([identifier])
+  @@index([uses_matchmaking, created_at])
+  @@map("sessions")
+  @@schema("ares")
+}
+
+model ares_player_stats_hopper {
+  leaderboard_id Decimal @db.Decimal(20, 0)
+  player_xuid     Decimal @db.Decimal(20, 0)
+  skill           Int
+  games_completed Int
+  games_played    Int
+  games_won       Int
+  exp_base        Int
+  exp_penalty     Int
+
+  @@id([leaderboard_id, player_xuid])
+  @@map("player_stats_hopper")
+  @@schema("ares")
+}
+
+model ares_player_stats_hopper_skill {
+  leaderboard_id Decimal @db.Decimal(20, 0)
+  player_xuid     Decimal @db.Decimal(20, 0)
+  mu              Float
+  sigma           Float
+
+  @@id([leaderboard_id, player_xuid])
+  @@map("player_stats_hopper_skill")
+  @@schema("ares")
+}
+
+model ares_player_stats_global {
+  leaderboard_id                              Decimal @db.Decimal(20, 0)
+  player_xuid                                  Decimal @db.Decimal(20, 0)
+  custom_games_completed                       Int?
+  custom_games_won                             Int?
+  experience_base                              Int?
+  experience_penalty                           Int?
+  highest_skill_level_attained                 Int?
+  matchmade_ranked_games_completed             Int?
+  matchmade_ranked_games_played                Int?
+  matchmade_ranked_games_won                   Int?
+  matchmade_unranked_games_completed           Int?
+  matchmade_unranked_games_played              Int?
+  matchmade_unranked_games_won                 Int?
+  first_game_played_date                       Decimal? @db.Decimal(20, 0)
+  last_game_played_date                        Decimal? @db.Decimal(20, 0)
+
+  @@id([leaderboard_id, player_xuid])
+  @@map("player_stats_global")
+  @@schema("ares")
+}

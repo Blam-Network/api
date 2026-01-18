@@ -40,7 +40,7 @@ export const createWebsiteServer = async () => {
         .listen(HTTP_PORT, process.env.HOSTNAME);
 
     shutdownObserver.addHttpServer(httpServer);
-    logger.log(`[BNET] Listening on port: ${HTTP_PORT}`)
+    logger.log(`Listening on port: ${HTTP_PORT}`)
 
     if (process.env.USE_HTTPS=== 'true') {
         const httpsOptions = {
@@ -49,6 +49,6 @@ export const createWebsiteServer = async () => {
         };
         const httpsServer = https.createServer(httpsOptions, server).listen(HTTPS_PORT, process.env.HOSTNAME);
         shutdownObserver.addHttpServer(httpsServer);
-        logger.log(`[BNET] Listening on port: ${HTTPS_PORT} (HTTPS)`)
+        logger.log(`Listening on port: ${HTTPS_PORT} (HTTPS)`)
     }
 }

@@ -112,6 +112,7 @@ export class GameApiController {
     },
   })
   @Post('/MachineUpdateNetworkStats.ashx')
+  @HttpCode(200)
   @ApiHeader({ name: 'title', example: TITLE_IDS.HALO3_MYTHIC })
   @ApiHeader({ name: 'machineid' })
   @UseInterceptors(FileInterceptor('upload'))

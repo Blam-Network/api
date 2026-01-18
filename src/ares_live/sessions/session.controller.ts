@@ -233,6 +233,73 @@ export class SessionController {
         }
     }
 
+    @Post('get-by-id')
+    @HttpCode(200)
+    @ApiOperation({ summary: 'Get session by ID' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                upload: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+        },
+    })
+    @UseInterceptors(FileInterceptor('upload'))
+    async getById(@UploadedFile() file: Express.Multer.File, @Res({ passthrough: true }) res: Response) {
+        try {
+            if (!file) {
+                this.logger.warn('Session get by id request missing file');
+                throw new BadRequestException('File is required in multipart/form-data with field name "upload"');
+            }
+
+            if (!file.buffer || file.buffer.length === 0) {
+                this.logger.warn('Session get by id request has empty file buffer');
+                throw new BadRequestException('File buffer is empty');
+            }
+
+            const sessionIdHex = file.buffer.length >= 8 
+                ? Buffer.from(file.buffer.slice(0, 8)).toString('hex') 
+                : 'unknown';
+            this.logger.log(
+                `Session get by id request: SessionId=${sessionIdHex}`,
+            );
+
+            const result = await this.sessionService.getSessionByIdAsync(file);
+
+            if (!result) {
+                throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
+            }
+
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('Content-Disposition', 'inline');
+            res.setHeader('Content-Type', 'application/octet-stream');
+            res.setHeader('Content-Length', result.size.toString());
+            this.logger.log(`Returning BLF response: ${result.size} bytes`);
+            return new StreamableFile(result.buffer);
+        } catch (error) {
+            this.logger.error(`Unexpected error getting session by id: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
+            if (error instanceof HttpException) {
+                throw error;
+            }
+            if (error instanceof Error && error.message.includes('Invalid BLF format')) {
+                this.logger.error(`BLF parsing error in session get by id: ${error.message}`);
+                throw new HttpException(
+                    `Invalid file format: ${error.message}`,
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+            throw new HttpException(
+                'An internal server error occurred while processing the session get by id request',
+                HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
+    }
+
     @Post('delete')
     @HttpCode(200)
     @ApiOperation({ summary: 'Delete a session' })

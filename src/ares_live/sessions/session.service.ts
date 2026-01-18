@@ -12,6 +12,8 @@ import {
     SBlfFileSessionDeleteSchema,
     SBlfFileSessionMigrateHostSchema,
     SBlfFileSessionMigrateHostResponseSchema,
+    SBlfFileSessionGetByIdSchema,
+    SBlfFileSessionGetByIdResponseSchema,
     s_online_session_search_result,
 } from './session.chunks';
 import { ARES_LIVE_AUTHOR, DEFAULT_BLF_CHUNK, DEFAULT_EOF_CHUNK } from '../chunks';
@@ -379,6 +381,64 @@ export class SessionService {
                     key: sessionKey,
                 },
                 nonce: sessionNonce,
+            },
+            _eof: DEFAULT_EOF_CHUNK,
+        });
+        return { buffer, size: buffer.length };
+    }
+
+    async getSessionByIdAsync(file: Express.Multer.File): Promise<{ buffer: Buffer; size: number } | null> {
+        let fileData;
+        try {
+            fileData = SBlfFileSessionGetByIdSchema.read(file.buffer);
+        } catch (error) {
+            this.logger.error(`Failed to parse session get by id BLF: ${error instanceof Error ? error.message : String(error)}`);
+            throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        const request = fileData.xsgi;
+        const { sessionId } = request;
+
+        if (!sessionId || sessionId.data.length !== 8) {
+            this.logger.warn('Session get by id request has invalid session ID');
+            return null;
+        }
+
+        const sessionIdHexString = Buffer.from(sessionId.data).toString('hex');
+
+        // Find the session by identifier
+        const sessions = await this.prisma.ares_session.findMany();
+        const session = sessions.find((s) => s.identifier === sessionIdHexString);
+
+        if (!session) {
+            this.logger.warn(`Session not found for identifier during get by id: ${sessionIdHexString}`);
+            return null;
+        }
+
+        // Parse usable address to IPv4 in network byte order
+        let usableAddress = 0;
+        if (session.usable_address) {
+            const parts = session.usable_address.split('.');
+            if (parts.length === 4) {
+                // Convert to network byte order (big-endian)
+                usableAddress =
+                    (parseInt(parts[0]) << 24) |
+                    (parseInt(parts[1]) << 16) |
+                    (parseInt(parts[2]) << 8) |
+                    parseInt(parts[3]);
+            }
+        }
+
+        // Parse session data from database
+        const secureAddress = { data: Array.from(Buffer.from(session.secure_address, 'hex')) as any };
+        const sessionKey = { data: Array.from(Buffer.from(session.key, 'hex')) as any };
+
+        const buffer = SBlfFileSessionGetByIdResponseSchema.write({
+            _blf: DEFAULT_BLF_CHUNK,
+            athr: ARES_LIVE_AUTHOR,
+            xsir: {
+                secureAddress,
+                sessionKey,
+                usableAddress,
             },
             _eof: DEFAULT_EOF_CHUNK,
         });

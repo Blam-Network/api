@@ -123,7 +123,7 @@ export class SessionController {
         },
     })
     @UseInterceptors(FileInterceptor('upload'))
-    async modify(@UploadedFile() file: Express.Multer.File) {
+    async modify(@UploadedFile() file: Express.Multer.File, @Res({ passthrough: true }) res: Response) {
         try {
             if (!file) {
                 this.logger.warn('Session modify request missing file');
@@ -142,6 +142,10 @@ export class SessionController {
             }
 
             await this.sessionService.modifySessionAsync(file);
+            
+            res.setHeader('Connection', 'keep-alive');
+            this.logger.log('Session modify completed successfully');
+            return;
         } catch (error) {
             this.logger.error(`Unexpected error modifying session: ${error}`);
             if (error instanceof HttpException) {
@@ -191,7 +195,7 @@ export class SessionController {
         },
     })
     @UseInterceptors(FileInterceptor('upload'))
-    async delete(@UploadedFile() file: Express.Multer.File, @Ip() ip: string) {
+    async delete(@UploadedFile() file: Express.Multer.File, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
         try {
             if (!file) {
                 this.logger.warn('Session delete request missing file');
@@ -219,6 +223,8 @@ export class SessionController {
 
             const success = await this.sessionService.deleteSessionAsync(file, requesterIpAddress);
 
+            res.setHeader('Connection', 'keep-alive');
+            
             if (success) {
                 this.logger.log('Session delete completed successfully');
             } else {

@@ -40,5 +40,5 @@ export const createAresLSPServer = async () => {
     })
 
     const logger = app.get<ILogger>(ILoggerSymbol)
-    logger.log(`[Ares] Listening on ports: ${LSP_PORT_RANGE.toString()}`)
+    logger.log(`Listening on ports: ${LSP_PORT_RANGE.toString()}`)
 }

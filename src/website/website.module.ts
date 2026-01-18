@@ -39,7 +39,7 @@ import { loggerWithPrefix } from 'src/utils/logger'
         Halo3PopulationService,
         BnetUserService,
         JwtService,
-        loggerWithPrefix('Website'),
+        loggerWithPrefix('BNET'),
         ShutdownObserver,
     ],
 })

@@ -371,9 +371,6 @@ export class SessionService {
         }
 
         if (session.usable_address !== requesterIpAddress) {
-            this.logger.warn(
-                `IP address mismatch during session delete. Session UsableAddress=${session.usable_address}, Requester IP=${requesterIpAddress}, SessionId=${formattedSessionId}`,
-            );
             return false;
         }
 

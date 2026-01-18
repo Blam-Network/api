@@ -157,6 +157,32 @@ export const SBlfChunkSessionDeleteSchema = blf.createChunkSchema({
     ],
 });
 
+// Session Migrate Host Chunk Schema
+export const SBlfChunkSessionMigrateHostSchema = blf.createChunkSchema({
+    name: 'xsmh',
+    majorVersion: 1,
+    minorVersion: 0,
+    endian: 'little',
+    pack: 1,
+    fields: [
+        { name: 'sessionId', type: TransportSessionIdSchema },
+        { name: 'secureAddress', type: TransportSecureAddressSchema },
+    ],
+});
+
+// Session Migrate Host Response Chunk Schema
+export const SBlfChunkSessionMigrateHostResponseSchema = blf.createChunkSchema({
+    name: 'xsmr',
+    majorVersion: 1,
+    minorVersion: 0,
+    endian: 'little',
+    pack: 1,
+    fields: [
+        { name: 'sessionDescription', type: TransportSessionDescriptionSchema },
+        { name: 'nonce', type: 'u64' },
+    ],
+});
+
 // Session Search Result Schema
 export const OnlineSessionSearchResultSchema = c.createCStruct({
     endian: 'little',
@@ -211,6 +237,13 @@ export const SBlfFileSessionDeleteSchema = blf.createFileSchema([
     SBlfChunkEndOfFileSchema,
 ]);
 
+export const SBlfFileSessionMigrateHostSchema = blf.createFileSchema([
+    SBlfChunkStartOfFileSchema,
+    SBlfChunkAuthorSchema,
+    SBlfChunkSessionMigrateHostSchema,
+    SBlfChunkEndOfFileSchema,
+]);
+
 // File schemas for writing session responses
 export const SBlfFileSessionCreateResponseSchema = blf.createFileSchema([
     SBlfChunkStartOfFileSchema,
@@ -226,12 +259,21 @@ export const SBlfFileSessionSearchResponseSchema = blf.createFileSchema([
     SBlfChunkEndOfFileSchema,
 ]);
 
+export const SBlfFileSessionMigrateHostResponseSchema = blf.createFileSchema([
+    SBlfChunkStartOfFileSchema,
+    SBlfChunkAuthorSchema,
+    SBlfChunkSessionMigrateHostResponseSchema,
+    SBlfChunkEndOfFileSchema,
+]);
+
 // Type exports
 export type s_blf_chunk_session_create = blf.infer<typeof SBlfChunkSessionCreateSchema>;
 export type s_blf_chunk_session_create_response = blf.infer<typeof SBlfChunkSessionCreateResponseSchema, false>;
 export type s_blf_chunk_session_modify = blf.infer<typeof SBlfChunkSessionModifySchema>;
 export type s_blf_chunk_session_search_response = blf.infer<typeof SBlfChunkSessionSearchResponseSchema, false>;
 export type s_blf_chunk_session_delete = blf.infer<typeof SBlfChunkSessionDeleteSchema>;
+export type s_blf_chunk_session_migrate_host = blf.infer<typeof SBlfChunkSessionMigrateHostSchema>;
+export type s_blf_chunk_session_migrate_host_response = blf.infer<typeof SBlfChunkSessionMigrateHostResponseSchema, false>;
 
 // Helper type exports for nested structures
 export type s_transport_session_description = c.infer<typeof TransportSessionDescriptionSchema>;

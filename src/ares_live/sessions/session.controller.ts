@@ -165,6 +165,74 @@ export class SessionController {
         }
     }
 
+    @Post('migrate-host')
+    @HttpCode(200)
+    @ApiOperation({ summary: 'Migrate session host' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                upload: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+        },
+    })
+    @UseInterceptors(FileInterceptor('upload'))
+    async migrateHost(@UploadedFile() file: Express.Multer.File, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
+        try {
+            if (!file) {
+                this.logger.warn('Session migrate host request missing file');
+                throw new BadRequestException('File is required in multipart/form-data with field name "upload"');
+            }
+
+            if (!file.buffer || file.buffer.length === 0) {
+                this.logger.warn('Session migrate host request has empty file buffer');
+                throw new BadRequestException('File buffer is empty');
+            }
+
+            const usableAddress = normalizeIpAddress(ip);
+            const sessionIdHex = file.buffer.length >= 8 
+                ? Buffer.from(file.buffer.slice(0, 8)).toString('hex') 
+                : 'unknown';
+            this.logger.log(
+                `Session migrate host request: SessionId=${sessionIdHex}, SecureAddress length=${file.buffer.length >= 328 ? 320 : 0}`,
+            );
+
+            const result = await this.sessionService.migrateHostAsync(file, usableAddress);
+
+            if (!result) {
+                throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
+            }
+
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('Content-Disposition', 'inline');
+            res.setHeader('Content-Type', 'application/octet-stream');
+            res.setHeader('Content-Length', result.size.toString());
+            this.logger.log(`Returning BLF response: ${result.size} bytes`);
+            return new StreamableFile(result.buffer);
+        } catch (error) {
+            this.logger.error(`Unexpected error migrating host: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
+            if (error instanceof HttpException) {
+                throw error;
+            }
+            if (error instanceof Error && error.message.includes('Invalid BLF format')) {
+                this.logger.error(`BLF parsing error in session migrate host: ${error.message}`);
+                throw new HttpException(
+                    `Invalid file format: ${error.message}`,
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+            throw new HttpException(
+                'An internal server error occurred while processing the session migrate host request',
+                HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
+    }
+
     @Post('delete')
     @HttpCode(200)
     @ApiOperation({ summary: 'Delete a session' })

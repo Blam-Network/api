@@ -10,6 +10,8 @@ import {
     SBlfFileSessionCreateResponseSchema,
     SBlfFileSessionSearchResponseSchema,
     SBlfFileSessionDeleteSchema,
+    SBlfFileSessionMigrateHostSchema,
+    SBlfFileSessionMigrateHostResponseSchema,
     s_online_session_search_result,
 } from './session.chunks';
 import { ARES_LIVE_AUTHOR, DEFAULT_BLF_CHUNK, DEFAULT_EOF_CHUNK } from '../chunks';
@@ -304,6 +306,83 @@ export class SessionService {
         );
 
         return true;
+    }
+
+    async migrateHostAsync(file: Express.Multer.File, usableAddress: string): Promise<{ buffer: Buffer; size: number } | null> {
+        let fileData;
+        try {
+            fileData = SBlfFileSessionMigrateHostSchema.read(file.buffer);
+        } catch (error) {
+            this.logger.error(`Failed to parse session migrate host BLF: ${error instanceof Error ? error.message : String(error)}`);
+            throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        const request = fileData.xsmh;
+        const { sessionId, secureAddress } = request;
+
+        if (!sessionId || sessionId.data.length !== 8) {
+            this.logger.warn('Session migrate host request has invalid session ID');
+            return null;
+        }
+
+        if (!secureAddress || secureAddress.data.length !== 320) {
+            this.logger.warn('Session migrate host request has invalid secure address');
+            return null;
+        }
+
+        const sessionIdHexString = Buffer.from(sessionId.data).toString('hex');
+
+        // Find the session by identifier
+        const sessions = await this.prisma.ares_session.findMany();
+        const session = sessions.find((s) => s.identifier === sessionIdHexString);
+
+        if (!session) {
+            this.logger.warn(`Session not found for identifier during host migration: ${sessionIdHexString}`);
+            return null;
+        }
+
+        // Check if secure address is all zeros (user index zero case)
+        const secureAddressIsZero = secureAddress.data.every((b: number) => b === 0);
+
+        if (!secureAddressIsZero) {
+            // Update session with new secure address and usable address
+            const secureAddressHexString = Buffer.from(secureAddress.data).toString('hex');
+            await this.prisma.ares_session.update({
+                where: { identifier: sessionIdHexString },
+                data: {
+                    secure_address: secureAddressHexString,
+                    usable_address: usableAddress,
+                },
+            });
+
+            this.logger.log(
+                `Host migration completed: SessionId=${sessionIdHexString}, SecureAddress updated, Nonce=${session.nonce}`,
+            );
+        } else {
+            this.logger.log(
+                `Host migration (user index zero): SessionId=${sessionIdHexString}, returning latest session description, Nonce=${session.nonce}`,
+            );
+        }
+
+        // Parse session data from database
+        const sessionIdentifier = { data: Array.from(Buffer.from(session.identifier, 'hex')) as any };
+        const sessionKey = { data: Array.from(Buffer.from(session.key, 'hex')) as any };
+        const sessionHostAddress = { data: Array.from(Buffer.from(session.secure_address, 'hex')) as any };
+        const sessionNonce = BigInt(session.nonce.toString());
+
+        const buffer = SBlfFileSessionMigrateHostResponseSchema.write({
+            _blf: DEFAULT_BLF_CHUNK,
+            athr: ARES_LIVE_AUTHOR,
+            xsmr: {
+                sessionDescription: {
+                    id: sessionIdentifier,
+                    hostAddress: sessionHostAddress,
+                    key: sessionKey,
+                },
+                nonce: sessionNonce,
+            },
+            _eof: DEFAULT_EOF_CHUNK,
+        });
+        return { buffer, size: buffer.length };
     }
 }
 

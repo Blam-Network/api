@@ -17,6 +17,7 @@ import { GameApiController } from './controllers/gameapi.controller';
 import { AresPopulationService } from './ares/population.service';
 import { AresFileShareService } from './ares/fileshare.service';
 import { DatamineUploadService } from 'src/lsp/services/datamineupload.service';
+import { loggerWithPrefix } from 'src/utils/logger'
 
 @Module({
     imports: [
@@ -41,7 +42,7 @@ import { DatamineUploadService } from 'src/lsp/services/datamineupload.service';
         AresFileShareService,
         CompressionService,
         DiscordWebhookService,
-        { provide: ILoggerSymbol, useFactory: () => new ConsoleLogger({prefix: 'ARES'}) },
+        loggerWithPrefix('Ares LSP'),
         ShutdownObserver,
         DatamineUploadService,
     ],

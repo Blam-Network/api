@@ -1,7 +1,6 @@
-import { ConsoleLogger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { DatabaseModule } from 'src/db/database.module';
-import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { ShutdownObserver } from 'src/ShutdownObserver';
 import { AppLoggerMiddleware } from 'src/middleware/AppLoggerMiddleware';
 import { SessionController } from './sessions/session.controller';
@@ -10,6 +9,8 @@ import { SessionService } from './sessions/session.service';
 import { StatsService } from './statistics/stats.service';
 import { AllExceptionsFilter } from './filters/http-exception.filter';
 import { AresLiveHeadersMiddleware } from './middleware/ares-live-headers.middleware';
+import ILogger, { ILoggerSymbol } from 'src/ILogger';
+import { loggerWithPrefix } from 'src/utils/logger'
 
 @Module({
     imports: [
@@ -25,7 +26,7 @@ import { AresLiveHeadersMiddleware } from './middleware/ares-live-headers.middle
     providers: [
         SessionService,
         StatsService,
-        { provide: ILoggerSymbol, useFactory: () => new ConsoleLogger({prefix: 'ARES-LIVE'}) },
+        loggerWithPrefix('Ares LIVE'),
         ShutdownObserver,
         {
             provide: APP_FILTER,

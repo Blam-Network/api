@@ -382,8 +382,8 @@ export class StatsService {
     }
 
     async buildStatsQueryResponseBlf(file: Express.Multer.File): Promise<{ buffer: Buffer; size: number }> {
-        this.logger.log(`Building stats query response - file size: ${file.buffer.length}, buffer preview: ${file.buffer.slice(0, 16).toString('hex')}`);
-        this.logger.log(`Full buffer hex dump (${file.buffer.length} bytes): ${file.buffer.toString('hex')}`);
+        this.logger.log(`Building stats query response - input request file size: ${file.buffer.length} bytes`);
+        this.logger.log(`Input buffer preview: ${file.buffer.slice(0, 16).toString('hex')}`);
         
         let fileData;
         try {
@@ -420,7 +420,7 @@ export class StatsService {
 
             for (let xuidIndex = 0; xuidIndex < actualRowCount; xuidIndex++) {
                 const stats: s_stats_query_response_column[] = [];
-                const actualStatCount = Math.min(spec.numColumnIds, 64);
+                const actualStatCount = Math.min(spec.numColumnIds, 32); // Max 32 stats per row (matches resym: stats[32])
 
                 for (let columnIndex = 0; columnIndex < actualStatCount; columnIndex++) {
                     const columnId = spec.columnIds[columnIndex];
@@ -431,8 +431,8 @@ export class StatsService {
                     stats.push(stat);
                 }
 
-                // Pad stats array to required length (64)
-                while (stats.length < 64) {
+                // Pad stats array to required length (32) - matches resym: stats[32]
+                while (stats.length < 32) {
                     stats.push({
                         id: 0,
                         data: {
@@ -461,7 +461,7 @@ export class StatsService {
                     xuid: BigInt(0),
                     gamertag: '',
                     statCount: 0,
-                    stats: Array(64).fill(null).map(() => ({
+                    stats: Array(32).fill(null).map(() => ({
                         id: 0,
                         data: {
                             type: 'null' as const,
@@ -492,7 +492,7 @@ export class StatsService {
                     xuid: BigInt(0),
                     gamertag: '',
                     statCount: 0,
-                    stats: Array(64).fill(null).map(() => ({
+                    stats: Array(32).fill(null).map(() => ({
                         id: 0,
                         data: {
                             type: 'null' as const,
@@ -516,6 +516,7 @@ export class StatsService {
             },
             _eof: DEFAULT_EOF_CHUNK,
         });
+        this.logger.log(`Stats query response built - output file size: ${buffer.length} bytes (expected: 67781 bytes / 0x10895)`);
         return { buffer, size: buffer.length };
     }
 }

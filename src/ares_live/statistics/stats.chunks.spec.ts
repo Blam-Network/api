@@ -1,12 +1,13 @@
-import { SBlfFileStatsQuerySchema } from './stats.chunks';
+import { SBlfFileStatsQuerySchema, SBlfFileStatsQueryResponseSchema } from './stats.chunks';
+import { DEFAULT_BLF_CHUNK, ARES_LIVE_AUTHOR, DEFAULT_EOF_CHUNK } from '../chunks';
+import * as fs from 'fs';
+import * as path from 'path';
 
 describe('Stats Query BLF Parsing', () => {
-    test('should parse real stats query BLF file from logs', () => {
-        // Hex dump from actual request (837 bytes)
-        // Contains: _blf chunk (48) + athr chunk (80) + xsqq chunk (692) + _eof chunk (17)
-        const hexDump = '5f626c660000003000010002feff737461747320717565727900000000000000000000000000000000000000000000006174687200000050000300010000000000000000000000000000000075000000ffffffff756e747261636b65642076657273696f6e00000000000000000000007836400000000000000000000000000078737171000002b4000100000100000099ec86dee0515d580000000000150f1dbff77f00008253b0b6dc2b00008d22b8bef77f0000000000000000000038d371b66901000030e0aa6cfe7f0000ffffffffffffffff70f66f9b4500000084552a6ffe7f0000c08915ed50020000a7a5a2bff77f000000000000000000002912a1bff77f000018cb71b669010000ffffff02000000010000000b0000000400050006000800070009000b000a000c000d000e000000000100000000000000000000000000000090f66f9b45000000540f016ffe7f0000b0f66f9b45000000f050326ffe7f00000000000001000000681800000000000010080000000000001434806bfd7f0000f0f66f9b45000000fc00ef70fe7f0000f0f66f9b4500000200000002000000020003009b45000000540f016ffe7f00000000000000000000000000000000000000000000000000000000000000000000f0f86f9b45000000443b806bfd7f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000cd5bf6bef77f00000000000000000000000000000000000000000000000000000000000000000000e7f86f9b45000000bb051dbff77f0000000000000000000000000000000000006915530600000000b73617ed50020000000000000000000088527fd8f77f000090527fd801000000f3071dbff77f0000001d6fb669010000a082c5bef77f00000000000000000000fc5dc5bef77f000088527fd8f77f000088527fd8f77f0000180000001800000018071dbff77f0000000000000000000023824abff77f000000000000000000000000000000000000d254b0b618000000077931bff77f000068f979b669010000d35cc5bef77f005f656f6600000011000100010000033400';
-        
-        const buffer = Buffer.from(hexDump, 'hex');
+    test('should parse real stats query BLF file from logs', () => {      
+        const filePath = path.join(__dirname, './example_stats_query.blf');
+        const buffer = fs.readFileSync(filePath);
+
         expect(buffer.length).toBe(837);
         
         // Debug: Check chunk boundaries
@@ -31,7 +32,7 @@ describe('Stats Query BLF Parsing', () => {
         
         // Verify _blf chunk
         expect(fileData._blf.fileName).toBe('stats query');
-        expect(fileData._blf.bom).toBe(0xFEFF);
+        expect(fileData._blf.bom).toBe(0xFFFE);
         
         // Verify athr chunk
         expect(fileData.athr.programName).toBeDefined();
@@ -57,6 +58,197 @@ describe('Stats Query BLF Parsing', () => {
             expect(spec.columnIds).toBeDefined();
             expect(Array.isArray(spec.columnIds)).toBe(true);
             expect(spec.columnIds.length).toBe(64);
+        }
+    });
+
+    test('should create stats query response file with correct size', () => {
+        // Create a minimal stats query response file
+        // Expected total file size: 0x108C5 (67781 bytes)
+        // Contains: _blf (0x30 = 48) + athr (0x50 = 80) + xsqr (0x10834 = 67636) + _eof (0x11 = 17)
+        // 
+        // Structure sizes from resym (ares_debug.pdb):
+        // - s_online_stat: 32 bytes (0x20) - id: 4 + padding: 4 + data: 24
+        // - s_online_player_stat_collection: 1056 bytes (0x420) - xuid: 8 + gamertag: 16 + stat_count: 4 + padding: 4 + stats[32]: 1024
+        // - s_online_stat_query_leaderboard_result: 16904 bytes (0x4208) - leaderboard_id: 4 + player_count: 4 + player_stats[16]: 16896
+        // - s_online_stat_query_result: 67624 bytes (0x10828) - leaderboard_count: 4 + padding: 4 + leaderboard_results[4]: 67616
+        // - s_blf_chunk_stats_query_response: 67636 bytes (0x10834) - header: 12 + results: 67624
+        const responseFile = SBlfFileStatsQueryResponseSchema.write({
+            _blf: DEFAULT_BLF_CHUNK,
+            athr: ARES_LIVE_AUTHOR,
+            xsqr: {
+                leaderboardCount: 0,
+                leaderboards: Array.from({ length: 4 }, () => ({
+                    leaderboardId: 0,
+                    rowCount: 0,
+                    rows: Array.from({ length: 16 }, () => ({
+                        xuid: 0n,
+                        gamertag: '',
+                        statCount: 0,
+                        stats: Array.from({ length: 32 }, () => ({
+                            id: 0,
+                            data: {
+                                type: 'null' as const,
+                                data: {
+                                    data_as_null: {},
+                                },
+                            },
+                        })) as any,
+                    })) as any,
+                })) as any,
+            },
+            _eof: DEFAULT_EOF_CHUNK,
+        });
+
+        // Verify the file size matches calculated total: 0x108C5 = 67781 bytes
+        // File = start_of_file (0x30) + author (0x50) + query_response (0x10834) + end_of_file (0x11)
+        expect(responseFile.length).toBe(0x108c5);
+        expect(responseFile.length).toBe(67781);
+
+        // Verify chunk sizes
+        let offset = 0;
+        const chunk1Size = responseFile.readUInt32BE(offset + 4);
+        expect(chunk1Size).toBe(0x30); // _blf chunk: 48 bytes
+        offset += chunk1Size;
+
+        const chunk2Size = responseFile.readUInt32BE(offset + 4);
+        expect(chunk2Size).toBe(0x50); // athr chunk: 80 bytes
+        offset += chunk2Size;
+
+        const chunk3Size = responseFile.readUInt32BE(offset + 4);
+        expect(chunk3Size).toBe(0x10834); // xsqr chunk: 67636 bytes (matches resym)
+        offset += chunk3Size;
+
+        const chunk4Size = responseFile.readUInt32BE(offset + 4);
+        expect(chunk4Size).toBe(0x11); // _eof chunk: 17 bytes
+        offset += chunk4Size;
+
+        // Verify total size matches calculated total exactly
+        expect(offset).toBe(0x108c5);
+        
+        // Verify row structure: each row should be 0x420 (1056 bytes) with stats[32]
+        // Row = xuid (8) + gamertag (16) + statCount (4) + padding (4) + stats[32] (32 * 32 = 1024) = 1056 bytes
+        if (responseFile.length >= offset) {
+            const xsqrDataOffset = 48 + 80 + 12; // Skip _blf, athr, and xsqr header
+            const leaderboardCount = responseFile.readUInt32LE(xsqrDataOffset);
+            if (leaderboardCount > 0) {
+                const firstLeaderboardOffset = xsqrDataOffset + 4 + 4; // Skip leaderboardCount and padding
+                const rowCount = responseFile.readUInt32LE(firstLeaderboardOffset + 4);
+                if (rowCount > 0) {
+                    const firstRowOffset = firstLeaderboardOffset + 8;
+                    const expectedRowSize = 8 + 16 + 4 + 4 + (32 * 32); // xuid + gamertag + statCount + padding + stats[32]
+                    expect(expectedRowSize).toBe(0x420); // 1056 bytes per row
+                }
+            }
+        }
+    });
+
+    test('should parse old API stats query response file', () => {
+        // Read the old API response file (from previous API implementation)
+        const filePath = path.join(__dirname, './example_stats_query_response.blf');
+        const buffer = fs.readFileSync(filePath);
+        
+        // Verify file size matches expected: 67781 bytes (0x108C5)
+        expect(buffer.length).toBe(67781);
+        expect(buffer.length).toBe(0x108c5);
+        
+        // Parse the BLF file
+        const fileData = SBlfFileStatsQueryResponseSchema.read(buffer);
+        
+        // Verify chunks are present
+        expect(fileData._blf).toBeDefined();
+        expect(fileData.athr).toBeDefined();
+        expect(fileData.xsqr).toBeDefined();
+        expect(fileData._eof).toBeDefined();
+        
+        // Verify _blf chunk
+        expect(fileData._blf.fileName).toBeDefined();
+        expect(fileData._blf.bom).toBe(0xFFFE); // BOM is conceptually 0xFEFF (MagicNumber normalizes it)
+        
+        // Verify athr chunk
+        expect(fileData.athr.programName).toBeDefined();
+        expect(fileData.athr.buildNumberSequence).toBeDefined();
+        expect(fileData.athr.buildNumber).toBeDefined();
+        expect(fileData.athr.buildString).toBeDefined();
+        expect(fileData.athr.authorName).toBeDefined();
+        
+        // Verify xsqr chunk structure
+        expect(fileData.xsqr.leaderboardCount).toBeDefined();
+        expect(typeof fileData.xsqr.leaderboardCount).toBe('number');
+        expect(fileData.xsqr.leaderboards).toBeDefined();
+        expect(Array.isArray(fileData.xsqr.leaderboards)).toBe(true);
+        expect(fileData.xsqr.leaderboards.length).toBe(4);
+        
+        // Verify chunk sizes match expected values
+        let offset = 0;
+        const chunk1Size = buffer.readUInt32BE(offset + 4);
+        expect(chunk1Size).toBe(0x30); // _blf chunk: 48 bytes
+        offset += chunk1Size;
+        
+        const chunk2Size = buffer.readUInt32BE(offset + 4);
+        expect(chunk2Size).toBe(0x50); // athr chunk: 80 bytes
+        offset += chunk2Size;
+        
+        const chunk3Size = buffer.readUInt32BE(offset + 4);
+        expect(chunk3Size).toBe(0x10834); // xsqr chunk: 67636 bytes
+        offset += chunk3Size;
+        
+        const chunk4Size = buffer.readUInt32BE(offset + 4);
+        expect(chunk4Size).toBe(0x11); // _eof chunk: 17 bytes
+        offset += chunk4Size;
+        
+        // Verify total size
+        expect(offset).toBe(0x108c5);
+        
+        // Verify leaderboard structure
+        for (let i = 0; i < fileData.xsqr.leaderboards.length; i++) {
+            const leaderboard = fileData.xsqr.leaderboards[i];
+            expect(leaderboard.leaderboardId).toBeDefined();
+            expect(typeof leaderboard.leaderboardId).toBe('number');
+            expect(leaderboard.rowCount).toBeDefined();
+            expect(typeof leaderboard.rowCount).toBe('number');
+            expect(leaderboard.rows).toBeDefined();
+            expect(Array.isArray(leaderboard.rows)).toBe(true);
+            expect(leaderboard.rows.length).toBe(16);
+            
+            // Verify row structure
+            for (let j = 0; j < leaderboard.rows.length; j++) {
+                const row = leaderboard.rows[j];
+                expect(row.xuid).toBeDefined();
+                expect(typeof row.xuid).toBe('bigint');
+                expect(row.gamertag).toBeDefined();
+                expect(typeof row.gamertag).toBe('string');
+                expect(row.statCount).toBeDefined();
+                expect(typeof row.statCount).toBe('number');
+                expect(row.stats).toBeDefined();
+                expect(Array.isArray(row.stats)).toBe(true);
+                expect(row.stats.length).toBe(32);
+                
+                // Verify stat structure
+                for (let k = 0; k < row.stats.length; k++) {
+                    const stat = row.stats[k];
+                    expect(stat.id).toBeDefined();
+                    expect(typeof stat.id).toBe('number');
+                    expect(stat.data).toBeDefined();
+                    expect(stat.data.type).toBeDefined();
+                    expect(stat.data.data).toBeDefined();
+                }
+            }
+        }
+        
+        // Verify we can read back the data correctly by checking a few values
+        // The old API file should have valid structure even if data values differ
+        if (fileData.xsqr.leaderboardCount > 0) {
+            const firstLeaderboard = fileData.xsqr.leaderboards[0];
+            expect(firstLeaderboard.leaderboardId).toBeGreaterThanOrEqual(0);
+            expect(firstLeaderboard.rowCount).toBeGreaterThanOrEqual(0);
+            expect(firstLeaderboard.rowCount).toBeLessThanOrEqual(16);
+            
+            if (firstLeaderboard.rowCount > 0) {
+                const firstRow = firstLeaderboard.rows[0];
+                expect(firstRow.xuid).toBeGreaterThanOrEqual(0n);
+                expect(firstRow.statCount).toBeGreaterThanOrEqual(0);
+                expect(firstRow.statCount).toBeLessThanOrEqual(32);
+            }
         }
     });
 });

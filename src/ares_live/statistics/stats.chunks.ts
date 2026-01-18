@@ -14,7 +14,7 @@ const StatsQuerySpecSchema = c.createCStruct({
     fields: [
         { name: 'viewId', type: 'u32' },
         { name: 'numColumnIds', type: 'u32' },
-        { name: 'columnIds', type: 'u16', count: 64 }, // Max 64 column IDs (unsigned short in C++)
+        { name: 'columnIds', type: 'u16', count: 64 }, // Max 64 column IDs
     ],
 });
 
@@ -39,6 +39,7 @@ const StatsQueryResponseColumnSchema = c.createCStruct({
     pack: 1,
     fields: [
         { name: 'id', type: 'u32' },
+        { name: 'padding', type: 'padding', count: 4 }, // Padding to align data to 8-byte boundary
         { name: 'data', type: OnlineDataSchema },
     ],
 });
@@ -51,6 +52,7 @@ const StatsQueryResponseRowSchema = c.createCStruct({
         { name: 'xuid', type: 'u64' },
         { name: 'gamertag', type: new c.String(16) },
         { name: 'statCount', type: 'u32' },
+        { name: 'padding', type: 'padding', count: 4 }, // Padding to align stats array to 8-byte boundary
         { name: 'stats', type: StatsQueryResponseColumnSchema, count: 32 }, // Max 32 stats (matches resym: stats[32])
     ],
 });
@@ -75,6 +77,7 @@ export const SBlfChunkStatsQueryResponseSchema = blf.createChunkSchema({
     pack: 1,
     fields: [
         { name: 'leaderboardCount', type: 'u32' },
+        { name: 'padding', type: 'padding', count: 4 }, // Padding to align leaderboard_results array to 8-byte boundary
         { name: 'leaderboards', type: StatsQueryResponseLeaderboardSchema, count: 4 }, // Max 4 leaderboards
     ],
 });

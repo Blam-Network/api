@@ -41,7 +41,6 @@ export class StatsController {
     })
     @UseInterceptors(FileInterceptor('upload'))
     async query(@UploadedFile() file: Express.Multer.File, @Res({ passthrough: true }) res: Response) {
-        this.logger.log(`[StatsController] query() called - file: ${file ? 'present' : 'missing'}`);
         try {
             if (!file) {
                 this.logger.warn('Stats query request missing file');
@@ -59,7 +58,6 @@ export class StatsController {
                 );
             }
 
-            this.logger.log(`Stats query request received: filename=${file.originalname}, size=${file.size}, contentType=${file.mimetype}, bufferLength=${file.buffer.length}`);
             const { buffer, size } = await this.statsService.buildStatsQueryResponseBlf(file);
             res.setHeader('Content-Type', 'application/octet-stream');
             res.setHeader('Content-Length', size.toString());

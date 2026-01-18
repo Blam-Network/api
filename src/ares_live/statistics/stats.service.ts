@@ -382,16 +382,12 @@ export class StatsService {
     }
 
     async buildStatsQueryResponseBlf(file: Express.Multer.File): Promise<{ buffer: Buffer; size: number }> {
-        this.logger.log(`Building stats query response - input request file size: ${file.buffer.length} bytes`);
-        this.logger.log(`Input buffer preview: ${file.buffer.slice(0, 16).toString('hex')}`);
-        
         let fileData;
         try {
             // Read as a full BLF file (matches s_blffile_stats_query structure)
             fileData = SBlfFileStatsQuerySchema.read(file.buffer);
         } catch (error) {
             this.logger.error(`Failed to parse stats query BLF: ${error instanceof Error ? error.message : String(error)}`);
-            this.logger.error(`Buffer length: ${file.buffer.length}, first 64 bytes: ${file.buffer.slice(0, 64).toString('hex')}`);
             throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
         }
         const request = fileData.xsqq;
@@ -516,7 +512,6 @@ export class StatsService {
             },
             _eof: DEFAULT_EOF_CHUNK,
         });
-        this.logger.log(`Stats query response built - output file size: ${buffer.length} bytes (expected: 67781 bytes / 0x10895)`);
         return { buffer, size: buffer.length };
     }
 }

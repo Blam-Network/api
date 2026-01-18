@@ -17,6 +17,31 @@ import {
     s_online_session_search_result,
 } from './session.chunks';
 import { ARES_LIVE_AUTHOR, DEFAULT_BLF_CHUNK, DEFAULT_EOF_CHUNK } from '../chunks';
+import { z } from 'zod';
+
+/**
+ * Formats a session ID (8 bytes) as uppercase hex with a colon in the middle
+ * Example: E0B4722A:24253947
+ */
+function transport_secure_identifier_get_string(sessionIdBytes: number[] | Buffer | Uint8Array): string {
+    const bytes = Array.from(sessionIdBytes);
+    if (bytes.length !== 8) {
+        return 'INVALID';
+    }
+    const firstPart = Buffer.from(bytes.slice(0, 4)).toString('hex').toUpperCase();
+    const secondPart = Buffer.from(bytes.slice(4, 8)).toString('hex').toUpperCase();
+    return `${firstPart}:${secondPart}`;
+}
+
+const ipOctetSchema = z.coerce.number().positive().max(255).int();
+const usableAddressSchema = z
+    .preprocess((val) => {
+        if (typeof val === 'string') {
+            return val.split('.');
+        }
+        return val;
+    }, z.tuple([ipOctetSchema, ipOctetSchema, ipOctetSchema, ipOctetSchema]))
+    .transform(([a, b, c, d]) => (a << 24) | (b << 16) | (c << 8) | d);
 
 @Injectable()
 export class SessionService {
@@ -28,16 +53,12 @@ export class SessionService {
     async createSessionAsync(
         file: Express.Multer.File,
         usableAddress: string,
-    ): Promise<{ buffer: Buffer; size: number }> {
-        this.logger.log(`Creating session - file size: ${file.buffer.length}, buffer preview: ${file.buffer.slice(0, 16).toString('hex')}`);
-        this.logger.log(`Full buffer hex dump (${file.buffer.length} bytes): ${file.buffer.toString('hex')}`);
-        
+    ): Promise<{ buffer: Buffer; size: number; sessionId: string }> {
         let fileData;
         try {
             fileData = SBlfFileSessionCreateSchema.read(file.buffer);
         } catch (error) {
             this.logger.error(`Failed to parse session create BLF: ${error instanceof Error ? error.message : String(error)}`);
-            this.logger.error(`Buffer length: ${file.buffer.length}, first 64 bytes: ${file.buffer.slice(0, 64).toString('hex')}`);
             throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
         }
         const request = fileData.xscc;
@@ -83,10 +104,6 @@ export class SessionService {
         const identifierHexString = Buffer.from(sessionIdentifier.data).toString('hex');
         const keyHexString = Buffer.from(sessionKey.data).toString('hex');
 
-        this.logger.log(
-            `Session create request: SecureAddress=${secureAddressHexString.substring(0, 32)}... bytes, UsableAddress=${usableAddress}`,
-        );
-
         // Store in database
         await this.prisma.ares_session.create({
             data: {
@@ -110,8 +127,9 @@ export class SessionService {
             },
         });
 
+        const formattedSessionId = transport_secure_identifier_get_string(sessionIdentifier.data);
         this.logger.log(
-            `Created session with ID ${identifierHexString}, Nonce: ${sessionNonce}`,
+            `Created session ${formattedSessionId}, Nonce: ${sessionNonce}`,
         );
 
         const buffer = SBlfFileSessionCreateResponseSchema.write({
@@ -127,7 +145,7 @@ export class SessionService {
             },
             _eof: DEFAULT_EOF_CHUNK,
         });
-        return { buffer, size: buffer.length };
+        return { buffer, size: buffer.length, sessionId: formattedSessionId };
     }
 
     async modifySessionAsync(file: Express.Multer.File): Promise<boolean> {
@@ -153,7 +171,8 @@ export class SessionService {
         const session = sessions.find((s) => s.identifier === identifierHexString);
 
         if (!session) {
-            this.logger.warn(`Session not found for identifier: ${identifierHexString}`);
+            const formattedId = transport_secure_identifier_get_string(identifier.data);
+            this.logger.warn(`Session not found: ${formattedId}`);
             return false;
         }
 
@@ -175,18 +194,18 @@ export class SessionService {
             },
         });
 
+        const formattedSessionId = transport_secure_identifier_get_string(identifier.data);
         this.logger.log(
-            `Modified session with ID ${session.identifier}, MaxPublicSlots=${maxPublicSlots}, MaxPrivateSlots=${maxPrivateSlots}`,
+            `Modified session ${formattedSessionId}, MaxPublicSlots=${maxPublicSlots}, MaxPrivateSlots=${maxPrivateSlots}`,
         );
 
         return true;
     }
 
     async searchSessionsAsync(): Promise<{ buffer: Buffer; size: number }> {
-        // Use PostgreSQL DISTINCT ON to efficiently get the most recent session per IP
-        // This performs the aggregation at the database level
-        // Inner query: get most recent session per IP (ORDER BY usable_address, created_at DESC needed for DISTINCT ON)
-        // Outer query: order by created_at DESC to get the 50 most recent unique IPs
+        // Use DISTINCT ON to get the most recent session per IP in a single flat query
+        // DISTINCT ON requires ORDER BY to start with the DISTINCT ON column(s)
+        // This returns the most recent session per IP, ordered by IP then creation date
         const sessions = await this.prisma.$queryRaw<Array<{
             secure_address: string;
             identifier: string;
@@ -196,7 +215,7 @@ export class SessionService {
             max_private_slots: number;
             created_at: Date;
         }>>`
-            SELECT
+            SELECT DISTINCT ON (usable_address)
                 secure_address,
                 identifier,
                 key,
@@ -204,25 +223,13 @@ export class SessionService {
                 max_public_slots,
                 max_private_slots,
                 created_at
-            FROM (
-                SELECT DISTINCT ON (usable_address)
-                    secure_address,
-                    identifier,
-                    key,
-                    usable_address,
-                    max_public_slots,
-                    max_private_slots,
-                    created_at
-                FROM ares.sessions
-                WHERE uses_matchmaking = true
-                    AND usable_address != '127.0.0.1'
-                ORDER BY usable_address, created_at DESC
-            ) AS distinct_sessions
-            ORDER BY created_at DESC
+            FROM ares.sessions
+            WHERE uses_matchmaking = true
+                AND usable_address != '127.0.0.1'
+            ORDER BY usable_address, created_at DESC
             LIMIT 50
         `;
 
-        this.logger.log(`Found ${sessions.length} sessions with matchmaking flag (grouped by IP)`);
 
         // Build results array
         const results: s_online_session_search_result[] = [];
@@ -235,18 +242,11 @@ export class SessionService {
             // Parse usable address to IPv4 in network byte order
             let usableAddress = 0;
             if (session.usable_address) {
-                // Use proper IP parsing like C# does
-                const parts = session.usable_address.split('.');
-                if (parts.length === 4) {
-                    const bytes = parts.map(p => parseInt(p, 10));
-                    if (bytes.every(b => !isNaN(b) && b >= 0 && b <= 255)) {
-                        // Convert to network byte order (big-endian)
-                        usableAddress = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
-                    } else {
-                        this.logger.warn(`Session search: session[${i}] UsableAddress='${session.usable_address}' has invalid byte values`);
-                    }
+                const result = usableAddressSchema.safeParse(session.usable_address);
+                if (result.success) {
+                    usableAddress = result.data;
                 } else {
-                    this.logger.warn(`Session search: session[${i}] UsableAddress='${session.usable_address}' failed to parse as IP address`);
+                    this.logger.warn(`Session search: session[${i}] UsableAddress='${session.usable_address}' failed to parse as IP address: ${result.error.message}`);
                 }
             } else {
                 this.logger.warn(`Session search: session[${i}] UsableAddress is null or empty`);
@@ -359,19 +359,20 @@ export class SessionService {
         }
 
         const sessionIdHexString = Buffer.from(sessionId.data).toString('hex');
+        const formattedSessionId = transport_secure_identifier_get_string(sessionId.data);
 
         // Find the session by identifier
         const sessions = await this.prisma.ares_session.findMany();
         const session = sessions.find((s) => s.identifier === sessionIdHexString);
-
+        
         if (!session) {
-            this.logger.warn(`Session not found for identifier during delete: ${sessionIdHexString}`);
+            this.logger.warn(`Session not found: ${formattedSessionId}`);
             return false;
         }
 
         if (session.usable_address !== requesterIpAddress) {
             this.logger.warn(
-                `IP address mismatch during session delete. Session UsableAddress=${session.usable_address}, Requester IP=${requesterIpAddress}, SessionId=${sessionIdHexString}`,
+                `IP address mismatch during session delete. Session UsableAddress=${session.usable_address}, Requester IP=${requesterIpAddress}, SessionId=${formattedSessionId}`,
             );
             return false;
         }
@@ -381,7 +382,7 @@ export class SessionService {
         });
 
         this.logger.log(
-            `Deleted session with ID ${sessionIdHexString} (verified IP: ${requesterIpAddress})`,
+            `Deleted session ${formattedSessionId} (verified IP: ${requesterIpAddress})`,
         );
 
         return true;
@@ -409,13 +410,14 @@ export class SessionService {
         }
 
         const sessionIdHexString = Buffer.from(sessionId.data).toString('hex');
+        const formattedSessionId = transport_secure_identifier_get_string(sessionId.data);
 
         // Find the session by identifier
         const sessions = await this.prisma.ares_session.findMany();
         const session = sessions.find((s) => s.identifier === sessionIdHexString);
 
         if (!session) {
-            this.logger.warn(`Session not found for identifier during host migration: ${sessionIdHexString}`);
+            this.logger.warn(`Session not found: ${formattedSessionId}`);
             return null;
         }
 
@@ -434,11 +436,11 @@ export class SessionService {
             });
 
             this.logger.log(
-                `Host migration completed: SessionId=${sessionIdHexString}, SecureAddress updated, Nonce=${session.nonce}`,
+                `Host migration completed: SessionId=${formattedSessionId}, SecureAddress updated, Nonce=${session.nonce}`,
             );
         } else {
             this.logger.log(
-                `Host migration (user index zero): SessionId=${sessionIdHexString}, returning latest session description, Nonce=${session.nonce}`,
+                `Host migration (user index zero): SessionId=${formattedSessionId}, returning latest session description, Nonce=${session.nonce}`,
             );
         }
 
@@ -481,13 +483,14 @@ export class SessionService {
         }
 
         const sessionIdHexString = Buffer.from(sessionId.data).toString('hex');
+        const formattedSessionId = transport_secure_identifier_get_string(sessionId.data);
 
         // Find the session by identifier
         const sessions = await this.prisma.ares_session.findMany();
         const session = sessions.find((s) => s.identifier === sessionIdHexString);
 
         if (!session) {
-            this.logger.warn(`Session not found for identifier during get by id: ${sessionIdHexString}`);
+            this.logger.warn(`Session not found: ${formattedSessionId}`);
             return null;
         }
 

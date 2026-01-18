@@ -12,7 +12,6 @@ import {
     Res,
     BadRequestException,
     InternalServerErrorException,
-    ServiceUnavailableException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
@@ -20,6 +19,12 @@ import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { SessionService } from './session.service';
 import { Response } from 'express';
 import { StreamableFile } from '@nestjs/common';
+import {
+    SBlfFileSessionModifySchema,
+    SBlfFileSessionDeleteSchema,
+    SBlfFileSessionMigrateHostSchema,
+    SBlfFileSessionGetByIdSchema,
+} from './session.chunks';
 
 /**
  * Normalizes an IP address to IPv4 format, handling IPv4-mapped IPv6 addresses
@@ -39,6 +44,20 @@ function normalizeIpAddress(ip: string): string {
     }
     // Default for other cases (pure IPv6, etc.)
     return '0.0.0.0';
+}
+
+/**
+ * Formats a session ID (8 bytes) as uppercase hex with a colon in the middle
+ * Example: E0B4722A:24253947
+ */
+function transport_secure_identifier_get_string(sessionIdBytes: number[] | Buffer | Uint8Array): string {
+    const bytes = Array.from(sessionIdBytes);
+    if (bytes.length !== 8) {
+        return 'INVALID';
+    }
+    const firstPart = Buffer.from(bytes.slice(0, 4)).toString('hex').toUpperCase();
+    const secondPart = Buffer.from(bytes.slice(4, 8)).toString('hex').toUpperCase();
+    return `${firstPart}:${secondPart}`;
 }
 
 @ApiTags('Session')
@@ -83,14 +102,13 @@ export class SessionController {
                 );
             }
 
-            this.logger.log(`Session create request received: filename=${file.originalname}, size=${file.size}, contentType=${file.mimetype}, bufferLength=${file.buffer.length}`);
             const usableAddress = normalizeIpAddress(ip);
-            const { buffer, size } = await this.sessionService.createSessionAsync(file, usableAddress);
+            const { buffer, size, sessionId } = await this.sessionService.createSessionAsync(file, usableAddress);
             res.setHeader('Connection', 'keep-alive');
             res.setHeader('Content-Disposition', 'inline');
             res.setHeader('Content-Type', 'application/octet-stream');
             res.setHeader('Content-Length', size.toString());
-            this.logger.log(`Returning BLF response: ${size} bytes`);
+            this.logger.log(`Session created successfully: ${sessionId}`);
             return new StreamableFile(buffer);
         } catch (error) {
             if (error instanceof HttpException) {
@@ -129,6 +147,7 @@ export class SessionController {
     })
     @UseInterceptors(FileInterceptor('upload'))
     async modify(@UploadedFile() file: Express.Multer.File) {
+        let sessionId = 'UNKNOWN';
         try {
             if (!file) {
                 this.logger.warn('Session modify request missing file');
@@ -140,20 +159,31 @@ export class SessionController {
                 throw new BadRequestException('File buffer is empty');
             }
 
+            // Extract session ID for logging
+            try {
+                const fileData = SBlfFileSessionModifySchema.read(file.buffer);
+                if (fileData.xscm?.identifier?.data?.length === 8) {
+                    sessionId = transport_secure_identifier_get_string(fileData.xscm.identifier.data);
+                }
+            } catch {
+                // Ignore parsing errors here, service will handle them
+            }
+
             const success = await this.sessionService.modifySessionAsync(file);
             
             if (!success) {
+                this.logger.warn(`Session not found: ${sessionId}`);
                 throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
             }
             
-            this.logger.log('Session modify completed successfully');
             return "ok";
         } catch (error) {
-            this.logger.error(`Unexpected error modifying session: ${error}`);
+            this.logger.error(`Unexpected error modifying session ${sessionId}: ${error}`);
             if (error instanceof HttpException) {
                 throw error;
             }
             if (error instanceof Error && error.message === 'Session not found') {
+                this.logger.warn(`Session not found: ${sessionId}`);
                 throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
             }
             throw new HttpException(
@@ -168,13 +198,11 @@ export class SessionController {
     @ApiOperation({ summary: 'Search for sessions' })
     async search(@Res({ passthrough: true }) res: Response) {
         try {
-            this.logger.log('Session search request received');
             const { buffer, size } = await this.sessionService.searchSessionsAsync();
             res.setHeader('Connection', 'keep-alive');
             res.setHeader('Content-Disposition', 'inline');
             res.setHeader('Content-Type', 'application/octet-stream');
             res.setHeader('Content-Length', size.toString());
-            this.logger.log(`Returning BLF response: ${size} bytes`);
             return new StreamableFile(buffer);
         } catch (error) {
             this.logger.error(`Unexpected error searching sessions: ${error}`);
@@ -202,6 +230,7 @@ export class SessionController {
     })
     @UseInterceptors(FileInterceptor('upload'))
     async migrateHost(@UploadedFile() file: Express.Multer.File, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
+        let sessionId = 'UNKNOWN';
         try {
             if (!file) {
                 this.logger.warn('Session migrate host request missing file');
@@ -213,17 +242,21 @@ export class SessionController {
                 throw new BadRequestException('File buffer is empty');
             }
 
-            const usableAddress = normalizeIpAddress(ip);
-            const sessionIdHex = file.buffer.length >= 8 
-                ? Buffer.from(file.buffer.slice(0, 8)).toString('hex') 
-                : 'unknown';
-            this.logger.log(
-                `Session migrate host request: SessionId=${sessionIdHex}, SecureAddress length=${file.buffer.length >= 328 ? 320 : 0}`,
-            );
+            // Extract session ID for logging
+            try {
+                const fileData = SBlfFileSessionMigrateHostSchema.read(file.buffer);
+                if (fileData.xsmh?.sessionId?.data?.length === 8) {
+                    sessionId = transport_secure_identifier_get_string(fileData.xsmh.sessionId.data);
+                }
+            } catch {
+                // Ignore parsing errors here, service will handle them
+            }
 
+            const usableAddress = normalizeIpAddress(ip);
             const result = await this.sessionService.migrateHostAsync(file, usableAddress);
 
             if (!result) {
+                this.logger.warn(`Session not found: ${sessionId}`);
                 throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
             }
 
@@ -231,16 +264,15 @@ export class SessionController {
             res.setHeader('Content-Disposition', 'inline');
             res.setHeader('Content-Type', 'application/octet-stream');
             res.setHeader('Content-Length', result.size.toString());
-            this.logger.log(`Returning BLF response: ${result.size} bytes`);
             return new StreamableFile(result.buffer);
         } catch (error) {
-            this.logger.error(`Unexpected error migrating host: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Unexpected error migrating host for session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
             this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
             if (error instanceof HttpException) {
                 throw error;
             }
             if (error instanceof Error && error.message.includes('Invalid BLF format')) {
-                this.logger.error(`BLF parsing error in session migrate host: ${error.message}`);
+                this.logger.error(`BLF parsing error in session migrate host for session ${sessionId}: ${error.message}`);
                 throw new HttpException(
                     `Invalid file format: ${error.message}`,
                     HttpStatus.BAD_REQUEST,
@@ -270,6 +302,7 @@ export class SessionController {
     })
     @UseInterceptors(FileInterceptor('upload'))
     async getById(@UploadedFile() file: Express.Multer.File, @Res({ passthrough: true }) res: Response) {
+        let sessionId = 'UNKNOWN';
         try {
             if (!file) {
                 this.logger.warn('Session get by id request missing file');
@@ -281,16 +314,20 @@ export class SessionController {
                 throw new BadRequestException('File buffer is empty');
             }
 
-            const sessionIdHex = file.buffer.length >= 8 
-                ? Buffer.from(file.buffer.slice(0, 8)).toString('hex') 
-                : 'unknown';
-            this.logger.log(
-                `Session get by id request: SessionId=${sessionIdHex}`,
-            );
+            // Extract session ID for logging
+            try {
+                const fileData = SBlfFileSessionGetByIdSchema.read(file.buffer);
+                if (fileData.xsgi?.sessionId?.data?.length === 8) {
+                    sessionId = transport_secure_identifier_get_string(fileData.xsgi.sessionId.data);
+                }
+            } catch {
+                // Ignore parsing errors here, service will handle them
+            }
 
             const result = await this.sessionService.getSessionByIdAsync(file);
-
+            
             if (!result) {
+                this.logger.warn(`Session not found: ${sessionId}`);
                 throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
             }
 
@@ -298,16 +335,15 @@ export class SessionController {
             res.setHeader('Content-Disposition', 'inline');
             res.setHeader('Content-Type', 'application/octet-stream');
             res.setHeader('Content-Length', result.size.toString());
-            this.logger.log(`Returning BLF response: ${result.size} bytes`);
             return new StreamableFile(result.buffer);
         } catch (error) {
-            this.logger.error(`Unexpected error getting session by id: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Unexpected error getting session by id for session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
             this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
             if (error instanceof HttpException) {
                 throw error;
             }
             if (error instanceof Error && error.message.includes('Invalid BLF format')) {
-                this.logger.error(`BLF parsing error in session get by id: ${error.message}`);
+                this.logger.error(`BLF parsing error in session get by id for session ${sessionId}: ${error.message}`);
                 throw new HttpException(
                     `Invalid file format: ${error.message}`,
                     HttpStatus.BAD_REQUEST,
@@ -337,6 +373,7 @@ export class SessionController {
     })
     @UseInterceptors(FileInterceptor('upload'))
     async delete(@UploadedFile() file: Express.Multer.File, @Ip() ip: string) {
+        let sessionId = 'UNKNOWN';
         try {
             if (!file) {
                 this.logger.warn('Session delete request missing file');
@@ -348,25 +385,21 @@ export class SessionController {
                 throw new BadRequestException('File buffer is empty');
             }
 
-            const requesterIpAddress = normalizeIpAddress(ip);
-            const sessionIdHex = file.buffer.length >= 8 
-                ? Buffer.from(file.buffer.slice(0, 8)).toString('hex') 
-                : 'unknown';
-            this.logger.log(
-                `Session delete request: SessionId=${sessionIdHex}, RequesterIP=${requesterIpAddress}`,
-            );
-
-            const success = await this.sessionService.deleteSessionAsync(file, requesterIpAddress);
-            
-            if (success) {
-                this.logger.log('Session delete completed successfully');
-            } else {
-                this.logger.log('Session delete: session not found or IP address mismatch (returning success for idempotency)');
+            // Extract session ID for logging
+            try {
+                const fileData = SBlfFileSessionDeleteSchema.read(file.buffer);
+                if (fileData.xsdl?.sessionId?.data?.length === 8) {
+                    sessionId = transport_secure_identifier_get_string(fileData.xsdl.sessionId.data);
+                }
+            } catch {
+                // Ignore parsing errors here, service will handle them
             }
 
+            const requesterIpAddress = normalizeIpAddress(ip);
+            await this.sessionService.deleteSessionAsync(file, requesterIpAddress);
             return "ok";
         } catch (error) {
-            this.logger.error(`Unexpected error deleting session: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Unexpected error deleting session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
             this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
             throw new InternalServerErrorException('An internal server error occurred while processing the session delete request');
         }

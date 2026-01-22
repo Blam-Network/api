@@ -35,7 +35,7 @@ export class AresUploadService {
 
         switch (upload.mimetype) {
             case HALO3_UPLOAD_MIME_TYPES.MULTI:
-                this.aresCarnageReportService.handleAresMultiUpload(upload)
+                await this.aresCarnageReportService.handleAresMultiUpload(upload)
                 return;
             case HALO3_UPLOAD_MIME_TYPES.UPLOAD:
             case HALO3_UPLOAD_MIME_TYPES.EVENT:

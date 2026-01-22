@@ -4,7 +4,6 @@ import { AresUploadService } from './ares/upload.service';
 import { AppLoggerMiddleware } from 'src/middleware/AppLoggerMiddleware';
 import { CompressionService } from './services/compression.service';
 import { UploadService } from './services/upload.service';
-import { DiscordWebhookService } from './services/discordwebhook.service';
 import { DatabaseModule } from 'src/db/database.module';
 import { ILoggerSymbol } from 'src/ILogger';
 import { ShutdownObserver } from 'src/ShutdownObserver';
@@ -18,6 +17,8 @@ import { AresPopulationService } from './ares/population.service';
 import { AresFileShareService } from './ares/fileshare.service';
 import { DatamineUploadService } from 'src/lsp/services/datamineupload.service';
 import { loggerWithPrefix } from 'src/utils/logger'
+import { DiscordWebhookService } from 'src/lsp/services/discordwebhook.service';
+import { AresCarnageReportService } from './ares/carnagereport.service';
 
 @Module({
     imports: [
@@ -40,6 +41,7 @@ import { loggerWithPrefix } from 'src/utils/logger'
         AresMachineService,
         AresPopulationService,
         AresFileShareService,
+        AresCarnageReportService,
         CompressionService,
         DiscordWebhookService,
         loggerWithPrefix('Ares LSP'),

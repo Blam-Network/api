@@ -10,7 +10,6 @@ import { z } from "zod";
 import { URLSearchParams } from "url";
 import { h32 } from 'xxhashjs';
 import { createReadStream } from "fs";
-import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { xuidToHexString } from "src/xbox/xuid";
 import { UploadService } from "../services/upload.service";
 const IS_FILESHARE_ENABLED = true;
@@ -117,7 +116,6 @@ export class AresFileShareService {
     constructor(
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly prisma: PrismaService,
-        private readonly discordWebhookService: DiscordWebhookService,
         private readonly uploadService: UploadService,
     ) { }
 
@@ -871,15 +869,6 @@ export class AresFileShareService {
             destinationFolder,
             screenshotData.id,
         ), file.buffer);
-
-        // Try to send a discord message, but dont wait on it.
-        this.discordWebhookService.sendAresScreenshot({
-            authorXuid: chdr.metadata.author_id,
-            authorName: chdr.metadata.author,
-            name: chdr.metadata.name,
-            description: chdr.metadata.description,
-            imageUrl: `https://halo3.blam.network/ares/screenshots/${screenshotData.id}/view`
-        }).catch((err) => this.logger.error(`Failed to send screenshot to discord: ${err}`))
     }
 }
 

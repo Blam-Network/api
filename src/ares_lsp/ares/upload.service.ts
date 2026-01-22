@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
+import { AresCarnageReportService } from "./carnagereport.service";
 
 const HALO3_UPLOAD_MIME_TYPES = {
     MULTI: 'application/x-halo3-multi',
@@ -18,6 +19,7 @@ const HALO3_UPLOAD_MIME_REGEX = /application\/x-halo3.+$/
 export class AresUploadService {
     constructor(
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
+        @Inject() private readonly aresCarnageReportService: AresCarnageReportService,
     ) {}
 
     private isAresUpload = (
@@ -33,6 +35,8 @@ export class AresUploadService {
 
         switch (upload.mimetype) {
             case HALO3_UPLOAD_MIME_TYPES.MULTI:
+                this.aresCarnageReportService.handleAresMultiUpload(upload)
+                return;
             case HALO3_UPLOAD_MIME_TYPES.UPLOAD:
             case HALO3_UPLOAD_MIME_TYPES.EVENT:
             case HALO3_UPLOAD_MIME_TYPES.BAD_THING:

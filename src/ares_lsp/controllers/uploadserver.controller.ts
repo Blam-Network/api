@@ -23,7 +23,7 @@ export class UploadServerController {
   constructor(
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
     private readonly uploadService: UploadService,
-    private readonly halo3UploadService: AresUploadService,
+    private readonly aresUploadService: AresUploadService,
     private readonly datamineUploadService: DatamineUploadService,
   ) {}
 
@@ -57,7 +57,7 @@ export class UploadServerController {
       this.uploadService.storeUploadedFile(upload),
 
       // TITLES:
-      this.halo3UploadService.handleUpload(upload),
+      this.aresUploadService.handleUpload(upload),
       this.datamineUploadService.handleUpload(upload),
     ]);
 
@@ -96,7 +96,7 @@ export class UploadServerController {
       this.uploadService.storeUploadedFile(upload);
 
       // TITLES:
-      this.halo3UploadService.handleUpload(upload);
+      this.aresUploadService.handleUpload(upload);
     })
 
     return 'DONE';

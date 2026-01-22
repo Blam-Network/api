@@ -12,6 +12,7 @@ const WebhookTypeSchema = z.enum([
     'HALO3_CARNAGE_REPORTS',
     'HALO3_SCREENSHOTS',
     'HALOREACH_SCREENSHOTS',
+    'ARES_CARNAGE_REPORTS',
     'CRASH'
 ]);
 
@@ -167,6 +168,44 @@ export class DiscordWebhookService {
         }
 
         await this.sendWebhookMessage(WebhookType.HALO3_CARNAGE_REPORTS, message);
+    }
+
+    public sendAresCarnageReport = async (data: Halo3CarnageReportMessage) => {
+        let message = {
+            embeds: [{
+                title: `${data.gametype} on ${data.map}`,
+                description: data.winner
+                    ? `${data.winner} wins!`
+                    : 'Tie Game',
+                fields: [
+                    {
+                        name: "Score",
+                        value: data.winningScore,
+                        inline: true
+                    },
+                    {
+                        name: "Duration",
+                        value: this.formatDuration(data.startTime, data.finishTime),
+                        inline: true
+                    },
+                    {
+                        name: "Players",
+                        value: data.playerCount,
+                        inline: true
+                    }
+                ],
+                footer: {
+                    "text": "Ares Webstats - Blam Network",
+                    "icon_url": "https://cdn.discordapp.com/icons/1287731261993127977/be1cefaceefbb03879db1c47ea0cfcb7.webp?size=64"
+                },
+                url: `https://blam.network/ares/carnage-report/${data.carnageReportId}`,
+                "thumbnail": {
+                    "url": `https://blam.network/img/largemaps/${data.mapId}.jpg` // Adding map image URL here
+                }
+            }]
+        }
+
+        await this.sendWebhookMessage(WebhookType.ARES_CARNAGE_REPORTS, message);
     }
 
     public sendHalo3CampaignCarnageReport = async (data: Halo3CampaignCarnageReportMessage) => {

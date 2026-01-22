@@ -16,6 +16,8 @@ import { UserController } from './controllers/user.controller';
 import { BnetUserService } from './services/bnetuser.service';
 import { JwtService } from './services/jwt.service';
 import { loggerWithPrefix } from 'src/utils/logger'
+import { AresController } from './controllers/ares.controller';
+import { AresPopulationService } from './services/arespopulation.service';
 
 @Module({
     imports: [
@@ -25,6 +27,7 @@ import { loggerWithPrefix } from 'src/utils/logger'
         },
     ],
     controllers: [
+        AresController,
         Halo3Controller,
         Halo3ODSTController,
         HaloReachController,
@@ -37,6 +40,7 @@ import { loggerWithPrefix } from 'src/utils/logger'
         Halo3FileShareService,
         HaloReachFileShareService,
         Halo3PopulationService,
+        AresPopulationService,
         BnetUserService,
         JwtService,
         loggerWithPrefix('BNET'),

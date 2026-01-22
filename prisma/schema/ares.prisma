@@ -264,6 +264,7 @@ model ares_carnage_report_player {
   elite_model_area_3                                                                                                              Int
   service_tag                                                                                                                     String                                         @db.VarChar(4)
   player_xuid                                                                                                                     Decimal                                        @db.Decimal(20, 0)
+  is_guest                                                                                                                        Boolean
   is_silver_or_gold_live                                                                                                          Boolean
   is_online_enabled                                                                                                               Boolean
   is_controller_attached                                                                                                          Boolean
@@ -489,6 +490,8 @@ model ares_carnage_report_player_medals {
   nemesis                           Int                        @db.SmallInt
   avenger                           Int                        @db.SmallInt
   unused3                           Int                        @db.SmallInt
+  unknown1                          Int                        @db.SmallInt
+  unknown2                          Int                        @db.SmallInt
   carnage_report                    ares_carnage_report        @relation(fields: [carnage_report_id], references: [id], onDelete: Cascade)
   carnage_report_player             ares_carnage_report_player @relation(fields: [carnage_report_id, player_index], references: [carnage_report_id, player_index], onDelete: NoAction, onUpdate: NoAction)
 

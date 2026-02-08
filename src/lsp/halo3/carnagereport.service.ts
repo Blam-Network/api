@@ -5,6 +5,7 @@ import * as BLF from '@blam-network/blf_lsp';
 import { CompressionService } from "../services/compression.service";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { isGuestXuid } from "src/xbox/xuid";
+import { intervalToDuration } from "date-fns";
 
 // We turn this on for debugging but turn it off for security in prod.
 const ALLOW_UNCOMPRESSED_CARNAGE_REPORTS = false;
@@ -980,7 +981,8 @@ export class Halo3CarnageReportService {
                 )
             });
 
-            if (!existingCarnageReportId) {
+            const duration = intervalToDuration(interval(startTime, endTime));
+            if (!existingCarnageReportId && duration.minutes > 0) {
                 this.discordWebhookService.sendHalo3CampaignCarnageReport({
                     carnageReportId,
                     startTime,

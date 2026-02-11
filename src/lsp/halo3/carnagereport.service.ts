@@ -149,6 +149,7 @@ export class Halo3CarnageReportService {
             // game_id is sent to us from the game, I'm not sure how prone to duplicates it is,
             // so we add a few more filters to help narrow down the results.
             const startTime = multi.mpgd.start_time;
+            const endTime = multi.mpgd.finish_time;
             const oneDayInMs = 24 * 60 * 60 * 1000;
             const startTimeMin = new Date(startTime.getTime() - oneDayInMs);
             const startTimeMax = new Date(startTime.getTime() + oneDayInMs);
@@ -589,7 +590,8 @@ export class Halo3CarnageReportService {
                 })
             }
 
-            if (multi.mpgd.finished) {
+            const duration = intervalToDuration(interval(startTime, endTime));
+            if (multi.mpgd.finished && duration.minutes && duration.minutes > 0) {
                 this.discordWebhookService.sendHalo3CarnageReport({
                     carnageReportId,
                     startTime: multi.mpgd.start_time,

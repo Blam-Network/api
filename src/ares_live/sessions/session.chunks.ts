@@ -237,7 +237,6 @@ export const SBlfChunkSessionSearchResponseSchema = blf.createChunkSchema({
     fields: [
         { name: 'resultCount', type: 'u32' },
         { name: 'results', type: OnlineSessionSearchResultSchema, count: 50 }, // Max 50 results
-        { name: 'usableAddresses', type: 'u32', count: 50 }, // Max 50 addresses
     ],
 });
 

@@ -19,7 +19,6 @@ import { DatamineUploadService } from 'src/lsp/services/datamineupload.service';
 import { loggerWithPrefix } from 'src/utils/logger'
 import { DiscordWebhookService } from 'src/lsp/services/discordwebhook.service';
 import { AresCarnageReportService } from './ares/carnagereport.service';
-import { IpController } from './controllers/ip.controller';
 
 @Module({
     imports: [
@@ -34,7 +33,6 @@ import { IpController } from './controllers/ip.controller';
         UserStorageController,
         MachineStorageController,
         GameApiController,
-        IpController,
     ],
     providers: [
         UploadService,

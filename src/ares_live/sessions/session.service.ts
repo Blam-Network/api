@@ -210,48 +210,32 @@ export class SessionService {
             secure_address: string;
             identifier: string;
             key: string;
-            usable_address: string;
             max_public_slots: number;
             max_private_slots: number;
             created_at: Date;
         }>>`
-            SELECT DISTINCT ON (usable_address)
+            SELECT DISTINCT ON (secure_address)
                 secure_address,
                 identifier,
                 key,
-                usable_address,
                 max_public_slots,
                 max_private_slots,
                 created_at
             FROM ares.sessions
             WHERE uses_matchmaking = true
                 AND usable_address != '127.0.0.1'
-            ORDER BY usable_address, created_at DESC
+            ORDER BY secure_address, created_at DESC
             LIMIT 50
         `;
 
 
         // Build results array
         const results: s_online_session_search_result[] = [];
-        const usableAddresses: number[] = [];
 
         // Convert sessions to search results
         for (let i = 0; i < sessions.length && i < 50; i++) {
             const session = sessions[i];
-
-            // Parse usable address to IPv4 in network byte order
-            let usableAddress = 0;
-            if (session.usable_address) {
-                const result = usableAddressSchema.safeParse(session.usable_address);
-                if (result.success) {
-                    usableAddress = result.data;
-                } else {
-                    this.logger.warn(`Session search: session[${i}] UsableAddress='${session.usable_address}' failed to parse as IP address: ${result.error.message}`);
-                }
-            } else {
-                this.logger.warn(`Session search: session[${i}] UsableAddress is null or empty`);
-            }
-            usableAddresses.push(usableAddress);
+            
 
             // Build s_online_session_search_result structure
             const result: s_online_session_search_result = {
@@ -320,17 +304,12 @@ export class SessionService {
             });
         }
 
-        while (usableAddresses.length < 50) {
-            usableAddresses.push(0);
-        }
-
         const buffer = SBlfFileSessionSearchResponseSchema.write({
             _blf: DEFAULT_BLF_CHUNK,
             athr: ARES_LIVE_AUTHOR,
             xssr: {
                 resultCount: sessions.length,
                 results: results as any,
-                usableAddresses: usableAddresses.slice(0, 50) as any,
             },
             _eof: DEFAULT_EOF_CHUNK,
         });

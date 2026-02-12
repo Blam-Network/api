@@ -5,6 +5,7 @@ import { ShutdownObserver } from 'src/ShutdownObserver';
 import { AppLoggerMiddleware } from 'src/middleware/AppLoggerMiddleware';
 import { SessionController } from './sessions/session.controller';
 import { StatsController } from './statistics/stats.controller';
+import { IpController } from './controllers/ip.controller';
 import { SessionService } from './sessions/session.service';
 import { StatsService } from './statistics/stats.service';
 import { SessionCleanupService } from './sessions/session-cleanup.service';
@@ -23,6 +24,7 @@ import { loggerWithPrefix } from 'src/utils/logger'
     controllers: [
         SessionController,
         StatsController,
+        IpController,
     ],
     providers: [
         SessionService,

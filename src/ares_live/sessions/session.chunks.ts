@@ -27,10 +27,23 @@ export const TransportSessionIdSchema = c.createCStruct({
     ],
 });
 
+enum e_ares_live_transport_identifier_flags
+{
+	_identifier_flags_offline = 0x00,
+	_identifier_flags_online = 0x80,
+	_identifier_flags_mask = 0xF0
+};
+
 export type s_transport_secure_identifier = c.infer<typeof TransportSessionIdSchema>;
-export function randomTransportSessionId(): s_transport_secure_identifier {
+export function randomTransportSessionId(): s_transport_secure_identifier
+{
+    const data = Array.from(randomBytes(8)) as Tuple<number, 8>;
+
+    data[0] &= ~e_ares_live_transport_identifier_flags._identifier_flags_mask;
+    data[0] |=  e_ares_live_transport_identifier_flags._identifier_flags_online;
+
     return {
-        data: Array.from(randomBytes(8)) as Tuple<number, 8>,
+        data,
     };
 }
 

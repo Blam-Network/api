@@ -10,37 +10,75 @@
 import * as http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { Logger } from '@nestjs/common';
+import { z } from 'zod';
 
 const SIGNALLING_PATH = '/signalling';
-const PEER_ID_LEN = 32;
 
 const logger = new Logger('WebSocket');
 
-interface SignallingMessage {
-    type: string;
-    peer_id?: string;
-    target_peer_id?: string;
-    local_peer_id?: string;
-    from_peer_id?: string;
-    sdp?: string;
-}
+/* ---------- Zod schemas ---------- */
 
-function isValidPeerId(s: string): boolean {
-    return /^[0-9a-fA-F]{32}$/.test(s);
-}
+const peerIdSchema = z.string().length(32).regex(/^[0-9a-fA-F]{32}$/);
+const sdpSchema = z.string().min(1).max(64 * 1024);
 
-function parseMessage(data: Buffer | string): SignallingMessage | null {
+/** Incoming: register */
+const registerSchema = z.object({
+    type: z.literal('register'),
+    peer_id: peerIdSchema,
+});
+
+/** Incoming: offer (from offerer) */
+const offerInSchema = z.object({
+    type: z.literal('offer'),
+    target_peer_id: peerIdSchema,
+    local_peer_id: peerIdSchema.optional(),
+    sdp: sdpSchema,
+});
+
+/** Incoming: answer (from answerer) */
+const answerInSchema = z.object({
+    type: z.literal('answer'),
+    target_peer_id: peerIdSchema,
+    sdp: sdpSchema,
+});
+
+/** Discriminated union of all incoming message types */
+const incomingMessageSchema = z.discriminatedUnion('type', [
+    registerSchema,
+    offerInSchema,
+    answerInSchema,
+]);
+
+type RegisterMessage = z.infer<typeof registerSchema>;
+type OfferInMessage = z.infer<typeof offerInSchema>;
+type AnswerInMessage = z.infer<typeof answerInSchema>;
+type IncomingMessage = z.infer<typeof incomingMessageSchema>;
+
+function parseIncomingMessage(data: Buffer | string): { success: true; data: IncomingMessage } | { success: false; error: string } {
     try {
         const raw = typeof data === 'string' ? data : data.toString('utf8');
-        return JSON.parse(raw) as SignallingMessage;
-    } catch {
-        return null;
+        const parsed = JSON.parse(raw);
+        const result = incomingMessageSchema.safeParse(parsed);
+        if (result.success) {
+            return { success: true, data: result.data };
+        }
+        const issues = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
+        return { success: false, error: issues };
+    } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
 }
 
-function send(ws: WebSocket, obj: object): void {
+function send(ws: WebSocket, obj: object, logLabel: string, ip: string, peerId?: string): void {
     if (ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify(obj));
+    const payload = JSON.stringify(obj);
+    const type = (obj as { type?: string }).type ?? 'unknown';
+    if (peerId) {
+        logger.log(`send ${logLabel} type=${type} peer_id=${peerId} - ${ip} (${payload.length} bytes)`);
+    } else {
+        logger.log(`send ${logLabel} type=${type} - ${ip} (${payload.length} bytes)`);
+    }
+    ws.send(payload);
 }
 
 export function attachSignallingWebSocket(httpServer: http.Server): void {
@@ -66,7 +104,7 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
             socket.destroy();
             return;
         }
-        logger.log(`WS ${SIGNALLING_PATH} upgrade - ${clientIp(request)}`);
+        logger.log(`connection upgrade path=${path} - ${clientIp(request)}`);
         wss.handleUpgrade(request, socket, head, (ws) => {
             wss.emit('connection', ws, request);
         });
@@ -74,95 +112,103 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
 
     wss.on('connection', (ws: WebSocket, request: http.IncomingMessage) => {
         const ip = clientIp(request);
+        logger.log(`connection open - ${ip}`);
 
         ws.on('message', (data: Buffer | Buffer[] | ArrayBuffer) => {
             const buf = Buffer.isBuffer(data) ? data : Buffer.concat(Array.isArray(data) ? data : [Buffer.from(data)]);
-            const msg = parseMessage(buf);
-            if (!msg || typeof msg.type !== 'string') return;
+            const result = parseIncomingMessage(buf);
+
+            if (!result.success) {
+                logger.warn(`message parse_error - ${ip} error=${result.error}`);
+                send(ws, { type: 'error', error: 'invalid_message' }, 'parse_error', ip);
+                return;
+            }
+
+            const msg = result.data;
 
             if (msg.type === 'register') {
-                const peerId = msg.peer_id?.trim();
-                if (!peerId || !isValidPeerId(peerId)) {
-                    logger.warn(`register invalid_peer_id - ${ip}`);
-                    send(ws, { type: 'error', error: 'invalid_peer_id' });
-                    return;
-                }
+                const peerId = msg.peer_id.trim();
                 const existing = peerToWs.get(peerId);
                 if (existing && existing !== ws) {
+                    logger.log(`register replace existing peer_id=${peerId} - ${ip}`);
                     existing.close();
                     peerToWs.delete(peerId);
                     wsToPeer.delete(existing);
                 }
                 peerToWs.set(peerId, ws);
                 wsToPeer.set(ws, peerId);
-                logger.log(`register peer_id=${peerId} - ${ip}`);
-                send(ws, { type: 'registered', peer_id: peerId });
+                logger.log(`message register peer_id=${peerId} - ${ip}`);
+                send(ws, { type: 'registered', peer_id: peerId }, 'registered', ip, peerId);
                 return;
             }
 
             const senderPeerId = wsToPeer.get(ws);
             if (!senderPeerId) {
                 logger.warn(`message register_first - ${ip}`);
-                send(ws, { type: 'error', error: 'register_first' });
+                send(ws, { type: 'error', error: 'register_first' }, 'error', ip);
                 return;
             }
 
             if (msg.type === 'offer') {
-                const target = msg.target_peer_id?.trim();
-                const sdp = msg.sdp;
-                if (!target || !isValidPeerId(target) || typeof sdp !== 'string') {
-                    logger.warn(`offer invalid_offer from=${senderPeerId} - ${ip}`);
-                    send(ws, { type: 'error', error: 'invalid_offer' });
-                    return;
-                }
+                const target = msg.target_peer_id.trim();
                 const targetWs = peerToWs.get(target);
                 if (!targetWs || targetWs.readyState !== WebSocket.OPEN) {
-                    logger.warn(`offer peer_unavailable from=${senderPeerId} target=${target} - ${ip}`);
-                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target });
+                    logger.warn(`message offer peer_unavailable from=${senderPeerId} target=${target} - ${ip}`);
+                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target }, 'error', ip, senderPeerId);
                     return;
                 }
-                const fromPeerId = msg.local_peer_id?.trim() || senderPeerId;
-                logger.log(`offer from=${fromPeerId} target=${target} - ${ip}`);
-                send(targetWs, {
-                    type: 'offer',
-                    from_peer_id: fromPeerId,
-                    sdp,
-                });
+                const fromPeerId =
+                    msg.local_peer_id && peerIdSchema.safeParse(msg.local_peer_id.trim()).success
+                        ? msg.local_peer_id.trim()
+                        : senderPeerId;
+                logger.log(`message offer from=${fromPeerId} target=${target} - ${ip}`);
+                send(
+                    targetWs,
+                    { type: 'offer', from_peer_id: fromPeerId, sdp: msg.sdp },
+                    'offer_forward',
+                    ip,
+                    target,
+                );
                 return;
             }
 
             if (msg.type === 'answer') {
-                const target = msg.target_peer_id?.trim();
-                const sdp = msg.sdp;
-                if (!target || !isValidPeerId(target) || typeof sdp !== 'string') {
-                    logger.warn(`answer invalid_answer from=${senderPeerId} - ${ip}`);
-                    send(ws, { type: 'error', error: 'invalid_answer' });
-                    return;
-                }
+                const target = msg.target_peer_id.trim();
                 const targetWs = peerToWs.get(target);
                 if (!targetWs || targetWs.readyState !== WebSocket.OPEN) {
-                    logger.warn(`answer peer_unavailable from=${senderPeerId} target=${target} - ${ip}`);
-                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target });
+                    logger.warn(`message answer peer_unavailable from=${senderPeerId} target=${target} - ${ip}`);
+                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target }, 'error', ip, senderPeerId);
                     return;
                 }
-                logger.log(`answer from=${senderPeerId} target=${target} - ${ip}`);
-                send(targetWs, {
-                    type: 'answer',
-                    from_peer_id: senderPeerId,
-                    sdp,
-                });
+                logger.log(`message answer from=${senderPeerId} target=${target} - ${ip}`);
+                send(
+                    targetWs,
+                    { type: 'answer', from_peer_id: senderPeerId, sdp: msg.sdp },
+                    'answer_forward',
+                    ip,
+                    target,
+                );
                 return;
             }
         });
 
-        ws.on('close', () => {
+        ws.on('close', (code?: number, reason?: Buffer) => {
             const peerId = wsToPeer.get(ws);
-            if (peerId) logger.log(`close peer_id=${peerId} - ${ip}`);
+            const reasonStr = reason?.length ? reason.toString('utf8') : '';
+            if (peerId) {
+                logger.log(`connection close peer_id=${peerId} code=${code ?? 'n/a'} reason=${reasonStr || 'n/a'} - ${ip}`);
+            } else {
+                logger.log(`connection close (unregistered) code=${code ?? 'n/a'} - ${ip}`);
+            }
             unregister(ws);
         });
-        ws.on('error', () => {
+        ws.on('error', (err: Error) => {
             const peerId = wsToPeer.get(ws);
-            if (peerId) logger.warn(`error peer_id=${peerId} - ${ip}`);
+            if (peerId) {
+                logger.warn(`connection error peer_id=${peerId} - ${ip} error=${err.message}`);
+            } else {
+                logger.warn(`connection error (unregistered) - ${ip} error=${err.message}`);
+            }
             unregister(ws);
         });
     });

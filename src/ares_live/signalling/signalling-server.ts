@@ -1,8 +1,8 @@
 /**
  * WebSocket signalling server for Ares Live WebRTC NAT.
- * Clients connect, register their peer_id (32-char hex), then exchange offer/answer by target_peer_id.
+ * Clients connect, register their peer_id (48-char hex: online_address + machine_id), then exchange offer/answer by target_peer_id.
  * Protocol:
- * - Client must send first: {"type":"register","peer_id":"<32 hex>"}
+ * - Client must send first: {"type":"register","peer_id":"<48 hex>"}
  * - Offer: {"type":"offer","target_peer_id":"<answerer>","local_peer_id":"<offerer>","sdp":"..."} → forwarded to answerer as {"type":"offer","from_peer_id":"<offerer>","sdp":"..."}
  * - Answer: {"type":"answer","target_peer_id":"<offerer>","sdp":"..."} → forwarded to offerer as {"type":"answer","from_peer_id":"<this connection's peer_id>","sdp":"..."}
  */
@@ -18,7 +18,7 @@ const logger = new Logger('WebSocket');
 
 /* ---------- Zod schemas ---------- */
 
-const peerIdSchema = z.string().length(32).regex(/^[0-9a-fA-F]{32}$/);
+const peerIdSchema = z.string().length(48).regex(/^[0-9a-fA-F]{48}$/);
 const sdpSchema = z.string().min(1).max(64 * 1024);
 
 /** Incoming: register */

@@ -50,12 +50,19 @@ const iceCandidateInSchema = z.object({
     mid: z.string().max(32).optional(),
 });
 
+/** Incoming: ICE gathering complete (trickle end-of-candidates) */
+const iceGatheringCompleteInSchema = z.object({
+    type: z.literal('ice_gathering_complete'),
+    target_peer_id: peerIdSchema,
+});
+
 /** Discriminated union of all incoming message types */
 const incomingMessageSchema = z.discriminatedUnion('type', [
     registerSchema,
     offerInSchema,
     answerInSchema,
     iceCandidateInSchema,
+    iceGatheringCompleteInSchema,
 ]);
 
 type RegisterMessage = z.infer<typeof registerSchema>;
@@ -217,6 +224,25 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
                         mid: msg.mid ?? '',
                     },
                     'ice_candidate_forward',
+                    ip,
+                    target,
+                );
+                return;
+            }
+
+            if (msg.type === 'ice_gathering_complete') {
+                const target = msg.target_peer_id.trim();
+                const targetWs = peerToWs.get(target);
+                if (!targetWs || targetWs.readyState !== WebSocket.OPEN) {
+                    logger.warn(`message ice_gathering_complete peer_unavailable from=${senderPeerId} target=${target} - ${ip}`);
+                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target }, 'error', ip, senderPeerId);
+                    return;
+                }
+                logger.log(`message ice_gathering_complete from=${senderPeerId} target=${target} - ${ip}`);
+                send(
+                    targetWs,
+                    { type: 'ice_gathering_complete', from_peer_id: senderPeerId },
+                    'ice_gathering_complete_forward',
                     ip,
                     target,
                 );

@@ -18,7 +18,7 @@ const logger = new Logger('WebSocket');
 
 /* ---------- Zod schemas ---------- */
 
-const peerIdSchema = z.string().length(48).regex(/^[0-9a-fA-F]{48}$/);
+const peerIdSchema = z.string().min(8).max(128);
 const sdpSchema = z.string().min(1).max(64 * 1024);
 
 /** Incoming: register */

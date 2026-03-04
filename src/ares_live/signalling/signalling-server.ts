@@ -20,6 +20,7 @@ const logger = new Logger('WebSocket');
 
 const peerIdSchema = z.string().min(8).max(128);
 const sdpSchema = z.string().min(1).max(64 * 1024);
+const peerTypeSchema = z.enum(['title', 'qos']);
 
 /** Incoming: register */
 const registerSchema = z.object({
@@ -31,6 +32,7 @@ const registerSchema = z.object({
 const offerInSchema = z.object({
     type: z.literal('offer'),
     target_peer_id: peerIdSchema,
+    target_peer_type: peerTypeSchema,
     local_peer_id: peerIdSchema.optional(),
     sdp: sdpSchema,
 });
@@ -39,6 +41,7 @@ const offerInSchema = z.object({
 const answerInSchema = z.object({
     type: z.literal('answer'),
     target_peer_id: peerIdSchema,
+    target_peer_type: peerTypeSchema,
     sdp: sdpSchema,
 });
 
@@ -46,6 +49,7 @@ const answerInSchema = z.object({
 const iceCandidateInSchema = z.object({
     type: z.literal('ice_candidate'),
     target_peer_id: peerIdSchema,
+    target_peer_type: peerTypeSchema,
     candidate: z.string().min(1).max(1024),
     mid: z.string().max(32).optional(),
 });
@@ -54,6 +58,7 @@ const iceCandidateInSchema = z.object({
 const iceGatheringCompleteInSchema = z.object({
     type: z.literal('ice_gathering_complete'),
     target_peer_id: peerIdSchema,
+    target_peer_type: peerTypeSchema,
 });
 
 /** Discriminated union of all incoming message types */
@@ -180,7 +185,7 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
                 logger.log(`message offer from=${fromPeerId} target=${target} - ${ip}`);
                 send(
                     targetWs,
-                    { type: 'offer', from_peer_id: fromPeerId, sdp: msg.sdp },
+                    { type: 'offer', from_peer_id: fromPeerId, from_peer_type: msg.target_peer_type, sdp: msg.sdp },
                     'offer_forward',
                     ip,
                     target,
@@ -199,7 +204,7 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
                 logger.log(`message answer from=${senderPeerId} target=${target} - ${ip}`);
                 send(
                     targetWs,
-                    { type: 'answer', from_peer_id: senderPeerId, sdp: msg.sdp },
+                    { type: 'answer', from_peer_id: senderPeerId, from_peer_type: msg.target_peer_type, sdp: msg.sdp },
                     'answer_forward',
                     ip,
                     target,
@@ -220,6 +225,7 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
                     {
                         type: 'ice_candidate',
                         from_peer_id: senderPeerId,
+                        from_peer_type: msg.target_peer_type,
                         candidate: msg.candidate,
                         mid: msg.mid ?? '',
                     },
@@ -241,7 +247,7 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
                 logger.log(`message ice_gathering_complete from=${senderPeerId} target=${target} - ${ip}`);
                 send(
                     targetWs,
-                    { type: 'ice_gathering_complete', from_peer_id: senderPeerId },
+                    { type: 'ice_gathering_complete', from_peer_id: senderPeerId, from_peer_type: msg.target_peer_type },
                     'ice_gathering_complete_forward',
                     ip,
                     target,

@@ -8,7 +8,7 @@ import { ShutdownObserver } from 'src/ShutdownObserver';
 import { AresLiveModule } from 'src/ares_live/ares_live.module';
 import { ARES_LIVE_PORT } from './constants';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
-import { attachSignallingWebSocket } from './signalling/signalling-server';
+import { attachSignallingWebSocket } from './websockets/websockets-server';
 
 export const createAresLiveServer = async () => {
     const server = express();

@@ -1,18 +1,9 @@
-/**
- * WebSocket signalling server for Ares Live WebRTC NAT.
- * Clients connect, register their peer_id (48-char hex: online_address + machine_id), then exchange offer/answer by target_peer_id.
- * Protocol:
- * - Client must send first: {"type":"register","peer_id":"<48 hex>"}
- * - Offer: {"type":"offer","target_peer_id":"<answerer>","local_peer_id":"<offerer>","sdp":"..."} → forwarded to answerer as {"type":"offer","from_peer_id":"<offerer>","sdp":"..."}
- * - Answer: {"type":"answer","target_peer_id":"<offerer>","sdp":"..."} → forwarded to offerer as {"type":"answer","from_peer_id":"<this connection's peer_id>","sdp":"..."}
- */
-
 import * as http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { Logger } from '@nestjs/common';
 import { z } from 'zod';
 
-const SIGNALLING_PATH = '/signalling';
+const SIGNALLING_PATH = '/ws';
 
 const logger = new Logger('WebSocket');
 

@@ -166,7 +166,7 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
                 const targetWs = peerToWs.get(target);
                 if (!targetWs || targetWs.readyState !== WebSocket.OPEN) {
                     logger.warn(`message offer peer_unavailable from=${senderPeerId} target=${target} - ${ip}`);
-                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target }, 'error', ip, senderPeerId);
+                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target, target_peer_type: msg.target_peer_type }, 'error', ip, senderPeerId);
                     return;
                 }
                 const fromPeerId =
@@ -189,7 +189,7 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
                 const targetWs = peerToWs.get(target);
                 if (!targetWs || targetWs.readyState !== WebSocket.OPEN) {
                     logger.warn(`message answer peer_unavailable from=${senderPeerId} target=${target} - ${ip}`);
-                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target }, 'error', ip, senderPeerId);
+                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target, target_peer_type: msg.target_peer_type }, 'error', ip, senderPeerId);
                     return;
                 }
                 logger.log(`message answer from=${senderPeerId} target=${target} - ${ip}`);
@@ -208,7 +208,7 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
                 const targetWs = peerToWs.get(target);
                 if (!targetWs || targetWs.readyState !== WebSocket.OPEN) {
                     logger.warn(`message ice_candidate peer_unavailable from=${senderPeerId} target=${target} - ${ip}`);
-                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target }, 'error', ip, senderPeerId);
+                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target, target_peer_type: msg.target_peer_type }, 'error', ip, senderPeerId);
                     return;
                 }
                 send(
@@ -232,7 +232,7 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
                 const targetWs = peerToWs.get(target);
                 if (!targetWs || targetWs.readyState !== WebSocket.OPEN) {
                     logger.warn(`message ice_gathering_complete peer_unavailable from=${senderPeerId} target=${target} - ${ip}`);
-                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target }, 'error', ip, senderPeerId);
+                    send(ws, { type: 'error', error: 'peer_unavailable', target_peer_id: target, target_peer_type: msg.target_peer_type }, 'error', ip, senderPeerId);
                     return;
                 }
                 logger.log(`message ice_gathering_complete from=${senderPeerId} target=${target} - ${ip}`);

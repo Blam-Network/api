@@ -8,6 +8,7 @@ import { ShutdownObserver } from 'src/ShutdownObserver';
 import { AresLiveModule } from 'src/ares_live/ares_live.module';
 import { ARES_LIVE_PORT } from './constants';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
+import { attachSignallingWebSocket } from './websockets/websockets-server';
 
 export const createAresLiveServer = async () => {
     const server = express();
@@ -32,8 +33,9 @@ export const createAresLiveServer = async () => {
 
     const shutdownObserver = app.get(ShutdownObserver);
 
-    const httpServer = http.createServer(server)
-        .listen(ARES_LIVE_PORT, process.env.HOSTNAME);
+    const httpServer = http.createServer(server);
+    attachSignallingWebSocket(httpServer);
+    httpServer.listen(ARES_LIVE_PORT, process.env.HOSTNAME);
 
     shutdownObserver.addHttpServer(httpServer);
 

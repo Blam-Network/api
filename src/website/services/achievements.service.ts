@@ -35,7 +35,7 @@ export class AchievementsService {
         const parsed = XboxLIVEAchivementsSchema.safeParse(data);
 
         if (!parsed.success) {
-            console.error(data);
+            console.error(Buffer.from(JSON.stringify(data), 'utf-8').toString('base64'));
             throw new Error(`Failed to parse achievements: ${parsed.error.message}`);
         }
 

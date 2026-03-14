@@ -750,7 +750,7 @@ export class Halo3Controller {
             47
         )
 
-        const allAchievements = halo3Achieevements.achivements.concat(halo3ODSTAchieevements.achivements);
+        const allAchievements = halo3Achieevements.achievements.concat(halo3ODSTAchieevements.achievements);
         let reconUnlocked = true;
         for (const requiredAchievement of RECON_REQUIRED_ACHIEVEMENTS) {
             const unlocked = allAchievements.filter(cheevo => cheevo.id === requiredAchievement.id && (!requiredAchievement.online || cheevo.unlockedOnline)).length > 0;

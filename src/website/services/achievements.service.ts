@@ -19,20 +19,26 @@ export class AchievementsService {
         unlockedOnly: boolean | undefined,
         maxItems: number | undefined,
     ) {
-        return XboxLIVEAchivementsSchema.parse(
-            (await axios.get(
-                `https://achievements.xboxlive.com/users/xuid(${xuid})/achievements`,
-                {
-                    params: {
-                        titleId,
-                        unlockedOnly,
-                        maxItems
-                    },
-                    headers: {
-                        'Authorization': authorization,
-                    }
+        const data = (await axios.get(
+            `https://achievements.xboxlive.com/users/xuid(${xuid})/achievements`,
+            {
+                params: {
+                    titleId,
+                    unlockedOnly,
+                    maxItems
+                },
+                headers: {
+                    'Authorization': authorization,
                 }
-            )).data
-        )
+            }
+        )).data;
+        const parsed = XboxLIVEAchivementsSchema.safeParse(data);
+
+        if (!parsed.success) {
+            console.error(data);
+            throw new Error(`Failed to parse achievements: ${parsed.error.message}`);
+        }
+
+        return parsed.data;
     }
 }

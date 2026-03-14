@@ -3,8 +3,8 @@ import { DecimalJsLike } from "@prisma/client/runtime/library";
 import axios from "axios";
 import { z } from "zod";
 
-const XboxLIVEAchivementsSchema = z.object({
-    achivements: z.object({
+const XboxLiveAchievementsSchema = z.object({
+    achievements: z.object({
         id: z.coerce.number(),
         unlockedOnline: z.coerce.boolean(),
     }).array()
@@ -32,10 +32,9 @@ export class AchievementsService {
                 }
             }
         )).data;
-        const parsed = XboxLIVEAchivementsSchema.safeParse(data);
+        const parsed = XboxLiveAchievementsSchema.safeParse(data);
 
         if (!parsed.success) {
-            console.error(Buffer.from(JSON.stringify(data), 'utf-8').toString('base64'));
             throw new Error(`Failed to parse achievements: ${parsed.error.message}`);
         }
 

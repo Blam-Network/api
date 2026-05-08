@@ -202,7 +202,7 @@ export namespace c {
                 // For arrays, align based on element type's natural alignment
                 // For single fields, align based on field's natural alignment capped by parent pack
                 let alignment = pack;
-                if (field.count && field.count > 1) {
+                if (field.count && field.count != 1) {
                     // Array: use element type's natural alignment
                     alignment = this.getFieldAlignment(field, pack);
                 } else {
@@ -239,7 +239,7 @@ export namespace c {
                 // For arrays, align based on element type's natural alignment
                 // For single fields, align based on parent pack (standard C struct behavior)
                 let alignment = this.pack;
-                if (field.count && field.count > 1) {
+                if (field.count && field.count != 1) {
                     // Array: use element type's natural alignment
                     alignment = this.getFieldAlignment(field, this.pack);
                 } else {
@@ -330,81 +330,95 @@ export namespace c {
             const littleEndian = this.endian === 'little';
 
             for (const field of this.fields) {
-                // For arrays, align based on element type's natural alignment
-                // For single fields, align based on parent pack (standard C struct behavior)
-                let alignment = this.pack;
-                if (field.count && field.count > 1) {
-                    // Array: use element type's natural alignment
-                    alignment = this.getFieldAlignment(field, this.pack);
-                } else {
-                    // Single field: use field's natural alignment, capped by parent pack
-                    alignment = this.getFieldAlignment(field, this.pack);
-                }
-                // Cap alignment at pack value (with pack: 1, this ensures no padding)
-                alignment = Math.min(alignment, this.pack);
-                currentOffset = this.alignOffset(currentOffset, alignment);
-
-                if (field.type instanceof Struct) {
-                    const nestedStruct = field.type;
-                    const count = field.count || 1;
-                    const value = data[field.name];
-
-                    if (count === 1) {
-                        const nestedBuffer = nestedStruct.write(value || {});
-                        nestedBuffer.copy(buffer, currentOffset);
-                        currentOffset += nestedStruct.size;
+                try {
+                    // For arrays, align based on element type's natural alignment
+                    // For single fields, align based on parent pack (standard C struct behavior)
+                    let alignment = this.pack;
+                    if (field.count && field.count != 1) {
+                        // Array: use element type's natural alignment
+                        alignment = this.getFieldAlignment(field, this.pack);
                     } else {
-                        // For arrays, elements are placed contiguously (no alignment between elements)
-                        const array = value || [];
-                        for (let i = 0; i < count; i++) {
-                            const nestedBuffer = nestedStruct.write(array[i] || {});
+                        // Single field: use field's natural alignment, capped by parent pack
+                        alignment = this.getFieldAlignment(field, this.pack);
+                    }
+                    // Cap alignment at pack value (with pack: 1, this ensures no padding)
+                    alignment = Math.min(alignment, this.pack);
+                    currentOffset = this.alignOffset(currentOffset, alignment);
+
+                    if (field.type instanceof Struct) {
+                        const nestedStruct = field.type;
+                        const count = field.count ?? 1;
+                        const value = data[field.name];
+
+                        if (count == 1 && !Array.isArray(value)) {
+                            if (value === undefined || value === null) {
+                                throw new Error(`Field '${field.name}' is ${value}`);
+                            }
+                            const nestedBuffer = nestedStruct.write(value);
                             nestedBuffer.copy(buffer, currentOffset);
                             currentOffset += nestedStruct.size;
+                        } else {
+                            if (!Array.isArray(value)) {
+                                throw new Error(`Expected array for field '${field.name}' with count ${count}`);
+                            }
+                            if (value.length < count) {
+                                throw new Error(`Field '${field.name}' expected ${count} elements but got ${value.length}`);
+                            }
+                            // For arrays, elements are placed contiguously (no alignment between elements)
+                            const array = value;
+                            for (let i = 0; i < count; i++) {
+                                if (array[i] === undefined) {
+                                    throw new Error(`Field '${field.name}[${i}]' is undefined`);
+                                }
+                                const nestedBuffer = nestedStruct.write(array[i]);
+                                nestedBuffer.copy(buffer, currentOffset);
+                                currentOffset += nestedStruct.size;
+                            }
                         }
+                        continue;
                     }
-                    continue;
-                }
 
-                if (field.type instanceof AdvancedType) {
-                    const advancedType = field.type;
+                    if (field.type instanceof AdvancedType) {
+                        const advancedType = field.type;
+                        const count = field.count || 1;
+                        const value = data[field.name];
+
+                        if (Array.isArray(value)) {
+                            for (let i = 0; i < count; i++) {
+                                advancedType.write(buffer, currentOffset, value[i], this.endian);
+                                currentOffset += advancedType.getSize();
+                            }
+                        } else {
+                            advancedType.write(buffer, currentOffset, value, this.endian);
+                            currentOffset += advancedType.getSize();
+                        }
+                        continue;
+                    }
+
+                    const type = field.type satisfies PrimitiveType | Padding;
                     const count = field.count || 1;
                     const value = data[field.name];
 
-
-
-                    if (Array.isArray(value)) {
-                        for (let i = 0; i < count; i++) {
-                            advancedType.write(buffer, currentOffset, value[i], this.endian);
-                            currentOffset += advancedType.getSize();
-                        }
-                    } else {
-                        advancedType.write(buffer, currentOffset, value, this.endian);
-                        currentOffset += advancedType.getSize();
+                    if (type === 'padding') {
+                        buffer.fill(0, currentOffset, currentOffset + count);
+                        currentOffset += count;
+                        continue;
                     }
-                    continue;
-                }
 
-                const type = field.type satisfies PrimitiveType | Padding;
-                const count = field.count || 1;
-                const value = data[field.name];
+                    const fieldSize = getPrimitiveTypeSize(type);
 
-                if (type === 'padding') {
-                    buffer.fill(0, currentOffset, currentOffset + count);
-                    currentOffset += count;
-                    continue;
-                }
-
-                const fieldSize = getPrimitiveTypeSize(type);
-
-                if (count === 1) {
-                    writePrimitiveValue(view, currentOffset, type, value, littleEndian);
-                    currentOffset += fieldSize;
-                } else {
-                    const array = value || [];
-                    for (let i = 0; i < count; i++) {
-                        writePrimitiveValue(view, currentOffset, type, array[i] || 0, littleEndian);
+                    if (count === 1) {
+                        writePrimitiveValue(view, currentOffset, type, value, littleEndian);
                         currentOffset += fieldSize;
+                    } else {
+                        const array = value ?? [];
+                        for (let i = 0; i < count; i++) {
+                            writePrimitiveValue(view, currentOffset, type, array[i] ?? 0, littleEndian);
+                            currentOffset += fieldSize;
+                        }
                     }
+                } catch (error) {
+                    throw new Error(`${field.name}: ${error}`);
                 }
             }
 
@@ -416,6 +430,69 @@ export namespace c {
          */
         public getSize(): number {
             return this.size;
+        }
+
+        /**
+         * Prints each direct field via console.table: offset (dec + hex) and total byte size in layout.
+         * Arrays list one row at the array start only. Nested structs are one row (start offset); inner layout is not expanded.
+         */
+        public audit(): void {
+            const rows: { field: string; offset: number; hex: string; size: number }[] = [];
+            let currentOffset = 0;
+
+            const pushRow = (label: string, byteOffset: number, byteSize: number) => {
+                rows.push({
+                    field: label,
+                    offset: byteOffset,
+                    hex: `0x${byteOffset.toString(16)}`,
+                    size: byteSize,
+                });
+            };
+
+            for (const field of this.fields) {
+                let alignment = this.getFieldAlignment(field, this.pack);
+                alignment = Math.min(alignment, this.pack);
+                currentOffset = this.alignOffset(currentOffset, alignment);
+
+                const offset = currentOffset;
+                const name = field.name;
+
+                if (field.type instanceof Struct) {
+                    const nested = field.type;
+                    const count = field.count || 1;
+                    const elSize = nested.size;
+                    const total = elSize * count;
+                    pushRow(name, offset, total);
+                    currentOffset += total;
+                    continue;
+                }
+
+                if (field.type instanceof AdvancedType) {
+                    const advancedType = field.type;
+                    const count = field.count || 1;
+                    const sz = advancedType.getSize();
+                    const total = sz * count;
+                    pushRow(name, offset, total);
+                    currentOffset += total;
+                    continue;
+                }
+
+                const type = field.type satisfies PrimitiveType | Padding;
+                const count = field.count || 1;
+
+                if (type === 'padding') {
+                    pushRow(`${name} (${count} bytes padding)`, offset, count);
+                    currentOffset += count;
+                    continue;
+                }
+
+                const fieldSize = getPrimitiveTypeSize(type);
+                const total = fieldSize * count;
+                pushRow(name, offset, total);
+                currentOffset += total;
+            }
+
+            console.table(rows);
         }
     }
 

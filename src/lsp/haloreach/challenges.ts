@@ -461,7 +461,7 @@ export const AVAILABLE_MATCHMAKING_CHALELNGES = [
     HaloReachMultiplayerChallenge.mp_multi_cqc,
     HaloReachMultiplayerChallenge.mp_open_nat_chall,
     // HaloReachMultiplayerChallenge.mp_linked_tag_chall, - Requires BNET signup, would be granted to all sunrise users currently.
-    // HaloReachMultiplayerChallenge.mp_upload_film_chall, - Not Yet Impelmented
+    HaloReachMultiplayerChallenge.mp_upload_film_chall,
     HaloReachMultiplayerChallenge.armory_dress_chall,
     HaloReachMultiplayerChallenge.mp_weekly_challenge,
     HaloReachMultiplayerChallenge.mp_firebird_chall,

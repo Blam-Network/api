@@ -1027,8 +1027,6 @@ export class Halo3FileShareService {
 
             return fileShareSlot.id;
         });
-
-
     }
 
     public deleteFile = async (userXuid: BigInt, shareXuid: BigInt, slot: number, serverId: string) => {

@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException, ServiceUnavailableException, StreamableFile, UnauthorizedException } from "@nestjs/common";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blam-network/blf_lsp'
 import { PrismaService } from "src/db/prisma.service";
@@ -536,9 +536,134 @@ export class HaloReachFileShareService {
         });
     }
 
-    public viewFileShare = async (viewerXuid: BigInt, shareXuid: BigInt, locale: string) => {
+    public viewFileDetails = async (viewerXuid: BigInt, shareXuid: BigInt, serverId: BigInt, locale: string) => {
+        if (!IS_FILESHARE_ENABLED) {
+            return new ServiceUnavailableException();
+        }
 
-        
+        const fileShare = await this.getFileShare(viewerXuid, shareXuid);
+        const file = await this.prisma.reach_file_share_file.findUnique({
+            where: {
+                id_share_id: {
+                    id: serverId.toString(),
+                    share_id: shareXuid.toString(),
+                },
+                is_uploaded: true,
+            }
+        });
+        if (!file) {
+            return null;
+        }
+
+        const fileCatalogSchema = blf.createFileSchema([
+            HaloReach.v12065.s_blf_chunk_start_of_file,
+            blf.createChunkSchema({
+                name: 'fitm',
+                majorVersion: 4,
+                minorVersion: 0,
+                endian: 'big',
+                pack: 1,
+                fields: [
+                    { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(1, 0) },
+                ],
+            }),
+            HaloReach.v12065.s_blf_chunk_end_of_file,
+          ]);
+
+        return fileCatalogSchema.write({
+            _blf: {
+                name: 'test',
+                byte_order_mark: 0xfffe,
+            },
+            fitm: {
+                online_file_listing: {
+                    xuid: viewerXuid.valueOf(),
+                    gamertag: '1234567891234567',
+                    unknown16: 0,
+                    unknown17: 0,
+                    unknown18: 0,
+                    unknown19: 0,
+                    quota_byte_count: 0,
+                    quota_slot_count: 0,
+                    slot_count: 0,
+                    message_length: 0,
+                    entries: [{
+                        general: {
+                            id: BigInt(file.id.toString()),
+                            file_type: file.file_type ?? 0,
+                            unknown1: 0,
+                            megalo_category_index: file.megalo_category_index ?? 0,
+                            unknown2: 0,
+                            size_in_bytes: file.size_in_bytes?.toNumber() ?? 0,
+                            activity: file.activity ?? 0,
+                            game_mode: file.game_mode ?? 0,
+                            game_engine_type: file.game_engine_type ?? 0,
+                            unknown3: [0, 0, 0, 0, 0, 0, 0, 0],
+                            map_id: file.map_id ?? 0,
+                        },
+                        created: {
+                            timestamp: file.created_at ?? new Date(),
+                            xuid: 0n,
+                            name: file.creator_name ?? '',
+                            is_online: file.creator_is_xuid_online ? 1 : 0,
+                        },
+                        modified: {
+                            timestamp: file.modified_at ?? new Date(),
+                            xuid: 0n,
+                            name: file.modifier_name ?? '',
+                            is_online: file.modifier_is_xuid_online ? 1 : 0,
+                        },
+                        name: file.name ?? '',
+                        description: file.description ?? '',
+                        game_variant_or_film: file.file_type == 3 ? {
+                            film: {
+                                seconds: file.length_seconds ?? 0,
+                            },
+                        } : file.file_type == 6 ? {
+                            game_variant: {
+                                icon_index: file.icon_index ?? 0,
+                            },
+                        } : {
+                            pad: {}
+                        },
+                        matchmaking: file.activity == 3 ? {
+                            metadata: {
+                                hopper_identifier: file.hopper_identifier ?? 0,
+                            },
+                        } : {
+                            pad: {}
+                        },
+                        campaign_or_firefight: file.game_mode == 1 ? {
+                            campaign: {
+                                campaign_id: file.campaign_id ?? 0,
+                                campaign_difficulty: file.campaign_difficulty ?? 0,
+                                campaign_metagame_scoring: file.campaign_metagame_scoring ?? 0,
+                                campaign_insertion_point: file.campaign_insertion_point ?? 0,
+                                campaign_primary_skulls: file.campaign_primary_skulls ?? 0,
+                                campaign_secondary_skulls: file.campaign_secondary_skulls ?? 0,
+                            },
+                        } : file.activity == 2 ? {
+                            firefight: {
+                                firefight_difficulty: file.firefight_difficulty ?? 0,
+                                firefight_primary_skulls: file.firefight_primary_skulls ?? 0,
+                                firefight_secondary_skulls: file.firefight_secondary_skulls ?? 0,
+                            },
+                        } : {
+                            pad: {}
+                        },
+                        unknown: 0,
+                    }],
+                    message: '',
+                }
+            },
+            _eof: {
+                file_size: 0,
+                authentication_type: 0,
+            }
+        })
+    }
+
+    public viewFileShare = async (viewerXuid: BigInt, shareXuid: BigInt, locale: string) => {
         if (!IS_FILESHARE_ENABLED) {
             const fileCatalogSchema = blf.createFileSchema([
                 HaloReach.v12065.s_blf_chunk_start_of_file,
@@ -562,11 +687,12 @@ export class HaloReachFileShareService {
                 },
                 fitm: {
                     online_file_listing: {
-                        xuid: 0n,
+                        xuid: viewerXuid.valueOf(),
                         gamertag: '',
-                        entry_count: 0,
-                        unknown1: 0,
-                        unknown12: [0, 0, 0, 0, 0, 0, 0, 0],
+                        unknown16: 0,
+                        unknown17: 0,
+                        unknown18: 0,
+                        unknown19: 0,
                         quota_byte_count: 0,
                         quota_slot_count: 0,
                         slot_count: 0,
@@ -608,11 +734,12 @@ export class HaloReachFileShareService {
                 },
                 fitm: {
                     online_file_listing: {
-                        xuid: 0n,
-                        gamertag: '',
-                        entry_count: 0,
-                        unknown1: 0,
-                        unknown12: [0, 0, 0, 0, 0, 0, 0, 0],
+                        xuid: viewerXuid.valueOf(),
+                        gamertag: '1234567891234567',
+                        unknown16: 1,
+                        unknown17: 2,
+                        unknown18: 3,
+                        unknown19: 4,
                         quota_byte_count: 0,
                         quota_slot_count: 0,
                         slot_count: 0,
@@ -805,11 +932,12 @@ export class HaloReachFileShareService {
             },
             fitm: {
                 online_file_listing: {
-                    xuid: 0n,
-                    gamertag: '',
-                    entry_count: serializedEntries.length,
-                    unknown1: 0,
-                    unknown12: [0, 0, 0, 0, 0, 0, 0, 0],
+                    xuid: shareXuid.valueOf(),
+                    gamertag: 'Player Name',
+                    unknown16: 1,
+                    unknown17: 2,
+                    unknown18: 3,
+                    unknown19: 4,
                     quota_byte_count: fileShare.quota_bytes ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
                     quota_slot_count: fileShare.quota_slots ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA,
                     slot_count: serializedEntries.length,
@@ -938,6 +1066,88 @@ export class HaloReachFileShareService {
         )
 
         await rm(filePath);
+    }
+
+    public getFileShareSumary = async (shareXuid: BigInt) => {
+        if (!IS_FILESHARE_ENABLED) {
+            throw new ServiceUnavailableException();
+        }
+
+        // group by file type
+        const fileCatalogSchema = blf.createFileSchema([
+            HaloReach.v12065.s_blf_chunk_start_of_file,
+            blf.createChunkSchema({
+              name: 'finf',
+              majorVersion: 1,
+              minorVersion: 0,
+              endian: 'big',
+              pack: 1,
+              fields: [
+                { name: 'entry_count', type: 'u16' },
+                { name: 'pad', type: 'padding', count: 2 },
+                { name: 'entries', count: 1, type: HaloReach.v12065.s_online_file_summary_listing_entry },
+              ],
+            }),
+            HaloReach.v12065.s_blf_chunk_end_of_file,
+          ])
+          
+          const fileShareFileTypes = await this.prisma.reach_file_share_file.groupBy({
+            by: ['file_type'],
+            where: {
+              share_id: shareXuid.toString(),
+              is_uploaded: true,
+            },
+            _count: {
+              _all: true,
+            },
+          });
+      
+          const screenshotsCount = fileShareFileTypes.find((file) => file.file_type === 2)?._count._all ?? 0;
+          const filmsCount = fileShareFileTypes.find((file) => file.file_type === 3 || file.file_type === 4)?._count._all ?? 0;
+          const mapVariantsCount = fileShareFileTypes.find((file) => file.file_type === 5)?._count._all ?? 0;
+          const gameVariantsCount = fileShareFileTypes.find((file) => file.file_type === 6)?._count._all ?? 0;
+      
+          console.log(screenshotsCount, filmsCount, mapVariantsCount, gameVariantsCount);
+          console.log({fileShareFileTypes});
+      
+          const foo = fileCatalogSchema.write({
+            _blf: {
+              byte_order_mark: 0xfffe,
+              name: 'test',
+            },
+            finf: {
+              entry_count: 1,
+              entries: 
+                {
+                  share_id: shareXuid.valueOf(),
+                  screenshots_count: screenshotsCount,
+                  films_count: filmsCount,
+                  map_variants_count: mapVariantsCount,
+                  game_variants_count: gameVariantsCount,
+                  unknown18: 0,
+                  unknown1C: 0,
+                  unknown20: 0,
+                }
+              
+            },
+            _eof: {
+              file_size: 0,
+              authentication_type: 0,
+            },
+          })
+      
+          return new StreamableFile(foo);
+    }
+
+    public signFile = async (buffer: Buffer) => {
+        if (!IS_FILESHARE_ENABLED) {
+            throw new ServiceUnavailableException();
+        }
+
+        // TODO: Implement actual signature generation.
+        // ssig chunk data
+        const fakeSignature = Array.from({ length: 40 }, () => 0xff);
+        return new StreamableFile(Buffer.from(fakeSignature));
     }
 }
 

@@ -39,6 +39,7 @@ import { c } from 'src/cstruct';
 import { ParseBigIntPipe } from 'src/utils/parse-big-int.pipe';
 import { HaloReach } from '../blf';
 import { Response } from 'express';
+import { PrismaService } from 'src/db/prisma.service';
 
 const FILESHARE_BETA_MESSAGE = "Halo Reach File Share support is in alpha. Your files may be lost."
 
@@ -53,6 +54,7 @@ export class GameApiOmahaController {
     @Inject() private readonly uploadService: UploadService,
     @Inject() private readonly rewardsService: HaloReachRewardsService,
     @Inject() private readonly challengeService: HaloReachChallengeService,
+    @Inject() private readonly prisma: PrismaService,
   ) { }
 
   @Get('/ArenaGetSeasonStats.ashx')
@@ -179,13 +181,8 @@ export class GameApiOmahaController {
     @UploadedFile() upload: Express.Multer.File | undefined,
   ) {
     if (!upload) throw new BadRequestException();
-    // This is some uploaded hash(?), 14 bytes.
-    const hash = upload.buffer;
-
-    // TODO: Implement actual signature generation.
-    // ssig chunk data
-    const fakeSignature = Array.from({ length: 40 }, () => 0xff);
-    return new StreamableFile(Buffer.from(fakeSignature));
+    
+    return this.fileshareService.signFile(upload.buffer);
   }
 
   @HttpCode(200)
@@ -195,65 +192,13 @@ export class GameApiOmahaController {
     description: 'Not yet implemented.',
     deprecated: true // used to denote not-implemented.
   })
-  async getFileshare() {
-    const s_online_file_summary_listing_entry = c.createCStruct({pack: 1, endian: 'big', fields: [
-      {name: 'unknown00', type: 'u64'},
-      {name: 'unknown08', type: 'u64'},
-      {name: 'unknown10', type: 'u64'},
-      {name: 'unknown18', type: 'u64'},
-      {name: 'unknown20', type: 'u32'},
-    ]});
+  async getFileshare(
+    @Query('machineId', ParseXUIDPipe) machineId: BigInt,
+    @Query('userId', ParseXUIDPipe) userId: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareId: BigInt,
+    // @Query('shareIDs', ParseXUIDArrayPipe) shareIDs: BigInt[],
+  ) {
 
-    s_online_file_summary_listing_entry.audit();
-
-    const fileCatalogSchema = blf.createFileSchema([
-      HaloReach.v12065.s_blf_chunk_start_of_file,
-      blf.createChunkSchema({
-        name: 'finf',
-        majorVersion: 1,
-        minorVersion: 0,
-        endian: 'big',
-        pack: 1,
-        fields: [
-          { name: 'entry_count', type: 'u16' },
-          { name: 'pad', type: 'padding', count: 2 },
-          { name: 'entries', count: 2, type: s_online_file_summary_listing_entry },
-        ],
-      }),
-      HaloReach.v12065.s_blf_chunk_end_of_file,
-    ])
-
-    const foo = fileCatalogSchema.write({
-      _blf: {
-        byte_order_mark: 0xfffe,
-        name: 'test',
-      },
-      finf: {
-        entry_count: 0,
-        entries: [
-          {
-            unknown00: 1n,
-            unknown08: 5n,
-            unknown10: -1n,
-            unknown18: 29481n,
-            unknown20: 4,
-          },
-          {
-            unknown00: 2n,
-            unknown08: 0n,
-            unknown10: 0n,
-            unknown18: 0n,
-            unknown20: 0,
-          },
-        ],
-      },
-      _eof: {
-        file_size: 0,
-        authentication_type: 0,
-      },
-    })
-
-    return new StreamableFile(foo);
   }
 
   @HttpCode(200)
@@ -368,150 +313,15 @@ export class GameApiOmahaController {
     description: 'Not yet implemented.',
     deprecated: true // used to denote not-implemented.
   })
-  async getFileDetails() {
-    const fileDetailsSchema = blf.createFileSchema([
-      HaloReach.v12065.s_blf_chunk_start_of_file,
-      blf.createChunkSchema({
-        name: 'fitm',
-        majorVersion: 4,
-        minorVersion: 0,
-        endian: 'big',
-        pack: 1,
-        fields: [
-          { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(2, FILESHARE_BETA_MESSAGE.length + 1) },
-        ],
-      }),
-      HaloReach.v12065.s_blf_chunk_end_of_file
-    ]);
-
-    const foo = fileDetailsSchema.write({
-      _blf: {
-        byte_order_mark: 0xfffe,
-        name: 'test',
-      },
-      fitm: {
-        online_file_listing: {
-          xuid: 0x000900005052173cn,
-          unknown1: 0,
-          gamertag: '',
-          entry_count: 1,
-          unknown12: [0, 1, 0, 1, 3, 0, 4, 0],
-          quota_byte_count: 100,
-          quota_slot_count: 10,
-          slot_count: 2,
-          message_length: FILESHARE_BETA_MESSAGE.length + 1,
-          message: FILESHARE_BETA_MESSAGE,
-          entries: [
-            {
-              general: {
-                id: 1n,
-                file_type: 5,
-                megalo_category_index: -1,
-                size_in_bytes: 29481,
-                activity: 4,
-                game_mode: 3,
-                game_engine_type: 0,
-                map_id: 3006,
-                unknown1: 0,
-                unknown2: 0,
-                unknown3: [0, 0, 0, 0, 0, 0, 0, 0],
-              },
-              created: {
-                timestamp: new Date(),
-                xuid: 0n,
-                name: 'Sikamikanico',
-                is_online: 1,
-              },
-              modified: {
-                timestamp: new Date(),
-                xuid: 0n,
-                name: '¦',
-                is_online: 1,
-              },
-              name: 'Kingdom',
-              description: 'Community map from Sikamikanico.',
-              game_variant_or_film: {
-                game_variant: {
-                  icon_index: 0,
-                },
-              },
-              matchmaking: {
-                metadata: {
-                  hopper_identifier: 0,
-                },
-              },
-              campaign_or_firefight: {
-                campaign: {
-                  campaign_id: 0,
-                  campaign_difficulty: 0,
-                  campaign_metagame_scoring: 0,
-                  campaign_insertion_point: 0,
-                  campaign_primary_skulls: 0,
-                  campaign_secondary_skulls: 0,
-                },
-              },
-              unknown: 0,
-            },
-            {
-              general: {
-                id: 2n,
-                file_type: 5,
-                megalo_category_index: -1,
-                size_in_bytes: 29481,
-                activity: 4,
-                game_mode: 3,
-                game_engine_type: 0,
-                map_id: 3006,
-                unknown1: 0,
-                unknown2: 0,
-                unknown3: [0, 0, 0, 0, 0, 0, 0, 0],
-              },
-              created: {
-                timestamp: new Date(),
-                xuid: 0n,
-                name: 'Sikamikanico',
-                is_online: 1,
-              },
-              modified: {
-                timestamp: new Date(),
-                xuid: 0n,
-                name: '¦',
-                is_online: 1,
-              },
-              name: 'Kingdom',
-              description: 'Community map from Sikamikanico.',
-              game_variant_or_film: {
-                game_variant: {
-                  icon_index: 0,
-                },
-              },
-              matchmaking: {
-                metadata: {
-                  hopper_identifier: 0,
-                },
-              },
-              campaign_or_firefight: {
-                campaign: {
-                  campaign_id: 0,
-                  campaign_difficulty: 0,
-                  campaign_metagame_scoring: 0,
-                  campaign_insertion_point: 0,
-                  campaign_primary_skulls: 0,
-                  campaign_secondary_skulls: 0,
-                },
-              },
-              unknown: 0,
-            },
-          ],
-        },
-      },
-      _eof: {
-        file_size: 0,
-        authentication_type: 0,
-      },
-    });
-
-    return new StreamableFile(foo);
+  async getFileDetails(
+    @Query('machineId', ParseXUIDPipe) machineID: BigInt,
+    @Query('userId', ParseXUIDPipe) userID: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareID: BigInt,
+    @Query('locale', new DefaultValuePipe('en')) locale,
+    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+  ) {
+    const fileCatalog = await this.fileshareService.viewFileDetails(userID, shareID, serverId, locale);
+    return fileCatalog;
   }
 
   @HttpCode(200)

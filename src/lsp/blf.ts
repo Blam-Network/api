@@ -5,6 +5,17 @@ import { time64_t } from "src/cstruct/time";
 
 export namespace HaloReach {
     export namespace v12065 {
+        export const s_online_file_summary_listing_entry = c.createCStruct({pack: 1, endian: 'big', fields: [
+          {name: 'share_id', type: 'u64'},
+          {name: 'screenshots_count', type: 'u32'},
+          {name: 'films_count', type: 'u32'},
+          {name: 'map_variants_count', type: 'u32'},
+          {name: 'game_variants_count', type: 'u32'},
+          {name: 'unknown18', type: 'u32'},
+          {name: 'unknown1C', type: 'u32'},
+          {name: 'unknown20', type: 'u32'},
+        ]});
+
         export const s_content_item_history = c.createCStruct({pack: 1, endian: 'big', fields: [
             { name: 'timestamp', type: new time64_t() },
             { name: 'xuid', type: 'u64' },
@@ -148,12 +159,14 @@ export namespace HaloReach {
           
           export const s_online_file_listing = (fileCount: number, messageLength: number) => c.createCStruct({pack: 1, endian: 'big', fields: [
             { name: 'xuid', type: 'u64' }, // this is a guess
-            { name: 'gamertag', type: new c.String(10) },
-            { name: 'entry_count', type: 'u16' },
-            { name: 'unknown12', type: 'u8', count: 8 }, // ???
+            { name: 'gamertag', type: new c.String(16) },
+            { name: 'unknown16', type: 'u8' },
+            { name: 'unknown17', type: 'u8' },
+            { name: 'unknown18', type: 'u8' },
+            { name: 'unknown19', type: 'u8' },
             { name: 'quota_byte_count', type: 'u32' },
             { name: 'quota_slot_count', type: 'u8' },
-            { name: 'unknown1', type: 'u8', count: 1 },
+            { name: 'pad', type: 'padding', count: 1 },
             { name: 'slot_count', type: 'u16' },
             { name: 'message_length', type: new c.MagicNumber(messageLength, 'u8') },
             { name: 'pad', type: 'padding', count: 3 },

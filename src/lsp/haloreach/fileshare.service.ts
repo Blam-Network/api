@@ -1285,5 +1285,26 @@ export class HaloReachFileShareService {
             },
         });
     }
-}
 
+    public recommendFile = async (userXuid: BigInt, shareXuid: BigInt, serverId: BigInt) => {
+        if (!IS_FILESHARE_ENABLED) {
+            throw new ServiceUnavailableException();
+        }
+
+        if (userXuid !== shareXuid) {
+            this.logger.warn(`[FileShare] User ${userXuid} tried to recommend file ${serverId.toString()} but is not the owner.`);
+            throw new UnauthorizedException();
+        }
+
+        await this.prisma.reach_file_share_file.update({
+            where: { id_share_id: { share_id: shareXuid.toString(), id: serverId.toString() } },
+            data: {
+                recommended_to_friends_at: new Date(),
+            },
+        });
+
+        return {
+            success: true,
+        };
+    }
+}

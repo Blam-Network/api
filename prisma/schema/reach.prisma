@@ -410,6 +410,7 @@ model reach_file_share_file {
   firefight_secondary_skulls  Int?
 
   tags                        String[]
+  recommended_to_friends_at   DateTime?
 
   @@unique([id, share_id], map: "unique_id_share_id")
   @@map("file_share_file")

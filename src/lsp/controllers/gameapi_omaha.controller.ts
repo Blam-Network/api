@@ -198,7 +198,7 @@ export class GameApiOmahaController {
     @Query('shareId', ParseXUIDPipe) shareId: BigInt,
     // @Query('shareIDs', ParseXUIDArrayPipe) shareIDs: BigInt[],
   ) {
-    return this.fileshareService.getFileShareSumary(shareId);
+    return this.fileshareService.getFileShareSummary(userId, shareId);
   }
 
   @HttpCode(200)
@@ -352,25 +352,52 @@ export class GameApiOmahaController {
   }
 
   @HttpCode(200)
-  @Get('/FilesReccomend.ashx')
+  @Post('/FilesReccomend.ashx')
   @ApiTags('File Share')
   @ApiOperation({
     description: 'Not yet implemented.',
     deprecated: true // used to denote not-implemented.
   })
-  async recommendFile() {
-    throw new NotImplementedException();
+  @ApiHeader({ name: 'machineid', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiHeader({ name: 'serverid', example: EXAMPLE_XUID })
+  @UseInterceptors(FileInterceptor('upload'))
+  async recommendFile(
+    @UploadedFile() upload: Express.Multer.File | undefined,
+    @Query('userId', ParseXUIDPipe) userId: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareId: BigInt,
+    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+  ) {
+    // Uploads an ilds 1.1 chunk which is a list of friend XUIDs
+    if (!upload) throw new BadRequestException();
+
+    await this.fileshareService.recommendFile(userId, shareId, serverId);
+
+    return "ok";
   }
 
   @HttpCode(200)
-  @Get('/FilesGetReccomendation.ashx')
+  @Post('/FilesGetReccomendation.ashx')
   @ApiTags('File Share')
   @ApiOperation({
-    description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
+    summary: 'Get Halo: Reach File Recommendation',
+    description: 'Returns recommended files for the given user ID.',
   })
-  async getFileRecommendation() {
-    throw new NotImplementedException();
+  @ApiQuery({ name: 'machineId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @UseInterceptors(FileInterceptor('upload'))
+  async getFileRecommendation(
+    @Query('machineId', ParseXUIDPipe) machineId: BigInt,
+    @Query('userId', ParseXUIDPipe) userId: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareId: BigInt,
+    @UploadedFile() upload: Express.Multer.File | undefined,
+  ) {
+    // Uploads an ilds 1.1 chunk which is a list of friend XUIDs
+    if (!upload) throw new BadRequestException();
+
+    return this.fileshareService.viewFileShare(userId, shareId, 'en');
   }
 
   @HttpCode(200)

@@ -18,8 +18,10 @@ import { c } from "src/cstruct";
 import { createReadStream } from "fs";
 import { Decimal } from "@prisma/client/runtime/library";
 import * as sharp from "sharp";
+
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
+const FILESHARE_WELCOME_MESSAGE = 'Pardon our dust! File Share support is currently in Beta, some features may be unavailable.';
 
 const HALOREACH_FILESHARE_FOLDER = join(FILESHARE_FOLDER, 'haloreach');
 
@@ -370,6 +372,7 @@ export class HaloReachFileShareService {
             fileShare = await this.prisma.reach_file_share.create({
                 data: {
                     share_id: ownerXuid.toString(),
+                    message: FILESHARE_WELCOME_MESSAGE,
                 }
             })
         }
@@ -946,7 +949,7 @@ export class HaloReachFileShareService {
         if (fileShare?.message) {
             if (ownsFileshare) {
                 // The user has seen the message, destroy it to prevent repeats.
-                await this.prisma.halo3_file_share.update({
+                await this.prisma.reach_file_share.update({
                     where: {
                         share_id: shareXuid.toString(),
                     },

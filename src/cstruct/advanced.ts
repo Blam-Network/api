@@ -13,10 +13,12 @@ export abstract class AdvancedType<T> {
  */
 export class CString<L extends number> extends AdvancedType<string> {
     public readonly length!: L;
+    private readonly encoding: BufferEncoding;
 
-    constructor(length: L) {
+    constructor(length: L, encoding: BufferEncoding = 'utf8') {
         super();
         this.length = length;
+        this.encoding = encoding;
     }
 
     /**
@@ -30,7 +32,7 @@ export class CString<L extends number> extends AdvancedType<string> {
             nullIndex = this.length;
         }
         // Convert bytes to string, trimming null bytes
-        return bytes.subarray(0, nullIndex).toString('utf8');
+        return bytes.subarray(0, nullIndex).toString(this.encoding);
     }
 
     /**
@@ -38,7 +40,7 @@ export class CString<L extends number> extends AdvancedType<string> {
      */
     write(buffer: Buffer, offset: number, value: string, endian: c.Endian): void {
         // Convert string to bytes
-        const stringBytes = Buffer.from(value, 'utf8');
+        const stringBytes = Buffer.from(value, this.encoding);
         
         // Trim if too long
         const bytesToWrite = stringBytes.length > this.length ? stringBytes.subarray(0, this.length) : stringBytes;
@@ -58,7 +60,7 @@ export class CString<L extends number> extends AdvancedType<string> {
 }
 
 /**
- * Wide string type for fixed-length wchar_t arrays (UTF-16LE, 2 bytes per character)
+ * Wide string type for fixed-length wchar_t arrays (UTF-16, 2 bytes per character)
  * Takes character count as a generic parameter (not byte count)
  */
 export class CWString<L extends number> extends AdvancedType<string> {
@@ -69,8 +71,18 @@ export class CWString<L extends number> extends AdvancedType<string> {
         this.length = length;
     }
 
+    private swapUtf16ByteOrder(bytes: Buffer): Buffer {
+        const swapped = Buffer.from(bytes);
+        for (let i = 0; i < swapped.length - 1; i += 2) {
+            const first = swapped[i];
+            swapped[i] = swapped[i + 1];
+            swapped[i + 1] = first;
+        }
+        return swapped;
+    }
+
     /**
-     * Read a wide string from buffer (UTF-16LE)
+     * Read a wide string from buffer (UTF-16LE/UTF-16BE based on endian)
      */
     read(buffer: Buffer, offset: number, endian: c.Endian): string {
         const byteLength = this.length * 2;
@@ -86,12 +98,15 @@ export class CWString<L extends number> extends AdvancedType<string> {
         }
         
         const lengthToRead = nullIndex === -1 ? byteLength : nullIndex;
-        // Convert UTF-16LE bytes to string
-        return bytes.subarray(0, lengthToRead).toString('utf16le');
+        const stringBytes = bytes.subarray(0, lengthToRead);
+        const littleEndianBytes = endian === 'little'
+            ? stringBytes
+            : this.swapUtf16ByteOrder(stringBytes);
+        return littleEndianBytes.toString('utf16le');
     }
 
     /**
-     * Write a wide string to buffer (UTF-16LE)
+     * Write a wide string to buffer (UTF-16LE/UTF-16BE based on endian)
      */
     write(buffer: Buffer, offset: number, value: string, endian: c.Endian): void {
         const byteLength = this.length * 2;
@@ -101,12 +116,14 @@ export class CWString<L extends number> extends AdvancedType<string> {
         // Trim if too long
         const bytesToWrite = stringBytes.length > byteLength ? stringBytes.subarray(0, byteLength) : stringBytes;
         
-        // Write the string bytes
-        bytesToWrite.copy(buffer, offset);
+        const outputBytes = endian === 'little'
+            ? bytesToWrite
+            : this.swapUtf16ByteOrder(bytesToWrite);
+        outputBytes.copy(buffer, offset);
         
         // Pad with zeros if necessary
-        if (bytesToWrite.length < byteLength) {
-            buffer.fill(0, offset + bytesToWrite.length, offset + byteLength);
+        if (outputBytes.length < byteLength) {
+            buffer.fill(0, offset + outputBytes.length, offset + byteLength);
         }
     }
 

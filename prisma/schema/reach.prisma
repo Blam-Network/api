@@ -354,3 +354,64 @@ model reach_player_challenge_progress {
   @@map("player_challenge_progress")
   @@schema("reach")
 }
+
+model reach_file_share {
+  share_id          Decimal @id @db.Decimal(20, 0)
+  quota_slots       Int?    @db.SmallInt
+  quota_bytes       Int?
+  message           String?
+  lastHash          Int     @default(0)
+  unsubscribe_stage Int?    @db.SmallInt
+
+  @@map("file_share")
+  @@schema("reach")
+}
+
+model reach_file_share_file {
+  id          Decimal @id @db.Decimal(20, 0)
+  share_id    Decimal @db.Decimal(20, 0)
+  is_uploaded Boolean @default(false)
+
+  compressed_size Int
+
+  unique_id                   Decimal?                    @db.Decimal(20, 0)
+  file_type                   Int?                        @db.SmallInt
+  megalo_category_index       Int?                        @db.SmallInt
+  size_in_bytes               Decimal?                    @db.Decimal(20, 0)
+  activity                    Int?                        @db.SmallInt
+  game_mode                   Int?                        @db.SmallInt
+  game_engine_type            Int?
+  map_id                      Int?
+
+  created_at                  DateTime?                   @db.Timestamp(6)
+  creator_xuid                Decimal?                    @db.Decimal(20, 0)
+  creator_name                String?                     @db.VarChar(16)
+  creator_is_xuid_online      Boolean?
+
+  modified_at                 DateTime?                   @db.Timestamp(6)
+  modifier_xuid               Decimal?                    @db.Decimal(20, 0)
+  modifier_name               String?                     @db.VarChar(16)
+  modifier_is_xuid_online     Boolean?
+
+  name                        String?                     @db.VarChar(128)
+  description                 String?                     @db.VarChar(128)
+
+  icon_index                  Int?                        @db.SmallInt
+  length_seconds              Int?
+  hopper_identifier           Int?
+  campaign_id                 Int?
+  campaign_difficulty         Int?
+  campaign_metagame_scoring   Int?
+  campaign_insertion_point    Int?
+  campaign_primary_skulls     Int?
+  campaign_secondary_skulls   Int?
+  firefight_difficulty        Int?
+  firefight_primary_skulls    Int?
+  firefight_secondary_skulls  Int?
+
+  tags                        String[]
+
+  @@unique([id, share_id], map: "unique_id_share_id")
+  @@map("file_share_file")
+  @@schema("reach")
+}

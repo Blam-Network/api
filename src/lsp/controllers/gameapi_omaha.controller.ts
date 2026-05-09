@@ -13,6 +13,9 @@ import {
   Headers,
   BadRequestException,
   ParseIntPipe,
+  Param,
+  InternalServerErrorException,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
@@ -24,13 +27,21 @@ import { ParseXUIDPipe } from 'src/xbox/parse-xuid.pipe';
 import dedent from 'dedent';
 import { ParseXUIDArrayPipe } from 'src/xbox/parse-xuid-array.pipe';
 import { parseBungieHeader } from '../parse-bungie-header.pipe';
-import { hexStringXuidSchema } from 'src/xbox/xuid';
+import { hexStringXuidSchema, xuidToHexString } from 'src/xbox/xuid';
 import { z } from 'zod';
 import { UploadService } from '../services/upload.service';
 import { HaloReachFileShareService } from '../haloreach/fileshare.service';
 import { HaloReachRewardsService } from '../haloreach/rewards.service';
 import { HaloReachUserService } from '../haloreach/user.service';
 import { HaloReachChallengeService } from '../haloreach/challenge.service';
+import { blf } from 'src/blf';
+import { c } from 'src/cstruct';
+import { ParseBigIntPipe } from 'src/utils/parse-big-int.pipe';
+import { HaloReach } from '../blf';
+import { Response } from 'express';
+import { PrismaService } from 'src/db/prisma.service';
+
+const FILESHARE_BETA_MESSAGE = "Halo Reach File Share support is in alpha. Your files may be lost."
 
 @ApiTags('Game API Omaha', 'Halo: Reach')
 @Controller('/gameapi_omaha')
@@ -43,6 +54,7 @@ export class GameApiOmahaController {
     @Inject() private readonly uploadService: UploadService,
     @Inject() private readonly rewardsService: HaloReachRewardsService,
     @Inject() private readonly challengeService: HaloReachChallengeService,
+    @Inject() private readonly prisma: PrismaService,
   ) { }
 
   @Get('/ArenaGetSeasonStats.ashx')
@@ -162,22 +174,15 @@ export class GameApiOmahaController {
   @ApiHeader({ name: 'machineid', example: EXAMPLE_XUID })
   @ApiTags('File Share')
   @ApiOperation({
-    description: 'We dont know anything about this endpoint yet.',
-        deprecated: true // used to denote not-implemented.
+    description: 'Generates a hash for a new Halo: Reach UGC file. Used to verify file-share uploads.',
   })
-  async signBuffer() {
-    throw new NotImplementedException();
-  }
-
-  @HttpCode(200)
-  @Get('/FilesGetCatalog.ashx')
-  @ApiTags('File Share')
-  @ApiOperation({
-    description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
-  })
-  async getFileshare() {
-    throw new NotImplementedException();
+  @UseInterceptors(FileInterceptor('upload'))
+  async signBuffer(
+    @UploadedFile() upload: Express.Multer.File | undefined,
+  ) {
+    if (!upload) throw new BadRequestException();
+    
+    return this.fileshareService.signFile(upload.buffer);
   }
 
   @HttpCode(200)
@@ -187,30 +192,83 @@ export class GameApiOmahaController {
     description: 'Not yet implemented.',
     deprecated: true // used to denote not-implemented.
   })
-  async getFileshareInfo() {
-    throw new NotImplementedException();
+  async getFileshare(
+    @Query('machineId', ParseXUIDPipe) machineId: BigInt,
+    @Query('userId', ParseXUIDPipe) userId: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareId: BigInt,
+    // @Query('shareIDs', ParseXUIDArrayPipe) shareIDs: BigInt[],
+  ) {
+    return this.fileshareService.getFileShareSumary(shareId);
+  }
+
+  @HttpCode(200)
+  @Get('/FilesGetCatalog.ashx')
+  @ApiTags('Halo: Reach')
+  @ApiTags('File Share')
+  @ApiOperation({
+    summary: 'Get Halo: Reach File Share',
+    description: 'Returns a file share catalog for the given user ID.'
+  })
+  @ApiQuery({ name: 'machineId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'locale', example: 'en' })
+  async getFileshareInfo(
+    @Query('machineId', ParseXUIDPipe) machineID: BigInt,
+    @Query('userId', ParseXUIDPipe) userID: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareID: BigInt,
+    @Query('locale', new DefaultValuePipe('en')) locale,
+  ) {
+    const fileCatalog = await this.fileshareService.viewFileShare(userID, shareID, locale);
+    return new StreamableFile(fileCatalog);
   }
 
   @HttpCode(200)
   @Get('/FilesDelete.ashx')
   @ApiTags('File Share')
+  @ApiTags('Halo: Reach')
   @ApiOperation({
-    description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
+    summary: "Delete Halo: Reach File",
+    description: "Delete a file from a Halo 3 or ODST file share."
   })
-  async deleteFile() {
-    throw new NotImplementedException();
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'serverId' })
+  async deleteFile(
+    @Query('userId', ParseXUIDPipe) userid: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareID: BigInt,
+    @Query('serverId', ParseBigIntPipe) serverId: BigInt,
+  ) {
+    await this.fileshareService.deleteFile(userid, shareID, serverId);
+    return "ok";
   }
 
   @HttpCode(200)
   @Get('/FilesNewUpload.ashx')
   @ApiTags('File Share')
+  @ApiTags('Halo: Reach')
+  @ApiQuery({ name: 'machineId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'uniqueId' })
+  @ApiQuery({ name: 'fileType' })
+  @ApiQuery({ name: 'uncompressedSize' })
+  @ApiQuery({ name: 'compressedSize' })
   @ApiOperation({
     description: 'Not yet implemented.',
     deprecated: true // used to denote not-implemented.
   })
-  async startFileUpload() {
-    throw new NotImplementedException();
+  async startFileUpload(
+    @Query('machineId', ParseXUIDPipe) machineId: BigInt,
+    @Query('userId', ParseXUIDPipe) userID: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareID: BigInt,
+    @Query('uniqueId', new ParseBigIntPipe({hex: true})) uniqueID: BigInt,
+    @Query('fileType', ParseIntPipe) fileType: number,
+    @Query('uncompressedSize', ParseIntPipe) uncompressedSize: number,
+    @Query('compressedSize', ParseIntPipe) compressedSize: number,
+  ) {
+    const serverId = await this.fileshareService.initiateNewUpload(userID, shareID, uniqueID, fileType, uncompressedSize, compressedSize);
+    return serverId;
   }
 
   @HttpCode(200)
@@ -227,23 +285,48 @@ export class GameApiOmahaController {
   @HttpCode(200)
   @Get('/FilesTagItem.ashx')
   @ApiTags('File Share')
+  @ApiQuery({ name: 'machineId' })
+  @ApiQuery({ name: 'userId' })
+  @ApiQuery({ name: 'shareId' })
+  @ApiQuery({ name: 'serverId' })
+  @ApiQuery({ name: 'taghex' })
   @ApiOperation({
     description: 'Not yet implemented.',
     deprecated: true // used to denote not-implemented.
   })
-  async tagFile() {
-    throw new NotImplementedException();
+  async tagFile(
+    @Query('machineId', ParseXUIDPipe) machineId: BigInt,
+    @Query('userId', ParseXUIDPipe) userId: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareId: BigInt,
+    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+    @Query('taghex') taghex: string,
+  ) {
+    const tag = Buffer.from(taghex, 'hex').toString('utf-8');
+    await this.fileshareService.tagFile(userId, shareId, serverId, tag);
+    return "ok";
   }
 
   @HttpCode(200)
   @Get('/FilesGetDetails.ashx')
   @ApiTags('File Share')
   @ApiOperation({
-    description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
+    summary: 'Get Halo: Reach File Details',
+    description: 'Returns details about a file in a Halo: Reach file share, including tags and thumbnails.',
   })
-  async getFileDetails() {
-    throw new NotImplementedException();
+  @ApiQuery({ name: 'machineId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'locale', example: 'en' })
+  @ApiQuery({ name: 'serverId', type: 'string', example: EXAMPLE_XUID })
+  async getFileDetails(
+    @Query('machineId', ParseXUIDPipe) machineID: BigInt,
+    @Query('userId', ParseXUIDPipe) userID: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareID: BigInt,
+    @Query('locale', new DefaultValuePipe('en')) locale,
+    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+  ) {
+    const fileCatalog = await this.fileshareService.viewFileDetails(userID, shareID, serverId, locale);
+    return fileCatalog;
   }
 
   @HttpCode(200)
@@ -313,14 +396,36 @@ export class GameApiOmahaController {
   }
 
   @HttpCode(200)
-  @Get('/FilesUpload.ashx')
+  @Post('/FilesUpload.ashx')
   @ApiTags('File Share')
   @ApiOperation({
-    description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
+    summary: 'Upload Halo: Reach File',
+    description: 'Uploads a file to a Halo: Reach file share.',
   })
-  async uploadFile() {
-    throw new NotImplementedException();
+  @ApiTags('Halo: Reach')
+  @ApiHeader({ name: 'machineid', example: EXAMPLE_XUID })
+  @ApiHeader({ name: 'userid', example: EXAMPLE_XUID })
+  @ApiHeader({ name: 'shareid', example: EXAMPLE_XUID })
+  @ApiHeader({ name: 'serverid' })
+  @UseInterceptors(FileInterceptor('upload'))
+  async uploadFile(
+    @Headers() headers,
+    @UploadedFile() upload: Express.Multer.File | undefined,
+  ) {
+    if (!upload) throw new BadRequestException();
+
+    const { machineid: machineId, userid: userId, shareid: shareId, serverid: serverId } = z.object({
+      machineid: parseBungieHeader(hexStringXuidSchema),
+      userid: parseBungieHeader(hexStringXuidSchema),
+      shareid: parseBungieHeader(hexStringXuidSchema),
+      serverid: parseBungieHeader(hexStringXuidSchema),
+    }).parse(headers);
+
+    console.log({headers})
+
+    await this.fileshareService.handleFileUpload(upload, machineId, userId, shareId, serverId);
+
+    return "ok";
   }
 
   @HttpCode(200)
@@ -376,6 +481,65 @@ export class GameApiOmahaController {
 
     // await this.uploadService.storeUploadedFile(upload);
     await this.fileshareService.handleBlindFileUpload(upload, uploaderXuid, uploaderMachineId);
+  }
+
+  @Get('/FilesStageForDownload.ashx')
+  @ApiTags('File Share')
+  @ApiTags('Halo: Reach')
+  @ApiOperation({
+    summary: 'Initiate Halo: Reach Download',
+    description: 'Start downloading a file from a Halo: Reach fileshare. Returns the download URL and file size.',
+  })
+  @ApiQuery({ name: 'machineId', example: EXAMPLE_XUID, type: 'string' })
+  @ApiQuery({ name: 'userId', example: EXAMPLE_XUID, type: 'string' })
+  @ApiQuery({ name: 'shareId', example: EXAMPLE_XUID, type: 'string' })
+  @ApiQuery({ name: 'serverId' })
+  @ApiQuery({ name: 'startPosition' })
+  @ApiQuery({ name: 'fromAutoQueue' })
+  @ApiQuery({ name: 'view' })
+  async stageFileDownload(
+    @Query('machineId', ParseXUIDPipe) machineID: BigInt,
+    @Query('userId', ParseXUIDPipe) userID: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareID: BigInt,
+    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+    @Query('startPosition', ParseIntPipe) startPosition: number,
+    @Query('fromAutoQueue', ParseIntPipe) fromAutoQueue: number,
+    @Query('view', new ParseIntPipe({optional: true})) view: number,
+    @Query('preview', ParseIntPipe) preview: number,
+  ) {
+    return this.fileshareService.stageDownload(machineID, userID, shareID, serverId, startPosition, fromAutoQueue, view, preview);
+  }
+
+  @Get('/FilesStartDownload.ashx')
+  @ApiOperation({
+    summary: "Download Halo: Reach File",
+    description: "Not an official endpoint but used by Halo. Download a file from a Halo: Reach file share. This endpoint isn't hardcoded, but we return it from FilesStageDownload.ashx."
+  })
+  @ApiTags('File Share')
+  @ApiTags('Halo: Reach')
+  @ApiHeader({ name: 'title' })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'serverId' })
+  @ApiQuery({ name: 'startPosition' })
+  async downloadFile(
+    @Headers() headers,
+    @Query('userId', ParseXUIDPipe) userid: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareID: BigInt,
+    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+    @Query('startPosition', ParseIntPipe) startPosition: number,
+    @Res() res: Response,
+  ) {
+    const {stream, size} = await this.fileshareService.getDownloadStream(userid, shareID, serverId, startPosition);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', size);
+    res.writeHead(200)
+    stream.pipe(res);
+    stream.on('error', (err) => {
+      this.logger.error(`[FileShare] Stream error: ${String(err)}`);
+      res.status(500).end('Internal server error');
+    });
+    return;
   }
 
   @HttpCode(200)

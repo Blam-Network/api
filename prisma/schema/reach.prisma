@@ -409,6 +409,8 @@ model reach_file_share_file {
   firefight_primary_skulls    Int?
   firefight_secondary_skulls  Int?
 
+  tags                        String[]
+
   @@unique([id, share_id], map: "unique_id_share_id")
   @@map("file_share_file")
   @@schema("reach")

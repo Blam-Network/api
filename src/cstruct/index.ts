@@ -215,7 +215,7 @@ export namespace c {
                 totalSize = this.alignOffset(totalSize, alignment);
 
                 const fieldSize = this.getFieldSize(field);
-                const count = field.count || 1;
+                const count = field.count ?? 1;
                 const sizeToAdd = fieldSize * count;
                 totalSize += sizeToAdd;
             }
@@ -252,7 +252,7 @@ export namespace c {
 
                 if (field.type instanceof Struct) {
                     const nestedStruct = field.type;
-                    const count = field.count || 1;
+                    const count = field.count ?? 1;
 
                     if (count === 1) {
                         result[field.name] = nestedStruct.read(buffer, offset + currentOffset);
@@ -270,7 +270,7 @@ export namespace c {
 
                 if (field.type instanceof AdvancedType) {
                     const advancedType = field.type;
-                    const count = field.count || 1;
+                    const count = field.count ?? 1;
 
                     if (count === 1) {
                         result[field.name] = advancedType.read(buffer, offset + currentOffset, this.endian);
@@ -286,7 +286,7 @@ export namespace c {
                 }
 
                 const type = field.type satisfies PrimitiveType | Padding;
-                const count = field.count || 1;
+                const count = field.count ?? 1;
 
 
                 if (type === 'padding') {
@@ -380,7 +380,7 @@ export namespace c {
 
                     if (field.type instanceof AdvancedType) {
                         const advancedType = field.type;
-                        const count = field.count || 1;
+                        const count = field.count ?? 1;
                         const value = data[field.name];
 
                         if (Array.isArray(value)) {
@@ -396,7 +396,7 @@ export namespace c {
                     }
 
                     const type = field.type satisfies PrimitiveType | Padding;
-                    const count = field.count || 1;
+                    const count = field.count ?? 1;
                     const value = data[field.name];
 
                     if (type === 'padding') {
@@ -459,7 +459,7 @@ export namespace c {
 
                 if (field.type instanceof Struct) {
                     const nested = field.type;
-                    const count = field.count || 1;
+                    const count = field.count ?? 1;
                     const elSize = nested.size;
                     const total = elSize * count;
                     pushRow(name, offset, total);
@@ -469,7 +469,7 @@ export namespace c {
 
                 if (field.type instanceof AdvancedType) {
                     const advancedType = field.type;
-                    const count = field.count || 1;
+                    const count = field.count ?? 1;
                     const sz = advancedType.getSize();
                     const total = sz * count;
                     pushRow(name, offset, total);
@@ -478,7 +478,7 @@ export namespace c {
                 }
 
                 const type = field.type satisfies PrimitiveType | Padding;
-                const count = field.count || 1;
+                const count = field.count ?? 1;
 
                 if (type === 'padding') {
                     pushRow(`${name} (${count} bytes padding)`, offset, count);

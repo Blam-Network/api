@@ -56,14 +56,14 @@ export namespace HaloReach {
           export const s_online_file_general_metadata = c.createCStruct({pack: 1, endian: 'big', fields: [
             { name: 'id', type: 'u64' }, // probs unique id
             { name: 'file_type', type: 'u8' },
-            { name: 'unknown1', type: 'u8', count: 1 },
+            { name: 'tag_count', type: 'u8' }, // tag count?
             { name: 'megalo_category_index', type: 'u8' },
-            { name: 'unknown2', type: 'u8', count: 1 },
+            PAD1,
             { name: 'size_in_bytes', type: 'u32' },
             { name: 'activity', type: 'u8' },
             { name: 'game_mode', type: 'u8' },
             { name: 'game_engine_type', type: 'u8' },
-            { name: 'unknown3', type: 'padding', count: 1 },
+            PAD1,
             { name: 'unknown3', type: 'u8', count: 8 }, // game ID?
             { name: 'map_id', type: 'i32' },
           ]});
@@ -94,7 +94,7 @@ export namespace HaloReach {
                 { name: 'pad', type: 'padding', count: 16 },
               ]})
             }) },
-            { name: 'unknown', type: 'u32'}, // probs tag count
+            { name: 'screenshot_length', type: 'u32' },
           ]});
           
           export const s_content_item_general_metadata = c.createCStruct({pack: 1, endian: 'big', fields: [
@@ -198,5 +198,10 @@ export namespace HaloReach {
               { name: 'authentication_type', type: new c.MagicNumber(0, 'u8') },
             ],
           });
+
+          export const s_online_file_tag = c.createCStruct({pack: 1, endian: 'big', fields: [
+            { name: 'tag', type: new c.String(23) },
+            { name: 'unknown', type: 'u32' },
+          ]});
     }
 }

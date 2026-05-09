@@ -198,7 +198,7 @@ export class GameApiOmahaController {
     @Query('shareId', ParseXUIDPipe) shareId: BigInt,
     // @Query('shareIDs', ParseXUIDArrayPipe) shareIDs: BigInt[],
   ) {
-
+    return this.fileshareService.getFileShareSumary(shareId);
   }
 
   @HttpCode(200)
@@ -298,11 +298,11 @@ export class GameApiOmahaController {
     @Query('machineId', ParseXUIDPipe) machineId: BigInt,
     @Query('userId', ParseXUIDPipe) userId: BigInt,
     @Query('shareId', ParseXUIDPipe) shareId: BigInt,
-    @Query('serverId') serverId: string,
+    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
     @Query('taghex') taghex: string,
   ) {
     const tag = Buffer.from(taghex, 'hex').toString('utf-8');
-    console.log("got tag ", tag);
+    await this.fileshareService.tagFile(userId, shareId, serverId, tag);
     return "ok";
   }
 
@@ -310,9 +310,14 @@ export class GameApiOmahaController {
   @Get('/FilesGetDetails.ashx')
   @ApiTags('File Share')
   @ApiOperation({
-    description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
+    summary: 'Get Halo: Reach File Details',
+    description: 'Returns details about a file in a Halo: Reach file share, including tags and thumbnails.',
   })
+  @ApiQuery({ name: 'machineId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'locale', example: 'en' })
+  @ApiQuery({ name: 'serverId', type: 'string', example: EXAMPLE_XUID })
   async getFileDetails(
     @Query('machineId', ParseXUIDPipe) machineID: BigInt,
     @Query('userId', ParseXUIDPipe) userID: BigInt,

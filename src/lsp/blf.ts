@@ -11,7 +11,7 @@ export namespace HaloReach {
           {name: 'films_count', type: 'u32'},
           {name: 'map_variants_count', type: 'u32'},
           {name: 'game_variants_count', type: 'u32'},
-          {name: 'unknown18', type: 'u32'},
+          {name: 'new_items_count', type: 'u32'},
           {name: 'unknown1C', type: 'u32'},
           {name: 'unknown20', type: 'u32'},
         ]});

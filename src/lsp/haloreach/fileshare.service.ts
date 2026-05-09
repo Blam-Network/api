@@ -1162,10 +1162,21 @@ export class HaloReachFileShareService {
         await rm(filePath);
     }
 
-    public getFileShareSumary = async (shareXuid: BigInt) => {
+    public getFileShareSummary = async (userXuid: BigInt, shareXuid: BigInt) => {
         if (!IS_FILESHARE_ENABLED) {
             throw new ServiceUnavailableException();
         }
+
+        /// TEMPORARY
+        // During the File Share Alpha, we will show a star next to new file shares
+        // to highlight them to the user.
+        const ownsFileShare = userXuid === shareXuid;
+        const fileShare = await this.prisma.reach_file_share.findUnique({
+            where: {
+                share_id: shareXuid.toString(),
+            }
+        });
+        const isNewFileShare = fileShare == null && ownsFileShare;
 
         // group by file type
         const fileCatalogSchema = blf.createFileSchema([
@@ -1215,9 +1226,9 @@ export class HaloReachFileShareService {
                   films_count: filmsCount,
                   map_variants_count: mapVariantsCount,
                   game_variants_count: gameVariantsCount,
-                  unknown18: 0,
+                  new_items_count: isNewFileShare ? 1 : 0, // TODO: Update this when we're out of alpha.
                   unknown1C: 0,
-                  unknown20: 0,
+                  unknown20: 1,
                 }
               
             },

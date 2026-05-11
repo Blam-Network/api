@@ -28,6 +28,8 @@ import { HaloReachRewardsService } from './haloreach/rewards.service';
 import { HaloReachChallengeService } from './haloreach/challenge.service';
 import { DatamineUploadService } from './services/datamineupload.service';
 import { loggerWithPrefix } from 'src/utils/logger'
+import { HaloReachUploadService } from './haloreach/upload.service';
+import { HaloReachCarnageReportService } from './haloreach/carnagereport.service';
 
 @Module({
     imports: [
@@ -48,7 +50,9 @@ import { loggerWithPrefix } from 'src/utils/logger'
     providers: [
         UploadService,
         Halo3UploadService,
+        HaloReachUploadService,
         Halo3CarnageReportService,
+        HaloReachCarnageReportService,
         Halo3UserService,
         HaloReachUserService,
         Halo3MachineService,

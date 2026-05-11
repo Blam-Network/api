@@ -416,3 +416,46 @@ model reach_file_share_file {
   @@map("file_share_file")
   @@schema("reach")
 }
+
+model reach_service_record {
+  player_xuid                        Decimal  @id @db.Decimal(20, 0)
+  player_name                        String   @db.VarChar(16)
+
+  appearance_flags                   Int      @db.SmallInt
+  primary_color                      Int      @db.SmallInt
+  secondary_color                    Int      @db.SmallInt
+  tertiary_color                     Int      @db.SmallInt
+  is_elite                           Int      @db.SmallInt
+  foreground_emblem                  Int      @db.SmallInt
+  background_emblem                  Int      @db.SmallInt
+  emblem_flags                       Int      @db.SmallInt
+  emblem_primary_color               Int      @db.SmallInt
+  emblem_secondary_color             Int      @db.SmallInt
+  emblem_background_color            Int      @db.SmallInt
+  model_permutations_1               Int      @db.SmallInt
+  model_permutations_2               Int      @db.SmallInt
+  model_permutations_3               Int      @db.SmallInt
+  model_permutations_4               Int      @db.SmallInt
+  model_permutations_5               Int      @db.SmallInt
+  model_permutations_6               Int      @db.SmallInt
+  model_permutations_7               Int      @db.SmallInt
+  model_permutations_8               Int      @db.SmallInt
+  non_model_customization_1          Int      @db.SmallInt
+  non_model_customization_2          Int      @db.SmallInt
+  non_model_customization_3          Int      @db.SmallInt
+  non_model_customization_4          Int      @db.SmallInt
+  service_tag                        String   @db.VarChar(5)
+
+  campaign_progress                  Int
+  supply_depot_pct                   Int      @db.SmallInt
+  commendation_unlock_pct            Int      @db.SmallInt
+  grade                              Int      @db.SmallInt
+  sub_grade                          Int      @db.SmallInt
+  cheat_flags                        Decimal  @db.Decimal(20, 0)
+  ban_flags                          Decimal  @db.Decimal(20, 0)
+  matchmade_games_played             Int
+
+  @@index([player_name], map: "idx_service_record_player_name")
+  @@map("service_record")
+  @@schema("reach")
+}

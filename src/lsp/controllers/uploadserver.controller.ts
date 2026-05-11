@@ -25,6 +25,7 @@ import { basename, join } from 'path';
 import { createReadStream, existsSync } from 'fs';
 import { stat } from 'fs/promises';
 import { DatamineUploadService } from '../services/datamineupload.service';
+import { HaloReachUploadService } from '../haloreach/upload.service';
 
 const HALO_UPLOAD_SUCCESS_RESPONSE = 'DONE';
 
@@ -35,6 +36,7 @@ export class UploadServerController {
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
     private readonly uploadService: UploadService,
     private readonly halo3UploadService: Halo3UploadService,
+    private readonly haloReachUploadService: HaloReachUploadService,
     private readonly compressionService: CompressionService,
     private readonly datamineUploadService: DatamineUploadService,
   ) { }
@@ -58,6 +60,7 @@ export class UploadServerController {
   })
   @ApiTags('Halo 3')
   @ApiTags('Halo 3: ODST')
+  @ApiTags('Halo: Reach')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -87,6 +90,7 @@ export class UploadServerController {
 
       // TITLES:
       this.halo3UploadService.handleUpload(upload),
+      this.haloReachUploadService.handleUpload(upload),
       this.datamineUploadService.handleUpload(upload),
     ]);
 
@@ -112,6 +116,7 @@ export class UploadServerController {
   })
   @ApiTags('Halo 3')
   @ApiTags('Halo 3: ODST')
+  @ApiTags('Halo: Reach')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -145,6 +150,7 @@ export class UploadServerController {
 
         // TITLES:
         this.halo3UploadService.handleUpload(upload),
+        this.haloReachUploadService.handleUpload(upload),
         this.datamineUploadService.handleUpload(upload),
       ])
     ));

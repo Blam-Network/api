@@ -180,6 +180,7 @@ export class GameApiOmahaController {
   async signBuffer(
     @UploadedFile() upload: Express.Multer.File | undefined,
   ) {
+    // todo: check what the upload is, maybe xuid hash?
     if (!upload) throw new BadRequestException();
     
     return this.fileshareService.signFile(upload.buffer);

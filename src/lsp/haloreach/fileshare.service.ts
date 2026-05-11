@@ -668,6 +668,15 @@ export class HaloReachFileShareService {
             HaloReach.v12065.s_blf_chunk_end_of_file,
           ]);
 
+        const fileShareOwnerName = await this.prisma.reach_service_record.findUnique({
+            where: {
+                player_xuid: shareXuid.toString(),
+            },
+            select: {
+                player_name: true,
+            },
+        });
+
         return new StreamableFile(fileCatalogSchema.write({
             _blf: {
                 name: 'test',
@@ -676,7 +685,7 @@ export class HaloReachFileShareService {
             fitm: {
                 online_file_listing: {
                     xuid: shareXuid.valueOf(),
-                    gamertag: 'Blam Network', // TODO: Once we have PCGR, pull gamertag via Service Record
+                    gamertag: fileShareOwnerName?.player_name ?? '',
                     unknown16: 0,
                     unknown17: 0,
                     unknown18: 0,
@@ -1019,6 +1028,15 @@ export class HaloReachFileShareService {
             HaloReach.v12065.s_blf_chunk_end_of_file,
           ]);
 
+        const fileShareOwnerName = await this.prisma.reach_service_record.findUnique({
+            where: {
+                player_xuid: shareXuid.toString(),
+            },
+            select: {
+                player_name: true,
+            },
+        });
+
         return fileCatalogSchema.write({
             _blf: {
                 name: 'test',
@@ -1027,7 +1045,7 @@ export class HaloReachFileShareService {
             fitm: {
                 online_file_listing: {
                     xuid: shareXuid.valueOf(),
-                    gamertag: 'Blam Network', // TODO: Once we have PCGR, pull gamertag via Service Record
+                    gamertag: fileShareOwnerName?.player_name ?? '',
                     unknown16: 1,
                     unknown17: 2,
                     unknown18: 3,

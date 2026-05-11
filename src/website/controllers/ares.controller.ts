@@ -1530,43 +1530,58 @@ export class AresController {
             limit 10;
         `;
         
-        const mostKilledServiceRecords = await this.prisma.ares_service_record.findMany({
-            where: {
-                player_xuid: { in: mostKilledXuids.map(x => x.killedxuid.toString()) },
-            },
-            select: {
-                player_xuid: true,
-                player_name: true,
-                service_tag: true,
-                is_elite: true,
-                primary_color: true,
-                foreground_emblem: true,
-                background_emblem: true,
-                emblem_flags: true,
-                emblem_primary_color: true,
-                emblem_secondary_color: true,
-                emblem_background_color: true,
-            }
-        })
+        const mostKilledXuidStrings = mostKilledXuids
+            .map((x) => x.killedxuid)
+            .filter((x): x is bigint => x != null)
+            .map((x) => x.toString());
+        const mostKilledByXuidStrings = mostKilledByXuids
+            .map((x) => x.killerxuid)
+            .filter((x): x is bigint => x != null)
+            .map((x) => x.toString());
 
-        const mostKilledByServiceRecords = await this.prisma.ares_service_record.findMany({
-            where: {
-                player_xuid: { in: mostKilledByXuids.map(x => x.killerxuid.toString()) },
-            },
-            select: {
-                player_xuid: true,
-                player_name: true,
-                service_tag: true,
-                is_elite: true,
-                primary_color: true,
-                foreground_emblem: true,
-                background_emblem: true,
-                emblem_flags: true,
-                emblem_primary_color: true,
-                emblem_secondary_color: true,
-                emblem_background_color: true,
-            }
-        })
+        const mostKilledServiceRecords =
+            mostKilledXuidStrings.length > 0
+                ? await this.prisma.ares_service_record.findMany({
+                      where: {
+                          player_xuid: { in: mostKilledXuidStrings },
+                      },
+                      select: {
+                          player_xuid: true,
+                          player_name: true,
+                          service_tag: true,
+                          is_elite: true,
+                          primary_color: true,
+                          foreground_emblem: true,
+                          background_emblem: true,
+                          emblem_flags: true,
+                          emblem_primary_color: true,
+                          emblem_secondary_color: true,
+                          emblem_background_color: true,
+                      },
+                  })
+                : [];
+
+        const mostKilledByServiceRecords =
+            mostKilledByXuidStrings.length > 0
+                ? await this.prisma.ares_service_record.findMany({
+                      where: {
+                          player_xuid: { in: mostKilledByXuidStrings },
+                      },
+                      select: {
+                          player_xuid: true,
+                          player_name: true,
+                          service_tag: true,
+                          is_elite: true,
+                          primary_color: true,
+                          foreground_emblem: true,
+                          background_emblem: true,
+                          emblem_flags: true,
+                          emblem_primary_color: true,
+                          emblem_secondary_color: true,
+                          emblem_background_color: true,
+                      },
+                  })
+                : [];
 
         const mostKilled = mostKilledServiceRecords.map(sr => ({
             count: (mostKilledXuids.find(x => x.killedxuid.toString() === sr.player_xuid.toString())?.killedcount || 0).toString(),
@@ -1598,7 +1613,7 @@ export class AresController {
         })
 
         const weaponKills = weaponKillsQueryResult
-            .filter(w => w._sum.kills ?? 0 > 0)
+            .filter((w) => (w._sum.kills ?? 0) > 0)
             .map(w => ({
                 weapon: w.damage_source,
                 kills: w._sum.kills ?? 0,
@@ -1799,7 +1814,7 @@ export class AresController {
         oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
         const oneYearAgoStr = oneYearAgo.toISOString().split('T')[0];
 
-        // Query to get daily game counts
+        // Ares has no campaign carnage tables; only multiplayer carnage_report rows.
         const dailyCountsQuery = `
             SELECT 
                 DATE(finish_time) as date,
@@ -1814,15 +1829,6 @@ export class AresController {
                 )
                 AND cr.finished = true
                 AND cr.finish_time >= '${oneYearAgoStr}'
-                UNION ALL
-                SELECT finish_time
-                FROM "ares"."campaign_carnage_report" ccr
-                WHERE EXISTS (
-                    SELECT 1 FROM "ares"."campaign_carnage_report_player" ccrp
-                    WHERE ccrp.carnage_report_id = ccr.id
-                    AND ccrp.player_name = '${escapedGamertag}'
-                )
-                AND ccr.finish_time >= '${oneYearAgoStr}'
             ) combined
             GROUP BY DATE(finish_time)
             ORDER BY date ASC

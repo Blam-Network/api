@@ -18,6 +18,7 @@ import { JwtService } from './services/jwt.service';
 import { loggerWithPrefix } from 'src/utils/logger'
 import { AresController } from './controllers/ares.controller';
 import { AresPopulationService } from './services/arespopulation.service';
+import { AresFileShareService } from './services/aresfileshare.service';
 
 @Module({
     imports: [
@@ -41,6 +42,7 @@ import { AresPopulationService } from './services/arespopulation.service';
         HaloReachFileShareService,
         Halo3PopulationService,
         AresPopulationService,
+        AresFileShareService,
         BnetUserService,
         JwtService,
         loggerWithPrefix('BNET'),

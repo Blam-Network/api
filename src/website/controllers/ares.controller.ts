@@ -1,10 +1,12 @@
 import { BadRequestException, Body, Controller, Delete, Get, Header, Headers, Inject, NotFoundException, Param, ParseBoolPipe, ParseIntPipe, Post, Query, Res, StreamableFile, UnauthorizedException } from "@nestjs/common";
 import { ApiHeader, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import { EXAMPLE_XUID } from "src/constants";
+import { EXAMPLE_XUID, HALO3_MAX_ACTIVE_TRANSFERS, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA } from "src/constants";
 import { PrismaService } from "src/db/prisma.service";
 import { Halo3EmblemsService } from "../services/halo3emblems.service";
 import { AresPopulationService } from "../services/arespopulation.service";
+import { AresFileShareService } from "../services/aresfileshare.service";
+import { parseXuid } from "src/xbox/xuid";
 
 @ApiTags('Ares')
 @Controller('/ares')
@@ -14,6 +16,7 @@ export class AresController {
         private readonly prisma: PrismaService,
         private readonly emblemsService: Halo3EmblemsService,
         private readonly populationService: AresPopulationService,
+        private readonly aresFileShareService: AresFileShareService,
     ) { }
 
     @Get('/players/:xuid/servicerecord')
@@ -107,6 +110,72 @@ export class AresController {
             firstPlayed: sr.first_played,
             lastPlayed: sr.last_played,
             gamesCompleted: sr.games_completed,
+        };
+    }
+
+    @Get('/players/by-gamertag/:gamertag/carnage-reports')
+    @ApiParam({ name: 'gamertag' })
+    @ApiOperation({
+        summary: 'List carnage reports for a player (by gamertag)',
+        description:
+            'Paginated multiplayer carnage reports where the player appears, newest first. Matches the Halo 3 list shape for the website Ares UI.',
+    })
+    async listPlayerCarnageReportsByGamertag(
+        @Param('gamertag') gamertag: string,
+        @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 25,
+    ) {
+        const decodedGamertag = decodeURIComponent(gamertag);
+        const skip = (page - 1) * pageSize;
+        const playerFilter = { player_name: decodedGamertag };
+
+        const [total, reports] = await Promise.all([
+            this.prisma.ares_carnage_report.count({
+                where: { carnage_report_player: { some: playerFilter } },
+            }),
+            this.prisma.ares_carnage_report.findMany({
+                where: { carnage_report_player: { some: playerFilter } },
+                orderBy: { finish_time: 'desc' },
+                skip,
+                take: pageSize,
+                select: {
+                    id: true,
+                    map_id: true,
+                    game_id: true,
+                    start_time: true,
+                    finish_time: true,
+                    team_game: true,
+                    map_variant_name: true,
+                    game_variant_unique_id: true,
+                    carnage_report_game_variant: { select: { name: true } },
+                    carnage_report_matchmaking_options: {
+                        select: { hopper_name: true, hopper_identifier: true },
+                    },
+                },
+            }),
+        ]);
+
+        const data = reports.map((r) => ({
+            id: r.id,
+            type: 'multiplayer' as const,
+            map_id: r.map_id,
+            game_id: r.game_id.toString(),
+            start_time: r.start_time,
+            finish_time: r.finish_time,
+            team_game: r.team_game,
+            map_variant_name: r.map_variant_name,
+            game_variant_unique_id: r.game_variant_unique_id.toString(),
+            game_variant_name: r.carnage_report_game_variant?.name ?? null,
+            hopper_name: r.carnage_report_matchmaking_options?.hopper_name ?? null,
+            hopper_identifier: r.carnage_report_matchmaking_options?.hopper_identifier ?? null,
+        }));
+
+        return {
+            data,
+            total,
+            page,
+            pageSize,
+            totalPages: Math.ceil(total / pageSize),
         };
     }
 
@@ -419,6 +488,719 @@ export class AresController {
             game_variant_unique_id: carnageReport.game_variant_unique_id,
             team_game: carnageReport.team_game,
         }
+    }
+
+    @Get('/campaign-carnage-reports/:id')
+    @ApiParam({ name: 'id' })
+    @ApiOperation({
+        summary: 'Get Campaign Carnage Report (Ares)',
+        description: 'Ares does not persist campaign carnage reports; this route exists for API parity with Halo 3.',
+    })
+    async getCampaignCarnageReportAres(@Param('id') _id: string) {
+        throw new NotFoundException('Campaign carnage reports are not available for Ares');
+    }
+
+    @Get('/carnage-reports/:id/related-files')
+    @ApiParam({ name: 'id' })
+    async getRelatedFiles(@Param('id') id: string) {
+        const carnageReport = await this.prisma.ares_carnage_report.findUnique({
+            where: { id },
+            select: { game_id: true },
+        });
+
+        if (!carnageReport) {
+            throw new NotFoundException('Carnage report not found');
+        }
+
+        const gameId = carnageReport.game_id;
+
+        const fileshareFiles = await this.prisma.ares_file_share_file.findMany({
+            where: {
+                game_id: gameId,
+                is_uploaded: true,
+            },
+            orderBy: { date: 'desc' },
+            take: 20,
+            select: {
+                id: true,
+                share_id: true,
+                slot: true,
+                unique_id: true,
+                name: true,
+                description: true,
+                author: true,
+                file_type: true,
+                author_is_xuid_online: true,
+                author_id: true,
+                size_in_bytes: true,
+                date: true,
+                length_seconds: true,
+                campaign_id: true,
+                map_id: true,
+                game_engine_type: true,
+                campaign_difficulty: true,
+                hopper_id: true,
+                game_id: true,
+                campaign_insertion_point: true,
+            },
+        });
+
+        const screenshots = await this.prisma.ares_blind_screenshot.findMany({
+            where: { game_id: gameId },
+            orderBy: { date: 'desc' },
+            take: 20,
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                author: true,
+                date: true,
+            },
+        });
+
+        return {
+            fileshare: fileshareFiles.map((f) => ({
+                id: f.id,
+                uniqueId: String(f.unique_id ?? ''),
+                slotNumber: f.slot,
+                shareId: String(f.share_id),
+                header: {
+                    buildNumber: 0,
+                    mapVersion: 0,
+                    uniqueId: String(f.unique_id ?? ''),
+                    filename: f.name ?? '',
+                    description: f.description ?? '',
+                    author: f.author ?? '',
+                    filetype: f.file_type,
+                    authorXuidIsOnline: !!f.author_is_xuid_online,
+                    authorXuid: f.author_id ? String(f.author_id) : '',
+                    size: Number(f.size_in_bytes ?? 0),
+                    date: f.date?.toISOString() ?? '',
+                    lengthSeconds: f.length_seconds ?? 0,
+                    campaignId: f.campaign_id ?? 0,
+                    mapId: f.map_id ?? 0,
+                    gameEngineType: f.game_engine_type ?? 0,
+                    campaignDifficulty: f.campaign_difficulty ?? 0,
+                    hopperId: f.hopper_id ?? 0,
+                    gameId: f.game_id ? Number(f.game_id) : 0,
+                    campaignInsertionPoint: f.campaign_insertion_point ?? 0,
+                    campaignSurvivalEnabled: false,
+                },
+            })),
+            screenshots: screenshots.map((sc) => ({
+                id: sc.id,
+                header: {
+                    filename: sc.name,
+                    description: sc.description,
+                },
+                author: sc.author,
+                date: sc.date,
+            })),
+        };
+    }
+
+    @Post('/fileshare/transfer')
+    @ApiOperation({
+        summary: 'Create Fileshare Transfer (Ares)',
+        description: 'Creates a fileshare transfer for the logged-in user to download a file.',
+    })
+    @ApiHeader({ name: 'x-xuid', example: EXAMPLE_XUID })
+    async createFileshareTransfer(
+        @Headers('x-xuid') xuid: string,
+        @Body() body: { fileId: string },
+    ) {
+        const fileId = body.fileId;
+        const playerXuid = parseXuid(xuid).toString();
+
+        const file = await this.prisma.ares_file_share_file.findUnique({
+            where: { id: fileId },
+        });
+
+        if (!file) {
+            throw new NotFoundException('File not found');
+        }
+
+        if (!file.is_uploaded) {
+            throw new BadRequestException('File is not yet uploaded');
+        }
+
+        const existingTransfer = await this.prisma.ares_file_share_transfer.findUnique({
+            where: {
+                player_xuid_file_id: {
+                    player_xuid: playerXuid,
+                    file_id: fileId,
+                },
+            },
+        });
+
+        if (existingTransfer) {
+            return { success: true };
+        }
+
+        const transferCount = await this.prisma.ares_file_share_transfer.count({
+            where: { player_xuid: playerXuid },
+        });
+
+        if (transferCount >= HALO3_MAX_ACTIVE_TRANSFERS) {
+            throw new BadRequestException(
+                `You have reached the maximum of ${HALO3_MAX_ACTIVE_TRANSFERS} active transfers. Please complete your transfers by launching Halo 3 on your Xbox 360, or cancel existing transfers before adding new ones.`,
+            );
+        }
+
+        await this.prisma.ares_file_share_transfer.create({
+            data: {
+                player_xuid: playerXuid,
+                file_id: fileId,
+            },
+        });
+
+        this.logger.log(`[Ares FileShare] Transfer created for user ${playerXuid} to file ${fileId}`);
+        return { success: true };
+    }
+
+    @Get('/fileshare/transfers')
+    @ApiOperation({
+        summary: 'Get Pending Fileshare Transfers (Ares)',
+        description: 'Returns a list of pending fileshare transfers for the logged-in user.',
+    })
+    @ApiHeader({ name: 'x-xuid', example: EXAMPLE_XUID })
+    async getPendingTransfers(@Headers('x-xuid') xuid: string) {
+        const playerXuid = parseXuid(xuid).toString();
+
+        const transfers = await this.prisma.ares_file_share_transfer.findMany({
+            where: { player_xuid: playerXuid },
+            include: {
+                file: {
+                    select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                        author: true,
+                        file_type: true,
+                        date: true,
+                        share_id: true,
+                        slot: true,
+                        game_engine_type: true,
+                    },
+                },
+            },
+            orderBy: [{ file: { date: 'desc' } }],
+        });
+
+        return {
+            transfers: transfers.map((t) => ({
+                fileId: t.file_id,
+                fileName: t.file.name,
+                fileDescription: t.file.description,
+                fileAuthor: t.file.author,
+                fileType: t.file.file_type,
+                fileDate: t.file.date,
+                shareId: t.file.share_id.toString(),
+                slot: t.file.slot,
+                gameEngineType: t.file.game_engine_type ?? null,
+            })),
+            maxTransfers: HALO3_MAX_ACTIVE_TRANSFERS,
+        };
+    }
+
+    @Delete('/fileshare/transfers/:fileId')
+    @ApiOperation({
+        summary: 'Delete Fileshare Transfer (Ares)',
+        description: 'Deletes a pending fileshare transfer for the logged-in user.',
+    })
+    @ApiHeader({ name: 'x-xuid', example: EXAMPLE_XUID })
+    @ApiParam({ name: 'fileId' })
+    async deleteTransfer(@Headers('x-xuid') xuid: string, @Param('fileId') fileId: string) {
+        const playerXuid = parseXuid(xuid).toString();
+
+        await this.prisma.ares_file_share_transfer.delete({
+            where: {
+                player_xuid_file_id: {
+                    player_xuid: playerXuid,
+                    file_id: fileId,
+                },
+            },
+        });
+
+        this.logger.log(`[Ares FileShare] Transfer deleted for user ${playerXuid} for file ${fileId}`);
+        return { success: true };
+    }
+
+    @Get('/players/:xuid/screenshots')
+    @ApiParam({ name: 'xuid' })
+    async listPlayerScreenshotsByXuid(@Param('xuid') xuid: string) {
+        const screenshots = await this.prisma.ares_blind_screenshot.findMany({
+            where: { author_id: xuid as any },
+            orderBy: { date: 'desc' },
+            take: 48,
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                author: true,
+                date: true,
+            },
+        });
+        return screenshots.map((sc) => ({
+            id: sc.id,
+            header: {
+                filename: sc.name,
+                description: sc.description,
+            },
+            author: sc.author,
+            date: sc.date,
+        }));
+    }
+
+    @Get('/fileshare/:shareId/:slotId/view')
+    @ApiOperation({
+        summary: 'View Fileshare Screenshot (Ares)',
+        description: 'Returns a JPEG screenshot from Ares fileshare by share ID and slot number.',
+    })
+    @Header('Content-Type', 'image/jpeg')
+    @ApiParam({ name: 'shareId' })
+    @ApiParam({ name: 'slotId' })
+    async viewFileshareScreenshot(@Param('shareId') shareId: string, @Param('slotId') slotId: string) {
+        const slotNumber = parseInt(slotId, 10);
+        return new StreamableFile(
+            Uint8Array.from(await this.aresFileShareService.viewFileshareScreenshot(shareId, slotNumber)),
+            { disposition: 'filename=screenshot.jpg' },
+        );
+    }
+
+    @Get('/players/by-gamertag/:gamertag/screenshots')
+    @ApiParam({ name: 'gamertag' })
+    async listPlayerScreenshotsByGamertag(@Param('gamertag') gamertag: string) {
+        const screenshots = await this.prisma.ares_blind_screenshot.findMany({
+            where: { author: gamertag },
+            orderBy: { date: 'desc' },
+            take: 48,
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                author: true,
+                date: true,
+            },
+        });
+        return screenshots.map((sc) => ({
+            id: sc.id,
+            header: {
+                filename: sc.name,
+                description: sc.description,
+            },
+            author: sc.author,
+            date: sc.date,
+        }));
+    }
+
+    @Get('/players/by-gamertag/:gamertag/fileshare')
+    @ApiParam({ name: 'gamertag' })
+    async listPlayerFileShareByGamertag(@Param('gamertag') gamertag: string) {
+        const sr = await this.prisma.ares_service_record.findFirst({
+            where: { player_name: gamertag },
+            select: { player_xuid: true },
+        });
+        if (!sr?.player_xuid) {
+            return {
+                id: '',
+                ownerId: '',
+                visibleSlots: 0,
+                quotaBytes: HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+                quotaSlots: HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+                subscriptionHash: 0,
+                slots: [],
+            };
+        }
+
+        const shareId = String(sr.player_xuid);
+        const share = await this.prisma.ares_file_share.findUnique({
+            where: { share_id: shareId as any },
+            select: {
+                share_id: true,
+                quota_slots: true,
+                quota_bytes: true,
+                lastHash: true,
+            },
+        });
+
+        const files = await this.prisma.ares_file_share_file.findMany({
+            where: { share_id: shareId as any, is_uploaded: true },
+            orderBy: { slot: 'asc' },
+            select: {
+                id: true,
+                slot: true,
+                unique_id: true,
+                name: true,
+                description: true,
+                author: true,
+                file_type: true,
+                author_is_xuid_online: true,
+                author_id: true,
+                size_in_bytes: true,
+                date: true,
+                length_seconds: true,
+                campaign_id: true,
+                map_id: true,
+                game_engine_type: true,
+                campaign_difficulty: true,
+                hopper_id: true,
+                game_id: true,
+                campaign_insertion_point: true,
+            },
+        });
+
+        return {
+            id: String(share?.share_id ?? shareId),
+            ownerId: String(share?.share_id ?? shareId),
+            visibleSlots: files.length,
+            quotaBytes: share?.quota_bytes ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+            quotaSlots: share?.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
+            subscriptionHash: share?.lastHash ?? 0,
+            slots: files.map((f) => ({
+                id: f.id,
+                uniqueId: String(f.unique_id ?? ''),
+                slotNumber: f.slot,
+                header: {
+                    buildNumber: 0,
+                    mapVersion: 0,
+                    uniqueId: String(f.unique_id ?? ''),
+                    filename: f.name ?? '',
+                    description: f.description ?? '',
+                    author: f.author ?? '',
+                    filetype: f.file_type,
+                    authorXuidIsOnline: !!f.author_is_xuid_online,
+                    authorXuid: f.author_id ? String(f.author_id) : '',
+                    size: Number(f.size_in_bytes ?? 0),
+                    date: f.date?.toISOString() ?? '',
+                    lengthSeconds: f.length_seconds ?? 0,
+                    campaignId: f.campaign_id ?? 0,
+                    mapId: f.map_id ?? 0,
+                    gameEngineType: f.game_engine_type ?? 0,
+                    campaignDifficulty: f.campaign_difficulty ?? 0,
+                    hopperId: f.hopper_id ?? 0,
+                    gameId: f.game_id ? Number(f.game_id) : 0,
+                    campaignInsertionPoint: f.campaign_insertion_point ?? 0,
+                    campaignSurvivalEnabled: false,
+                },
+            })),
+        };
+    }
+
+    @Get('/fileshare/files')
+    @ApiOperation({
+        summary: 'List All Fileshare Files (Ares)',
+        description: 'Returns a paginated list of all Ares fileshare files with optional filtering by file type.',
+    })
+    async listAllFileshareFiles(
+        @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
+        @Query('fileType') fileType?: string,
+    ) {
+        const skip = (page - 1) * pageSize;
+
+        let fileTypes: number[] = [];
+        if (fileType) {
+            switch (fileType) {
+                case 'maps':
+                    fileTypes = [10];
+                    break;
+                case 'gametypes':
+                    fileTypes = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+                    break;
+                case 'films':
+                    fileTypes = [11, 12];
+                    break;
+                case 'screenshots':
+                    fileTypes = [13];
+                    break;
+            }
+        }
+        const fileTypeFilter = fileTypes.length > 0 ? `AND file_type IN (${fileTypes.join(', ')})` : '';
+
+        const filesQuery = `
+            WITH ranked_files AS (
+                SELECT 
+                    id, slot, unique_id, name, description, author, file_type,
+                    author_is_xuid_online, author_id, size_in_bytes, date,
+                    length_seconds, campaign_id, map_id, game_engine_type,
+                    campaign_difficulty, hopper_id, game_id, campaign_insertion_point,
+                    share_id,
+                    ROW_NUMBER() OVER (PARTITION BY unique_id ORDER BY date DESC NULLS LAST) as rn
+                FROM ares.file_share_slot
+                WHERE is_uploaded = true ${fileTypeFilter}
+            )
+            SELECT 
+                id, slot, unique_id, name, description, author, file_type,
+                author_is_xuid_online, author_id, size_in_bytes, date,
+                length_seconds, campaign_id, map_id, game_engine_type,
+                campaign_difficulty, hopper_id, game_id, campaign_insertion_point,
+                share_id
+            FROM ranked_files
+            WHERE rn = 1
+            ORDER BY date DESC NULLS LAST
+            LIMIT ${pageSize} OFFSET ${skip}
+        `;
+
+        const files = await this.prisma.$queryRawUnsafe<
+            Array<{
+                id: string;
+                slot: number;
+                unique_id: bigint;
+                name: string | null;
+                description: string | null;
+                author: string | null;
+                file_type: number;
+                author_is_xuid_online: boolean | null;
+                author_id: bigint | null;
+                size_in_bytes: bigint;
+                date: Date | null;
+                length_seconds: number | null;
+                campaign_id: number | null;
+                map_id: number | null;
+                game_engine_type: number | null;
+                campaign_difficulty: number | null;
+                hopper_id: number | null;
+                game_id: bigint | null;
+                campaign_insertion_point: number | null;
+                share_id: string;
+            }>
+        >(filesQuery);
+
+        const totalQuery = `
+            SELECT COUNT(DISTINCT unique_id) as count
+            FROM ares.file_share_slot
+            WHERE is_uploaded = true ${fileTypeFilter}
+        `;
+        const totalResult = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(totalQuery);
+        const total = Number(totalResult[0]?.count ?? 0);
+
+        return {
+            data: files.map((f) => ({
+                id: f.id,
+                uniqueId: String(f.unique_id ?? ''),
+                slotNumber: f.slot,
+                shareId: f.share_id,
+                header: {
+                    buildNumber: 0,
+                    mapVersion: 0,
+                    uniqueId: String(f.unique_id ?? ''),
+                    filename: f.name ?? '',
+                    description: f.description ?? '',
+                    author: f.author ?? '',
+                    filetype: f.file_type,
+                    authorXuidIsOnline: !!f.author_is_xuid_online,
+                    authorXuid: f.author_id ? String(f.author_id) : '',
+                    size: Number(f.size_in_bytes ?? 0),
+                    date: f.date?.toISOString() ?? '',
+                    lengthSeconds: f.length_seconds ?? 0,
+                    campaignId: f.campaign_id ?? 0,
+                    mapId: f.map_id ?? 0,
+                    gameEngineType: f.game_engine_type ?? 0,
+                    campaignDifficulty: f.campaign_difficulty ?? 0,
+                    hopperId: f.hopper_id ?? 0,
+                    gameId: f.game_id ? Number(f.game_id) : 0,
+                    campaignInsertionPoint: f.campaign_insertion_point ?? 0,
+                    campaignSurvivalEnabled: false,
+                },
+            })),
+            total,
+            page,
+            pageSize,
+            totalPages: Math.ceil(total / pageSize),
+        };
+    }
+
+    @Get('/screenshots')
+    @ApiOperation({
+        summary: 'List Screenshots (Ares)',
+        description: 'Returns paginated screenshots across all users, optionally filtered by gamertag.',
+    })
+    async listScreenshots(
+        @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
+        @Query('gamertag') gamertag?: string,
+    ) {
+        const skip = (page - 1) * pageSize;
+        const where = gamertag ? { author: gamertag } : {};
+
+        const [screenshots, total] = await Promise.all([
+            this.prisma.ares_blind_screenshot.findMany({
+                where,
+                orderBy: { date: 'desc' },
+                skip,
+                take: pageSize,
+                select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    author: true,
+                    date: true,
+                },
+            }),
+            this.prisma.ares_blind_screenshot.count({ where }),
+        ]);
+
+        return {
+            data: screenshots.map((sc) => ({
+                id: sc.id,
+                header: {
+                    filename: sc.name,
+                    description: sc.description,
+                },
+                author: sc.author,
+                date: sc.date,
+            })),
+            total,
+            page,
+            pageSize,
+            totalPages: Math.ceil(total / pageSize),
+        };
+    }
+
+    @Get('/screenshots/:id/view')
+    @ApiOperation({
+        summary: 'View Screenshot (Ares)',
+        description: 'Returns an uploaded Ares JPEG blind screenshot.',
+    })
+    @Header('Content-Type', 'image/jpeg')
+    async viewScreenshot(@Param('id') id: string) {
+        return new StreamableFile(Uint8Array.from(await this.aresFileShareService.viewBlindScreenshot(id)));
+    }
+
+    @Get('/screenshots/:id')
+    @ApiOperation({
+        summary: 'Get Screenshot (Ares)',
+        description: 'Returns metadata for a single screenshot by ID.',
+    })
+    async getScreenshot(@Param('id') id: string) {
+        const screenshot = await this.prisma.ares_blind_screenshot.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                author: true,
+                date: true,
+            },
+        });
+
+        if (!screenshot) {
+            throw new NotFoundException('Screenshot not found');
+        }
+
+        return {
+            id: screenshot.id,
+            header: {
+                filename: screenshot.name,
+                description: screenshot.description,
+            },
+            author: screenshot.author,
+            date: screenshot.date,
+        };
+    }
+
+    @Get('/recent-screenshots')
+    @ApiOperation({
+        summary: 'Get Recent Screenshots (Ares)',
+        description: 'Returns the last 15 screenshots across all users.',
+    })
+    async getRecentScreenshots() {
+        const screenshots = await this.prisma.ares_blind_screenshot.findMany({
+            orderBy: { date: 'desc' },
+            take: 15,
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                author: true,
+                date: true,
+            },
+        });
+        return screenshots.map((sc) => ({
+            id: sc.id,
+            header: {
+                filename: sc.name,
+                description: sc.description,
+            },
+            author: sc.author,
+            date: sc.date,
+        }));
+    }
+
+    @Get('/games')
+    @ApiOperation({
+        summary: 'List Games (Ares)',
+        description: 'Returns paginated multiplayer carnage reports; optional gamertag filter. (No campaign union — Ares has no campaign carnage table.)',
+    })
+    async listGames(
+        @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
+        @Query('gamertag') gamertag?: string,
+    ) {
+        const skip = (page - 1) * pageSize;
+        const where = gamertag
+            ? {
+                  carnage_report_player: {
+                      some: { player_name: gamertag },
+                  },
+              }
+            : {};
+
+        const [total, rows] = await Promise.all([
+            this.prisma.ares_carnage_report.count({ where }),
+            this.prisma.ares_carnage_report.findMany({
+                where,
+                orderBy: { finish_time: 'desc' },
+                skip,
+                take: pageSize,
+                select: {
+                    id: true,
+                    map_id: true,
+                    game_id: true,
+                    start_time: true,
+                    finish_time: true,
+                    team_game: true,
+                    map_variant_name: true,
+                    game_variant_unique_id: true,
+                    carnage_report_game_variant: {
+                        select: { name: true, game_engine: true },
+                    },
+                    carnage_report_matchmaking_options: {
+                        select: { hopper_name: true, hopper_identifier: true },
+                    },
+                    carnage_report_player: {
+                        select: { player_name: true },
+                        take: 1,
+                    },
+                },
+            }),
+        ]);
+
+        const data = rows.map((r) => ({
+            id: r.id,
+            map_id: r.map_id,
+            game_id: r.game_id.toString(),
+            start_time: r.start_time,
+            finish_time: r.finish_time,
+            team_game: r.team_game,
+            map_variant_name: r.map_variant_name,
+            game_variant_unique_id: r.game_variant_unique_id.toString(),
+            game_variant_name: r.carnage_report_game_variant?.name ?? null,
+            game_engine: r.carnage_report_game_variant?.game_engine ?? null,
+            hopper_name: r.carnage_report_matchmaking_options?.hopper_name ?? null,
+            hopper_identifier: r.carnage_report_matchmaking_options?.hopper_identifier ?? null,
+            player_name: r.carnage_report_player[0]?.player_name ?? null,
+            type: 'multiplayer' as const,
+        }));
+
+        return {
+            data,
+            total,
+            page,
+            pageSize,
+            totalPages: Math.ceil(total / pageSize),
+        };
     }
 
     @Get('/nightmap')

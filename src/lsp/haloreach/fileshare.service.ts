@@ -1446,7 +1446,7 @@ export class HaloReachFileShareService {
             HaloReach.v12065.s_blf_chunk_end_of_file,
           ]);
 
-        return fileCatalogSchema.write({
+        return new StreamableFile(fileCatalogSchema.write({
             _blf: {
                 name: 'test',
                 byte_order_mark: 0xfffe,
@@ -1471,6 +1471,6 @@ export class HaloReachFileShareService {
                 file_size: 0,
                 authentication_type: 0,
             }
-        })
+        }));
     }
 }

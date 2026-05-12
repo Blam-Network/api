@@ -1355,13 +1355,8 @@ export class HaloReachFileShareService {
             throw new ServiceUnavailableException();
         }
 
-        if (userXuid !== shareXuid) {
-            this.logger.warn(`[FileShare] User ${userXuid} tried to recommend file ${serverId.toString()} but is not the owner.`);
-            throw new UnauthorizedException();
-        }
-
         const existingFile = await this.prisma.reach_file_share_file.findUnique({
-            where: { id_share_id: { share_id: shareXuid.toString(), id: serverId.toString() } },
+            where: { id: serverId.toString() },
         });
         if (!existingFile) {
             this.logger.warn(`[FileShare] Tried to recommend ${serverId.toString()} but file not found.`);

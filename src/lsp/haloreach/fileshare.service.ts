@@ -672,7 +672,7 @@ export class HaloReachFileShareService {
 
         const fileShareOwnerName = await this.prisma.reach_service_record.findUnique({
             where: {
-                player_xuid: BigInt(file?.share_id.toString()),
+                player_xuid: file?.share_id.toString(),
             },
             select: {
                 player_name: true,

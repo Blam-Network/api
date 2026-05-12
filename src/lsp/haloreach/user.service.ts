@@ -210,7 +210,7 @@ export class HaloReachUserService {
 
             campaign_record_available: true,
             campaign_completed_at: new Date(),
-            campaign_completion_difficulty: 0,
+            campaign_completion_difficulty: serviceRecord?.campaign_progress || 0,
             campaign_enemies_killed: 0,
             campaign_vehicles_destroyed: 0,
             campaign_seconds_played: 0,

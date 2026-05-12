@@ -30,7 +30,7 @@ import { parseBungieHeader } from '../parse-bungie-header.pipe';
 import { hexStringXuidSchema, xuidToHexString } from 'src/xbox/xuid';
 import { z } from 'zod';
 import { UploadService } from '../services/upload.service';
-import { HaloReachFileShareService } from '../haloreach/fileshare.service';
+import { e_predefined_query, HaloReachFileShareService } from '../haloreach/fileshare.service';
 import { HaloReachRewardsService } from '../haloreach/rewards.service';
 import { HaloReachUserService } from '../haloreach/user.service';
 import { HaloReachChallengeService } from '../haloreach/challenge.service';
@@ -335,22 +335,46 @@ export class GameApiOmahaController {
   @Get('/FilesGetPredefinedCount.ashx')
   @ApiTags('File Share')
   @ApiOperation({
-    description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
+    summary: 'Get Halo: Reach Predefined Query Summary',
+    description: 'Returns a predefined query summary for the given user ID and search ID.',
   })
-  async getPredefinedCount() {
-    throw new NotImplementedException();
+  @ApiQuery({ name: 'machineId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'searchID', type: 'number', example: e_predefined_query._predefined_query_most_downloaded_all_time })
+  async getPredefinedCount(
+    @Query('machineId', ParseXUIDPipe) machineId: BigInt,
+    @Query('userId', ParseXUIDPipe) userId: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareId: BigInt,
+    @Query('searchID', ParseIntPipe) searchID: number,
+  ) {
+    return this.fileshareService.getPredefinedQuerySummary(userId, searchID);
   }
   
   @HttpCode(200)
   @Get('/FilesGetPredefinedQuery.ashx')
   @ApiTags('File Share')
   @ApiOperation({
-    description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
+    summary: 'Get Halo: Reach Predefined Query',
+    description: 'Returns file share file listing for a predefined search.',
   })
-  async getPredefinedQuery() {
-    throw new NotImplementedException();
+  @ApiQuery({ name: 'machineId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'searchID', type: 'number', example: e_predefined_query._predefined_query_most_downloaded_all_time })
+  @ApiQuery({ name: 'fileType', type: 'number', example: 5 })
+  @ApiQuery({ name: 'page', type: 'number', example: 0 })
+  @ApiQuery({ name: 'locale', example: 'en' })
+  async getPredefinedQuery(
+    @Query('machineId', ParseXUIDPipe) machineId: BigInt,
+    @Query('userId', ParseXUIDPipe) userId: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareId: BigInt,
+    @Query('searchID', ParseIntPipe) searchID: number,
+    @Query('fileType', ParseIntPipe) fileType: number,
+    @Query('page', ParseIntPipe) page: number,
+    @Query('locale', new DefaultValuePipe('en')) locale,
+  ) {
+    return this.fileshareService.getPredefinedQuery(userId, shareId, searchID, fileType, page, locale);
   }
 
   @HttpCode(200)

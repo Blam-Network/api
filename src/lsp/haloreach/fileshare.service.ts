@@ -1793,7 +1793,10 @@ export class HaloReachFileShareService {
             case e_predefined_query._predefined_query_recently_uploaded: {
                 const recentlyUploadedFiles = await this.prisma.reach_file_share_file.findMany({
                     orderBy: {
-                        created_at: 'desc',
+                        uploaded_at: 'desc',
+                    },
+                    where: {
+                        is_uploaded: true,
                     },
                     take: 100,
                     skip: page * 100,

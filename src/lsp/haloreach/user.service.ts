@@ -124,6 +124,12 @@ export class HaloReachUserService {
     }
 
     public getServiceRecord = async (xuid: BigInt): Promise<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record> => {
+        const serviceRecord = await this.prisma.reach_service_record.findUnique({
+            where: {
+                player_xuid: xuid.toString(),
+            },
+        })
+
         const playerRewards = await this.prisma.reach_player_rewards.findUnique({
             where: {
                 player_xuid: xuid.toString(),
@@ -184,20 +190,19 @@ export class HaloReachUserService {
         );
 
         return {
-            player_name: '',
+            player_name: serviceRecord?.player_name || '',
             player_info_available: true,
-            player_model_choice: 0,
-            armour_primary_color: 0,
-            armour_secondary_color: 0,
-            armour_tertiary_color: 0,
-            emblem_primary: 0,
-            emblem_background: 0,
-            emblem_secondary: false,
-            emblem_primary_color: 0,
-            emblem_secondary_color: 0,
-            emblem_background_color: 0,
-            service_tag: '',
-            
+            player_model_choice: serviceRecord?.player_model_choice || 0,
+            armour_primary_color: serviceRecord?.armour_primary_color || 0,
+            armour_secondary_color: serviceRecord?.armour_secondary_color || 0,
+            armour_tertiary_color: serviceRecord?.armour_tertiary_color || 0,
+            emblem_primary: serviceRecord?.emblem_primary || 0,
+            emblem_background: serviceRecord?.emblem_background || 0,
+            emblem_secondary: serviceRecord?.emblem_secondary || false,
+            emblem_primary_color: serviceRecord?.emblem_primary_color || 0,
+            emblem_secondary_color: serviceRecord?.emblem_secondary_color || 0,
+            emblem_background_color: serviceRecord?.emblem_background_color || 0,
+            service_tag: serviceRecord?.service_tag || '',
             credits_available: true,
             credits: playerRewards?.credits || 0,
 

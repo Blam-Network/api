@@ -93,8 +93,12 @@ export class HaloReachFileShareService {
         private readonly uploadService: UploadService,
     ) { }
 
-    private generateRandomU64(): bigint {
-        return BigInt(`0x${randomBytes(8).toString('hex')}`);
+    private generateRandomI64(): bigint {
+        let v = BigInt(`0x${randomBytes(8).toString('hex')}`);
+        if (v < 0) {
+            v = -v;
+        }
+        return v;
     }
 
     private applyDebugMime = (file: Express.Multer.File) => {
@@ -438,7 +442,7 @@ export class HaloReachFileShareService {
                 throw new BadRequestException("This file is too large to store.");
             }
 
-            const serverId = this.generateRandomU64();
+            const serverId = this.generateRandomI64();
             const fileShareSlot = await tx.reach_file_share_file.create({
                 data: {
                     id: serverId.toString(),

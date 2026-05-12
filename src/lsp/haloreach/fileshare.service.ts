@@ -549,7 +549,6 @@ export class HaloReachFileShareService {
             return new ServiceUnavailableException();
         }
 
-        const fileShare = await this.getFileShare(viewerXuid, shareXuid);
         const file = await this.prisma.reach_file_share_file.findUnique({
             where: {
                 // id_share_id: {
@@ -564,6 +563,8 @@ export class HaloReachFileShareService {
         if (!file) {
             return null;
         }
+
+        const fileShare = await this.getFileShare(viewerXuid, BigInt(file?.share_id.toString()));
 
         const s_online_file_general_metadata = (tagCount: number) => c.createCStruct({pack: 1, endian: 'big', fields: [
             { name: 'id', type: 'u64' }, // probs unique id
@@ -671,7 +672,7 @@ export class HaloReachFileShareService {
 
         const fileShareOwnerName = await this.prisma.reach_service_record.findUnique({
             where: {
-                player_xuid: shareXuid.toString(),
+                player_xuid: BigInt(file?.share_id.toString()),
             },
             select: {
                 player_name: true,
@@ -685,7 +686,7 @@ export class HaloReachFileShareService {
             },
             fitm: {
                 online_file_listing: {
-                    xuid: shareXuid.valueOf(),
+                    xuid: BigInt(file?.share_id.toString()).valueOf(),
                     gamertag: fileShareOwnerName?.player_name ?? '',
                     unknown16: 0,
                     unknown17: 0,

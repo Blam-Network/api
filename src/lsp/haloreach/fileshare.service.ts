@@ -506,6 +506,7 @@ export class HaloReachFileShareService {
                 share_id: shareXuid.toString(),
                 compressed_size: file.buffer.length,
                 is_uploaded: true,
+                uploaded_at: new Date(),
 
                 unique_id: contentHeader.metadata.unique_id.toString(),
                 file_type: contentHeader.metadata.file_type,
@@ -1132,6 +1133,31 @@ export class HaloReachFileShareService {
         try {
             await access(filePath);
             const size = (await stat(filePath)).size;
+
+            const fileId = serverId.toString();
+            const playerId = downloaderXuid.toString();
+            try {
+                await this.prisma.$transaction(async (tx) => {
+                    await tx.reach_file_share_file_download.deleteMany({
+                        where: {
+                            file_id: fileId,
+                            player_id: playerId,
+                        },
+                    });
+                    await tx.reach_file_share_file_download.create({
+                        data: {
+                            file_id: fileId,
+                            player_id: playerId,
+                            downloaded_at: new Date(),
+                        },
+                    });
+                });
+            } catch (err) {
+                this.logger.warn(
+                    `[FileShare] Failed to record download for file ${serverIdToString(serverId)} player ${playerId}: ${String(err)}`,
+                );
+            }
+
             return {
                 stream: createReadStream(filePath, {
                     start: startPosition
@@ -1318,10 +1344,28 @@ export class HaloReachFileShareService {
             throw new UnauthorizedException();
         }
 
-        await this.prisma.reach_file_share_file.update({
+        const existingFile = await this.prisma.reach_file_share_file.findUnique({
             where: { id_share_id: { share_id: shareXuid.toString(), id: serverId.toString() } },
-            data: {
-                recommended_to_friends_at: new Date(),
+        });
+        if (!existingFile) {
+            this.logger.warn(`[FileShare] Tried to recommend ${serverId.toString()} but file not found.`);
+            throw new NotFoundException('File not found');
+        }
+
+        await this.prisma.reach_file_share_file_recommendation.upsert({
+            where: {
+                file_id_player_id: {
+                    file_id: serverId.toString(),
+                    player_id: userXuid.toString(),
+                },
+            },
+            create: {
+                file_id: serverId.toString(),
+                player_id: userXuid.toString(),
+                recommended_at: new Date(),
+            },
+            update: {
+                recommended_at: new Date(),
             },
         });
 
@@ -1338,18 +1382,40 @@ export class HaloReachFileShareService {
             return new ServiceUnavailableException();
         }
 
-        const fileShareFiles = await this.prisma.reach_file_share_file.findMany({
-            where: {
-                recommended_to_friends_at: {
-                    not: null,
+        const maxUniqueFiles = 100;
+        // Fetch more rows than the cap: many rows can refer to the same file (different recommenders).
+        const recommendationRows =
+            await this.prisma.reach_file_share_file_recommendation.findMany({
+                where: {
+                    file: {
+                        is_uploaded: true,
+                    },
+                    player_id: {
+                        in: friendsList.map((friend) => friend.toString()),
+                    },
                 },
-                is_uploaded: true,
-            },
-            orderBy: {
-                recommended_to_friends_at: 'desc',
-            },
-            take: 100,
-        });
+                orderBy: {
+                    recommended_at: 'desc',
+                },
+                include: {
+                    file: true,
+                },
+                take: Math.min(2500, 50 * Math.max(1, friendsList.length)),
+            });
+
+        const seenFileIds = new Set<string>();
+        const fileShareFiles: (typeof recommendationRows)[number]['file'][] = [];
+        for (const row of recommendationRows) {
+            const fid = row.file_id.toString();
+            if (seenFileIds.has(fid)) {
+                continue;
+            }
+            seenFileIds.add(fid);
+            fileShareFiles.push(row.file);
+            if (fileShareFiles.length >= maxUniqueFiles) {
+                break;
+            }
+        }
 
         let listing_entries: c.infer<typeof HaloReach.v12065.s_online_file_metadata>[] = [];
 

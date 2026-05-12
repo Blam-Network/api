@@ -40,6 +40,7 @@ import { ParseBigIntPipe } from 'src/utils/parse-big-int.pipe';
 import { HaloReach } from '../blf';
 import { Response } from 'express';
 import { PrismaService } from 'src/db/prisma.service';
+import { find_chunk_in_file } from 'src/blf/helpers';
 
 const FILESHARE_BETA_MESSAGE = "Halo Reach File Share support is in alpha. Your files may be lost."
 
@@ -395,10 +396,34 @@ export class GameApiOmahaController {
     @Query('shareId', ParseXUIDPipe) shareId: BigInt,
     @UploadedFile() upload: Express.Multer.File | undefined,
   ) {
-    // Uploads an ilds 1.1 chunk which is a list of friend XUIDs
+    // Uploads an idls 1.1 chunk which is a list of friend XUIDs
     if (!upload) throw new BadRequestException();
 
-    return this.fileshareService.viewRecommendations(userId, []);
+    // TODO: move to blf_lsp
+    const friends_count = find_chunk_in_file(upload.buffer, blf.createChunkSchema({
+      name: 'idls',
+      majorVersion: 1,
+      minorVersion: 1,
+      endian: 'big',
+      pack: 1,
+      fields: [ { name: 'friend_count', type: 'u32' } ],
+    }))?.friend_count ?? 0;
+
+    const idls = blf.createChunkSchema({
+      name: 'idls',
+      majorVersion: 1,
+      minorVersion: 1,
+      endian: 'big',
+      pack: 1,
+      fields: [
+        { name: 'friend_count', type: 'u32' },
+        { name: 'friend_xuid', type: 'u64', count: friends_count },
+      ],
+    });
+
+    const friends = find_chunk_in_file(upload.buffer, idls)?.friend_xuid ?? [];
+
+    return this.fileshareService.viewRecommendations(userId, friends);
   }
 
   @HttpCode(200)

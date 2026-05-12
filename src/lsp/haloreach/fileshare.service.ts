@@ -552,10 +552,11 @@ export class HaloReachFileShareService {
         const fileShare = await this.getFileShare(viewerXuid, shareXuid);
         const file = await this.prisma.reach_file_share_file.findUnique({
             where: {
-                id_share_id: {
-                    id: serverId.toString(),
-                    share_id: shareXuid.toString(),
-                },
+                // id_share_id: {
+                //     id: serverId.toString(),
+                //     share_id: shareXuid.toString(),
+                // },
+                id: serverId.toString(),
                 is_uploaded: true,
             }
         });
@@ -1068,7 +1069,7 @@ export class HaloReachFileShareService {
     public stageDownload = async (
         machineId: BigInt,
         downloaderXuid: BigInt,
-        shareXuid: BigInt,
+        shareXuid: BigInt, // annoyingly, this isnt the share ID of the file you're downloading, because bungie are fucktards sometimes
         serverId: BigInt,
         startPosition: number,
         fromAutoqueue: number,
@@ -1081,10 +1082,12 @@ export class HaloReachFileShareService {
 
         const fileShareSlot = await this.prisma.reach_file_share_file.findUnique({
             where: {
-                id_share_id: {
-                    id: serverId.toString(),
-                    share_id: shareXuid.toString(),
-                }
+                id: serverId.toString(),
+                is_uploaded: true,
+                // id_share_id: {
+                //     id: serverId.toString(),
+                //     share_id: shareXuid.toString(),
+                // }
             }
         });
 
@@ -1339,6 +1342,7 @@ export class HaloReachFileShareService {
                 recommended_to_friends_at: {
                     not: null,
                 },
+                is_uploaded: true,
             },
             orderBy: {
                 recommended_to_friends_at: 'desc',
@@ -1357,7 +1361,7 @@ export class HaloReachFileShareService {
 
             for (const file of fileShareFiles) {
                 try {
-                    // await access(join(fileshareFolder, BigInt(file.id.toString()).toString(16).padStart(16, '0')))
+                    await access(join(fileshareFolder, BigInt(file.id.toString()).toString(16).padStart(16, '0')))
 
                     const entry: c.infer<typeof HaloReach.v12065.s_online_file_metadata> = {
                         general: {

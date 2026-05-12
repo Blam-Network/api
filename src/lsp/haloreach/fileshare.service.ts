@@ -634,7 +634,7 @@ export class HaloReachFileShareService {
             const screenshot = await readFile(join(
                 process.cwd(),
                 HALOREACH_FILESHARE_FOLDER,
-                xuidToHexString(shareXuid),
+                xuidToHexString(BigInt(file.share_id.toString())),
                 serverId.toString(16).padStart(16, '0'),
             ));
 
@@ -1097,7 +1097,7 @@ export class HaloReachFileShareService {
 
         const downloadParams = new URLSearchParams({
             userId: xuidToHexString(downloaderXuid),
-            shareId: xuidToHexString(shareXuid),
+            shareId: xuidToHexString(BigInt(fileShareSlot.share_id.toString())),
             startPosition: startPosition.toString(),
             serverId: serverIdToString(serverId),
         });

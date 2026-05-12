@@ -1353,14 +1353,14 @@ export class HaloReachFileShareService {
         let listing_entries: c.infer<typeof HaloReach.v12065.s_online_file_metadata>[] = [];
 
         if (fileShareFiles) {
-            const fileshareFolder = join(
-                process.cwd(),
-                HALOREACH_FILESHARE_FOLDER,
-                xuidToHexString(viewerXuid),
-            );
-
             for (const file of fileShareFiles) {
                 try {
+                    const fileshareFolder = join(
+                        process.cwd(),
+                        HALOREACH_FILESHARE_FOLDER,
+                        xuidToHexString(BigInt(file.share_id.toString())),
+                    );
+
                     await access(join(fileshareFolder, BigInt(file.id.toString()).toString(16).padStart(16, '0')))
 
                     const entry: c.infer<typeof HaloReach.v12065.s_online_file_metadata> = {

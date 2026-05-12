@@ -1325,4 +1325,152 @@ export class HaloReachFileShareService {
             success: true,
         };
     }
+
+    public viewRecommendations = async (
+        viewerXuid: BigInt,
+        friendsList: BigInt[],
+    ) => {
+        if (!IS_FILESHARE_ENABLED) {
+            return new ServiceUnavailableException();
+        }
+
+        const fileShareFiles = await this.prisma.reach_file_share_file.findMany({
+            where: {
+                recommended_to_friends_at: {
+                    not: null,
+                },
+            },
+            orderBy: {
+                recommended_to_friends_at: 'desc',
+            },
+            take: 100,
+        });
+
+        let listing_entries: c.infer<typeof HaloReach.v12065.s_online_file_metadata>[] = [];
+
+        if (fileShareFiles) {
+            const fileshareFolder = join(
+                process.cwd(),
+                HALOREACH_FILESHARE_FOLDER,
+                xuidToHexString(viewerXuid),
+            );
+
+            for (const file of fileShareFiles) {
+                try {
+                    // await access(join(fileshareFolder, BigInt(file.id.toString()).toString(16).padStart(16, '0')))
+
+                    const entry: c.infer<typeof HaloReach.v12065.s_online_file_metadata> = {
+                        general: {
+                            id: BigInt(file.id.toString()),
+                            file_type: file.file_type ?? 0,
+                            tag_count: 0,
+                            megalo_category_index: file.megalo_category_index ?? 0,
+                            size_in_bytes: file.size_in_bytes?.toNumber() ?? 0,
+                            activity: file.activity ?? 0,
+                            game_mode: file.game_mode ?? 0,
+                            game_engine_type: file.game_engine_type ?? 0,
+                            unknown3: [0, 0, 0, 0, 0, 0, 0, 0],
+                            map_id: file.map_id ?? 0,
+                        },
+                        created: {
+                            timestamp: file.created_at ?? new Date(),
+                            xuid: 0n,
+                            name: file.creator_name ?? '',
+                            is_online: file.creator_is_xuid_online ? 1 : 0,
+                        },
+                        modified: {
+                            timestamp: file.modified_at ?? new Date(),
+                            xuid: 0n,
+                            name: file.modifier_name ?? '',
+                            is_online: file.modifier_is_xuid_online ? 1 : 0,
+                        },
+                        name: file.name ?? '',
+                        description: file.description ?? '',
+                        game_variant_or_film: file.file_type == 3 ? {
+                            film: {
+                                seconds: file.length_seconds ?? 0,
+                            },
+                        } : file.file_type == 6 ? {
+                            game_variant: {
+                                icon_index: file.icon_index ?? 0,
+                            },
+                        } : {
+                            pad: {}
+                        },
+                        matchmaking: file.activity == 3 ? {
+                            metadata: {
+                                hopper_identifier: file.hopper_identifier ?? 0,
+                            },
+                        } : {
+                            pad: {}
+                        },
+                        campaign_or_firefight: file.game_mode == 1 ? {
+                            campaign: {
+                                campaign_id: file.campaign_id ?? 0,
+                                campaign_difficulty: file.campaign_difficulty ?? 0,
+                                campaign_metagame_scoring: file.campaign_metagame_scoring ?? 0,
+                                campaign_insertion_point: file.campaign_insertion_point ?? 0,
+                                campaign_primary_skulls: file.campaign_primary_skulls ?? 0,
+                                campaign_secondary_skulls: file.campaign_secondary_skulls ?? 0,
+                            },
+                        } : file.activity == 2 ? {
+                            firefight: {
+                                firefight_difficulty: file.firefight_difficulty ?? 0,
+                                firefight_primary_skulls: file.firefight_primary_skulls ?? 0,
+                                firefight_secondary_skulls: file.firefight_secondary_skulls ?? 0,
+                            },
+                        } : {
+                            pad: {}
+                        },
+                        screenshot_length: 0,
+                    };
+                    listing_entries.push(entry);
+                } catch (err) {
+                    this.logger.error(`[FileShare] Failed to access file, share ${xuidToHexString(BigInt(file.share_id.toString()))}, file ${serverIdToString(file.id)}`);
+                }
+            }
+        }
+
+        const fileCatalogSchema = blf.createFileSchema([
+            HaloReach.v12065.s_blf_chunk_start_of_file,
+            blf.createChunkSchema({
+                name: 'fitm',
+                majorVersion: 4,
+                minorVersion: 0,
+                endian: 'big',
+                pack: 1,
+                fields: [
+                    { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(listing_entries.length, 0) },
+                ],
+            }),
+            HaloReach.v12065.s_blf_chunk_end_of_file,
+          ]);
+
+        return fileCatalogSchema.write({
+            _blf: {
+                name: 'test',
+                byte_order_mark: 0xfffe,
+            },
+            fitm: {
+                online_file_listing: {
+                    xuid: viewerXuid.valueOf(),
+                    gamertag: 'Recommendations',
+                    unknown16: 1,
+                    unknown17: 2,
+                    unknown18: 3,
+                    unknown19: 4,
+                    quota_byte_count: HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
+                    quota_slot_count: 100,
+                    slot_count: listing_entries.length,
+                    message_length: 0,
+                    entries: listing_entries,
+                    message: '',
+                }
+            },
+            _eof: {
+                file_size: 0,
+                authentication_type: 0,
+            }
+        })
+    }
 }

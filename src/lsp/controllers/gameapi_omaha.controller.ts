@@ -398,7 +398,7 @@ export class GameApiOmahaController {
     // Uploads an ilds 1.1 chunk which is a list of friend XUIDs
     if (!upload) throw new BadRequestException();
 
-    return this.fileshareService.viewFileShare(userId, shareId, 'en');
+    return this.fileshareService.viewRecommendations(userId, []);
   }
 
   @HttpCode(200)

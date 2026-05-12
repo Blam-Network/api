@@ -4,7 +4,7 @@ import * as BLF from '@blam-network/blf_lsp'
 import { PrismaService } from "src/db/prisma.service";
 import { access, mkdir, readFile, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
-import { FILESHARE_FOLDER, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA, HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA, HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA, SCREENSHOTS_FOLDER } from "../../constants";
+import { FILESHARE_FOLDER, HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA, HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA, SCREENSHOTS_FOLDER } from "../../constants";
 import dedent from "dedent";
 import { h32 } from 'xxhashjs';
 import { DiscordWebhookService } from "../services/discordwebhook.service";
@@ -38,6 +38,18 @@ const SHAREDFILE_MIME = 'application/x-reach-sharedfile'
 
 const ENABLE_DEBUG_MIME = true;
 const DEBUG_MIME = SHAREDFILE_MIME
+
+export enum e_predefined_query {
+    _predefined_query_most_downloaded = 12,
+    _predefined_query_most_recommended = 13,
+    _predefined_query_screenshots_of_you = 14,
+    // Blam Network
+    _predefined_query_most_downloaded_all_time = 15,
+    _predefined_query_most_recommended_all_time = 16,
+    _predefined_query_recently_uploaded = 17,
+    _predefined_query_recently_downloaded = 18,
+    _predefined_query_bungie_favorites = 19,
+}
 
 const OFFER_IDS = {
 }
@@ -93,8 +105,12 @@ export class HaloReachFileShareService {
         private readonly uploadService: UploadService,
     ) { }
 
-    private generateRandomU64(): bigint {
-        return BigInt(`0x${randomBytes(8).toString('hex')}`);
+    private generateRandomI64(): bigint {
+        let v = BigInt(`0x${randomBytes(8).toString('hex')}`);
+        if (v < 0) {
+            v = -v;
+        }
+        return v;
     }
 
     private applyDebugMime = (file: Express.Multer.File) => {
@@ -438,7 +454,7 @@ export class HaloReachFileShareService {
                 throw new BadRequestException("This file is too large to store.");
             }
 
-            const serverId = this.generateRandomU64();
+            const serverId = this.generateRandomI64();
             const fileShareSlot = await tx.reach_file_share_file.create({
                 data: {
                     id: serverId.toString(),
@@ -506,6 +522,7 @@ export class HaloReachFileShareService {
                 share_id: shareXuid.toString(),
                 compressed_size: file.buffer.length,
                 is_uploaded: true,
+                uploaded_at: new Date(),
 
                 unique_id: contentHeader.metadata.unique_id.toString(),
                 file_type: contentHeader.metadata.file_type,
@@ -549,13 +566,13 @@ export class HaloReachFileShareService {
             return new ServiceUnavailableException();
         }
 
-        const fileShare = await this.getFileShare(viewerXuid, shareXuid);
         const file = await this.prisma.reach_file_share_file.findUnique({
             where: {
-                id_share_id: {
-                    id: serverId.toString(),
-                    share_id: shareXuid.toString(),
-                },
+                // id_share_id: {
+                //     id: serverId.toString(),
+                //     share_id: shareXuid.toString(),
+                // },
+                id: serverId.toString(),
                 is_uploaded: true,
             }
         });
@@ -563,6 +580,8 @@ export class HaloReachFileShareService {
         if (!file) {
             return null;
         }
+
+        const fileShare = await this.getFileShare(viewerXuid, BigInt(file?.share_id.toString()));
 
         const s_online_file_general_metadata = (tagCount: number) => c.createCStruct({pack: 1, endian: 'big', fields: [
             { name: 'id', type: 'u64' }, // probs unique id
@@ -633,7 +652,7 @@ export class HaloReachFileShareService {
             const screenshot = await readFile(join(
                 process.cwd(),
                 HALOREACH_FILESHARE_FOLDER,
-                xuidToHexString(shareXuid),
+                xuidToHexString(BigInt(file.share_id.toString())),
                 serverId.toString(16).padStart(16, '0'),
             ));
 
@@ -670,7 +689,7 @@ export class HaloReachFileShareService {
 
         const fileShareOwnerName = await this.prisma.reach_service_record.findUnique({
             where: {
-                player_xuid: shareXuid.toString(),
+                player_xuid: file?.share_id.toString(),
             },
             select: {
                 player_name: true,
@@ -684,7 +703,7 @@ export class HaloReachFileShareService {
             },
             fitm: {
                 online_file_listing: {
-                    xuid: shareXuid.valueOf(),
+                    xuid: BigInt(file?.share_id.toString()).valueOf(),
                     gamertag: fileShareOwnerName?.player_name ?? '',
                     unknown16: 0,
                     unknown17: 0,
@@ -1068,7 +1087,7 @@ export class HaloReachFileShareService {
     public stageDownload = async (
         machineId: BigInt,
         downloaderXuid: BigInt,
-        shareXuid: BigInt,
+        shareXuid: BigInt, // annoyingly, this isnt the share ID of the file you're downloading, because bungie are fucktards sometimes
         serverId: BigInt,
         startPosition: number,
         fromAutoqueue: number,
@@ -1081,10 +1100,12 @@ export class HaloReachFileShareService {
 
         const fileShareSlot = await this.prisma.reach_file_share_file.findUnique({
             where: {
-                id_share_id: {
-                    id: serverId.toString(),
-                    share_id: shareXuid.toString(),
-                }
+                id: serverId.toString(),
+                is_uploaded: true,
+                // id_share_id: {
+                //     id: serverId.toString(),
+                //     share_id: shareXuid.toString(),
+                // }
             }
         });
 
@@ -1094,7 +1115,7 @@ export class HaloReachFileShareService {
 
         const downloadParams = new URLSearchParams({
             userId: xuidToHexString(downloaderXuid),
-            shareId: xuidToHexString(shareXuid),
+            shareId: xuidToHexString(BigInt(fileShareSlot.share_id.toString())),
             startPosition: startPosition.toString(),
             serverId: serverIdToString(serverId),
         });
@@ -1128,6 +1149,31 @@ export class HaloReachFileShareService {
         try {
             await access(filePath);
             const size = (await stat(filePath)).size;
+
+            const fileId = serverId.toString();
+            const playerId = downloaderXuid.toString();
+            try {
+                await this.prisma.$transaction(async (tx) => {
+                    await tx.reach_file_share_file_download.deleteMany({
+                        where: {
+                            file_id: fileId,
+                            player_id: playerId,
+                        },
+                    });
+                    await tx.reach_file_share_file_download.create({
+                        data: {
+                            file_id: fileId,
+                            player_id: playerId,
+                            downloaded_at: new Date(),
+                        },
+                    });
+                });
+            } catch (err) {
+                this.logger.warn(
+                    `[FileShare] Failed to record download for file ${serverIdToString(serverId)} player ${playerId}: ${String(err)}`,
+                );
+            }
+
             return {
                 stream: createReadStream(filePath, {
                     start: startPosition
@@ -1309,20 +1355,610 @@ export class HaloReachFileShareService {
             throw new ServiceUnavailableException();
         }
 
-        if (userXuid !== shareXuid) {
-            this.logger.warn(`[FileShare] User ${userXuid} tried to recommend file ${serverId.toString()} but is not the owner.`);
-            throw new UnauthorizedException();
+        const existingFile = await this.prisma.reach_file_share_file.findUnique({
+            where: { id: serverId.toString() },
+        });
+        if (!existingFile) {
+            this.logger.warn(`[FileShare] Tried to recommend ${serverId.toString()} but file not found.`);
+            throw new NotFoundException('File not found');
         }
 
-        await this.prisma.reach_file_share_file.update({
-            where: { id_share_id: { share_id: shareXuid.toString(), id: serverId.toString() } },
-            data: {
-                recommended_to_friends_at: new Date(),
+        await this.prisma.reach_file_share_file_recommendation.upsert({
+            where: {
+                file_id_player_id: {
+                    file_id: serverId.toString(),
+                    player_id: userXuid.toString(),
+                },
+            },
+            create: {
+                file_id: serverId.toString(),
+                player_id: userXuid.toString(),
+                recommended_at: new Date(),
+            },
+            update: {
+                recommended_at: new Date(),
             },
         });
 
         return {
             success: true,
         };
+    }
+
+    public viewRecommendations = async (
+        viewerXuid: BigInt,
+        friendsList: BigInt[],
+    ) => {
+        if (!IS_FILESHARE_ENABLED) {
+            return new ServiceUnavailableException();
+        }
+
+        const maxUniqueFiles = 100;
+        // Fetch more rows than the cap: many rows can refer to the same file (different recommenders).
+        const recommendationRows =
+            await this.prisma.reach_file_share_file_recommendation.findMany({
+                where: {
+                    file: {
+                        is_uploaded: true,
+                    },
+                    player_id: {
+                        in: friendsList.map((friend) => friend.toString()),
+                    },
+                },
+                orderBy: {
+                    recommended_at: 'desc',
+                },
+                include: {
+                    file: true,
+                },
+                take: Math.min(2500, 50 * Math.max(1, friendsList.length)),
+            });
+
+        const seenFileIds = new Set<string>();
+        const fileShareFiles: (typeof recommendationRows)[number]['file'][] = [];
+        for (const row of recommendationRows) {
+            const fid = row.file_id.toString();
+            if (seenFileIds.has(fid)) {
+                continue;
+            }
+            seenFileIds.add(fid);
+            fileShareFiles.push(row.file);
+            if (fileShareFiles.length >= maxUniqueFiles) {
+                break;
+            }
+        }
+
+        let listing_entries: c.infer<typeof HaloReach.v12065.s_online_file_metadata>[] = [];
+
+        if (fileShareFiles) {
+            for (const file of fileShareFiles) {
+                try {
+                    const fileshareFolder = join(
+                        process.cwd(),
+                        HALOREACH_FILESHARE_FOLDER,
+                        xuidToHexString(BigInt(file.share_id.toString())),
+                    );
+
+                    await access(join(fileshareFolder, BigInt(file.id.toString()).toString(16).padStart(16, '0')))
+
+                    const entry: c.infer<typeof HaloReach.v12065.s_online_file_metadata> = {
+                        general: {
+                            id: BigInt(file.id.toString()),
+                            file_type: file.file_type ?? 0,
+                            tag_count: 0,
+                            megalo_category_index: file.megalo_category_index ?? 0,
+                            size_in_bytes: file.size_in_bytes?.toNumber() ?? 0,
+                            activity: file.activity ?? 0,
+                            game_mode: file.game_mode ?? 0,
+                            game_engine_type: file.game_engine_type ?? 0,
+                            unknown3: [0, 0, 0, 0, 0, 0, 0, 0],
+                            map_id: file.map_id ?? 0,
+                        },
+                        created: {
+                            timestamp: file.created_at ?? new Date(),
+                            xuid: 0n,
+                            name: file.creator_name ?? '',
+                            is_online: file.creator_is_xuid_online ? 1 : 0,
+                        },
+                        modified: {
+                            timestamp: file.modified_at ?? new Date(),
+                            xuid: 0n,
+                            name: file.modifier_name ?? '',
+                            is_online: file.modifier_is_xuid_online ? 1 : 0,
+                        },
+                        name: file.name ?? '',
+                        description: file.description ?? '',
+                        game_variant_or_film: file.file_type == 3 ? {
+                            film: {
+                                seconds: file.length_seconds ?? 0,
+                            },
+                        } : file.file_type == 6 ? {
+                            game_variant: {
+                                icon_index: file.icon_index ?? 0,
+                            },
+                        } : {
+                            pad: {}
+                        },
+                        matchmaking: file.activity == 3 ? {
+                            metadata: {
+                                hopper_identifier: file.hopper_identifier ?? 0,
+                            },
+                        } : {
+                            pad: {}
+                        },
+                        campaign_or_firefight: file.game_mode == 1 ? {
+                            campaign: {
+                                campaign_id: file.campaign_id ?? 0,
+                                campaign_difficulty: file.campaign_difficulty ?? 0,
+                                campaign_metagame_scoring: file.campaign_metagame_scoring ?? 0,
+                                campaign_insertion_point: file.campaign_insertion_point ?? 0,
+                                campaign_primary_skulls: file.campaign_primary_skulls ?? 0,
+                                campaign_secondary_skulls: file.campaign_secondary_skulls ?? 0,
+                            },
+                        } : file.activity == 2 ? {
+                            firefight: {
+                                firefight_difficulty: file.firefight_difficulty ?? 0,
+                                firefight_primary_skulls: file.firefight_primary_skulls ?? 0,
+                                firefight_secondary_skulls: file.firefight_secondary_skulls ?? 0,
+                            },
+                        } : {
+                            pad: {}
+                        },
+                        screenshot_length: 0,
+                    };
+                    listing_entries.push(entry);
+                } catch (err) {
+                    this.logger.error(`[FileShare] Failed to access file, share ${xuidToHexString(BigInt(file.share_id.toString()))}, file ${serverIdToString(file.id)}`);
+                }
+            }
+        }
+
+        const fileCatalogSchema = blf.createFileSchema([
+            HaloReach.v12065.s_blf_chunk_start_of_file,
+            blf.createChunkSchema({
+                name: 'fitm',
+                majorVersion: 4,
+                minorVersion: 0,
+                endian: 'big',
+                pack: 1,
+                fields: [
+                    { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(listing_entries.length, 0) },
+                ],
+            }),
+            HaloReach.v12065.s_blf_chunk_end_of_file,
+          ]);
+
+        return new StreamableFile(fileCatalogSchema.write({
+            _blf: {
+                name: 'test',
+                byte_order_mark: 0xfffe,
+            },
+            fitm: {
+                online_file_listing: {
+                    xuid: viewerXuid.valueOf(),
+                    gamertag: 'Recommendations',
+                    unknown16: 1,
+                    unknown17: 2,
+                    unknown18: 3,
+                    unknown19: 4,
+                    quota_byte_count: HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
+                    quota_slot_count: 100,
+                    slot_count: listing_entries.length,
+                    message_length: 0,
+                    entries: listing_entries,
+                    message: '',
+                }
+            },
+            _eof: {
+                file_size: 0,
+                authentication_type: 0,
+            }
+        }));
+    }
+
+    public getPredefinedQuerySummary = async (userId: BigInt, searchId: number) => {
+        if (!IS_FILESHARE_ENABLED) {
+            throw new ServiceUnavailableException();
+        }
+
+        // group by file type
+        const fileCatalogSchema = blf.createFileSchema([
+            HaloReach.v12065.s_blf_chunk_start_of_file,
+            blf.createChunkSchema({
+              name: 'finf',
+              majorVersion: 1,
+              minorVersion: 0,
+              endian: 'big',
+              pack: 1,
+              fields: [
+                { name: 'entry_count', type: 'u16' },
+                { name: 'pad', type: 'padding', count: 2 },
+                { name: 'entries', count: 1, type: HaloReach.v12065.s_online_file_summary_listing_entry },
+              ],
+            }),
+            HaloReach.v12065.s_blf_chunk_end_of_file,
+          ])
+          
+          let fileShareFileTypeDownloads: { [file_type: number]: number } = {};
+
+          switch (searchId) {
+            case e_predefined_query._predefined_query_most_downloaded_all_time: {
+              const downloadByFile =
+                  await this.prisma.reach_file_share_file_download.groupBy({
+                      by: ['file_id'],
+                      _count: { _all: true },
+                      orderBy: {
+                          _count: {
+                              player_id: 'desc',
+                          },
+                      },
+                      take: 100,
+                  });
+              if (downloadByFile.length > 0) {
+                  const fileIds = downloadByFile.map((r) => r.file_id.toString());
+                  const fileTypeGroups =
+                      await this.prisma.reach_file_share_file.groupBy({
+                          by: ['file_type'],
+                          where: {
+                              id: { in: fileIds },
+                              is_uploaded: true,
+                              file_type: { not: null },
+                          },
+                          _count: { _all: true },
+                      });
+                  fileShareFileTypeDownloads = fileTypeGroups.reduce((acc, curr) => {
+                    acc[curr.file_type ?? 0] = curr._count._all;
+                    return acc;
+                  }, {});
+              }
+              break;
+            }
+            case e_predefined_query._predefined_query_most_recommended_all_time: {
+              const recommendationByFile =
+                  await this.prisma.reach_file_share_file_recommendation.groupBy({
+                      by: ['file_id'],
+                      _count: { _all: true },
+                      orderBy: {
+                          _count: {
+                              player_id: 'desc',
+                          },
+                      },
+                      take: 100,
+                  });
+              if (recommendationByFile.length > 0) {
+                  const fileIds = recommendationByFile.map((r) => r.file_id.toString());
+                  const fileTypeGroups =
+                      await this.prisma.reach_file_share_file.groupBy({
+                          by: ['file_type'],
+                          where: {
+                              id: { in: fileIds },
+                              is_uploaded: true,
+                              file_type: { not: null },
+                          },
+                          _count: { _all: true },
+                      });
+                  fileShareFileTypeDownloads = fileTypeGroups.reduce((acc, curr) => {
+                    acc[curr.file_type ?? 0] = curr._count._all;
+                    return acc;
+                  }, {});
+              }
+              break;
+            }
+            case e_predefined_query._predefined_query_recently_uploaded: {
+              const recentlyUploadedFiles =
+                  await this.prisma.reach_file_share_file.findMany({
+                      orderBy: {
+                          created_at: 'desc',
+                      },
+                      take: 100,
+                  });
+              if (recentlyUploadedFiles.length > 0) {
+                  const fileIds = recentlyUploadedFiles.map((r) => r.id.toString());
+                  const fileTypeGroups =
+                      await this.prisma.reach_file_share_file.groupBy({
+                          by: ['file_type'],
+                          where: {
+                              id: { in: fileIds },
+                              is_uploaded: true,
+                              file_type: { not: null },
+                          },
+                          _count: { _all: true },
+                      });
+                  fileShareFileTypeDownloads = fileTypeGroups.reduce((acc, curr) => {
+                    acc[curr.file_type ?? 0] = curr._count._all;
+                    return acc;
+                  }, {});
+              }
+              break;
+            }
+            case e_predefined_query._predefined_query_recently_downloaded: {
+              const recentlyDownloadedFiles =
+                  await this.prisma.reach_file_share_file_download.findMany({
+                      orderBy: {
+                          downloaded_at: 'desc',
+                      },
+                      take: 100,
+                  });
+              if (recentlyDownloadedFiles.length > 0) {
+                  const fileIds = recentlyDownloadedFiles.map((r) => r.file_id.toString());
+                  const fileTypeGroups =
+                      await this.prisma.reach_file_share_file.groupBy({
+                          by: ['file_type'],
+                          where: {
+                              id: { in: fileIds },
+                              is_uploaded: true,
+                              file_type: { not: null },
+                          },
+                          _count: { _all: true },
+                      });
+                  fileShareFileTypeDownloads = fileTypeGroups.reduce((acc, curr) => {
+                    acc[curr.file_type ?? 0] = curr._count._all;
+                    return acc;
+                  }, {});
+              }
+              break;
+            }
+            case e_predefined_query._predefined_query_bungie_favorites: {
+                const fileTypeGroups =
+                    await this.prisma.reach_file_share_file.groupBy({
+                        by: ['file_type'],
+                        where: {
+                            share_id: '0xffffffffffffff03',
+                            is_uploaded: true,
+                            file_type: { not: null },
+                        },
+                        _count: { _all: true },
+                    });
+                fileShareFileTypeDownloads = fileTypeGroups.reduce((acc, curr) => {
+                acc[curr.file_type ?? 0] = curr._count._all;
+                return acc;
+                }, {});
+              break;
+            }
+            default:
+              throw new BadRequestException('Invalid search ID');
+          }
+
+          const screenshotsCount = fileShareFileTypeDownloads[2] ?? 0;
+          const filmsCount = (fileShareFileTypeDownloads[3] ?? 0) + (fileShareFileTypeDownloads[4] ?? 0);
+          const mapVariantsCount = fileShareFileTypeDownloads[5] ?? 0;
+          const gameVariantsCount = fileShareFileTypeDownloads[6] ?? 0;
+      
+          const blfFile = fileCatalogSchema.write({
+            _blf: {
+              byte_order_mark: 0xfffe,
+              name: 'test',
+            },
+            finf: {
+              entry_count: 1,
+              entries: 
+                {
+                  share_id: userId.valueOf(),
+                  screenshots_count: screenshotsCount,
+                  films_count: filmsCount,
+                  map_variants_count: mapVariantsCount,
+                  game_variants_count: gameVariantsCount,
+                  new_items_count: 0,
+                  unknown1C: 0,
+                  unknown20: 1,
+                }
+            },
+            _eof: {
+              file_size: 0,
+              authentication_type: 0,
+            },
+          })
+
+          return new StreamableFile(blfFile);
+    }
+
+    public getPredefinedQuery = async (userId: BigInt, shareId: BigInt, searchID: number, fileType: number, page: number, locale: string) => {
+        if (!IS_FILESHARE_ENABLED) {
+            throw new ServiceUnavailableException();
+        }
+
+        let file_ids: string[] = [];
+
+        switch (searchID) {
+            case e_predefined_query._predefined_query_most_downloaded_all_time: {
+                const downloads = await this.prisma.reach_file_share_file_download.groupBy({
+                    by: ['file_id'],
+                    _count: { _all: true },
+                    orderBy: {
+                        _count: {
+                            player_id: 'desc',
+                        },
+                    },
+                    take: 100,
+                    skip: page * 100,
+                });
+                file_ids = downloads.map((r) => r.file_id.toString());
+                break;
+            }
+            case e_predefined_query._predefined_query_most_recommended_all_time: {
+                const recommendations = await this.prisma.reach_file_share_file_recommendation.groupBy({
+                    by: ['file_id'],
+                    _count: { _all: true },
+                    orderBy: {
+                        _count: {
+                            player_id: 'desc',
+                        },
+                    },
+                    take: 100,
+                    skip: page * 100,
+                });
+                file_ids = recommendations.map((r) => r.file_id.toString());
+                break;
+            }
+            case e_predefined_query._predefined_query_recently_uploaded: {
+                const recentlyUploadedFiles = await this.prisma.reach_file_share_file.findMany({
+                    orderBy: {
+                        uploaded_at: 'desc',
+                    },
+                    where: {
+                        is_uploaded: true,
+                    },
+                    take: 100,
+                    skip: page * 100,
+                });
+                file_ids = recentlyUploadedFiles.map((r) => r.id.toString());
+                break;
+            }
+            case e_predefined_query._predefined_query_recently_downloaded: {
+                const recentlyDownloadedFiles = await this.prisma.reach_file_share_file_download.findMany({
+                    orderBy: {
+                        downloaded_at: 'desc',
+                    },
+                });
+                file_ids = recentlyDownloadedFiles.map((r) => r.file_id.toString());
+                break;
+            }
+            case e_predefined_query._predefined_query_bungie_favorites: {
+                const bungieFavorites = await this.prisma.reach_file_share_file.findMany({
+                    where: {
+                        share_id: '0xffffffffffffff03',
+                    },
+                });
+                file_ids = bungieFavorites.map((r) => r.id.toString());
+                break;
+            }
+            default:
+                throw new BadRequestException('Invalid search ID');
+        }
+
+        const files = await this.prisma.reach_file_share_file.findMany({
+            where: {
+                id: { in: file_ids },
+                file_type: fileType,
+                is_uploaded: true,
+            },
+        });
+
+        let listing_entries: c.infer<typeof HaloReach.v12065.s_online_file_metadata>[] = [];
+
+        if (files) {
+            for (const file of files) {
+                try {
+                    const fileshareFolder = join(
+                        process.cwd(),
+                        HALOREACH_FILESHARE_FOLDER,
+                        xuidToHexString(BigInt(file.share_id.toString())),
+                    );
+
+                    // await access(join(fileshareFolder, BigInt(file.id.toString()).toString(16).padStart(16, '0')))
+
+                    const entry: c.infer<typeof HaloReach.v12065.s_online_file_metadata> = {
+                        general: {
+                            id: BigInt(file.id.toString()),
+                            file_type: file.file_type ?? 0,
+                            tag_count: 0,
+                            megalo_category_index: file.megalo_category_index ?? 0,
+                            size_in_bytes: file.size_in_bytes?.toNumber() ?? 0,
+                            activity: file.activity ?? 0,
+                            game_mode: file.game_mode ?? 0,
+                            game_engine_type: file.game_engine_type ?? 0,
+                            unknown3: [0, 0, 0, 0, 0, 0, 0, 0],
+                            map_id: file.map_id ?? 0,
+                        },
+                        created: {
+                            timestamp: file.created_at ?? new Date(),
+                            xuid: 0n,
+                            name: file.creator_name ?? '',
+                            is_online: file.creator_is_xuid_online ? 1 : 0,
+                        },
+                        modified: {
+                            timestamp: file.modified_at ?? new Date(),
+                            xuid: 0n,
+                            name: file.modifier_name ?? '',
+                            is_online: file.modifier_is_xuid_online ? 1 : 0,
+                        },
+                        name: file.name ?? '',
+                        description: file.description ?? '',
+                        game_variant_or_film: file.file_type == 3 ? {
+                            film: {
+                                seconds: file.length_seconds ?? 0,
+                            },
+                        } : file.file_type == 6 ? {
+                            game_variant: {
+                                icon_index: file.icon_index ?? 0,
+                            },
+                        } : {
+                            pad: {}
+                        },
+                        matchmaking: file.activity == 3 ? {
+                            metadata: {
+                                hopper_identifier: file.hopper_identifier ?? 0,
+                            },
+                        } : {
+                            pad: {}
+                        },
+                        campaign_or_firefight: file.game_mode == 1 ? {
+                            campaign: {
+                                campaign_id: file.campaign_id ?? 0,
+                                campaign_difficulty: file.campaign_difficulty ?? 0,
+                                campaign_metagame_scoring: file.campaign_metagame_scoring ?? 0,
+                                campaign_insertion_point: file.campaign_insertion_point ?? 0,
+                                campaign_primary_skulls: file.campaign_primary_skulls ?? 0,
+                                campaign_secondary_skulls: file.campaign_secondary_skulls ?? 0,
+                            },
+                        } : file.activity == 2 ? {
+                            firefight: {
+                                firefight_difficulty: file.firefight_difficulty ?? 0,
+                                firefight_primary_skulls: file.firefight_primary_skulls ?? 0,
+                                firefight_secondary_skulls: file.firefight_secondary_skulls ?? 0,
+                            },
+                        } : {
+                            pad: {}
+                        },
+                        screenshot_length: 0,
+                    };
+                    listing_entries.push(entry);
+                } catch (err) {
+                    this.logger.error(`[FileShare] Failed to access file, share ${xuidToHexString(BigInt(file.share_id.toString()))}, file ${serverIdToString(file.id)}`);
+                }
+            }
+        }
+
+        const fileCatalogSchema = blf.createFileSchema([
+            HaloReach.v12065.s_blf_chunk_start_of_file,
+            blf.createChunkSchema({
+                name: 'fitm',
+                majorVersion: 4,
+                minorVersion: 0,
+                endian: 'big',
+                pack: 1,
+                fields: [
+                    { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(listing_entries.length, 0) },
+                ],
+            }),
+            HaloReach.v12065.s_blf_chunk_end_of_file,
+          ]);
+
+        return new StreamableFile(fileCatalogSchema.write({
+            _blf: {
+                name: 'test',
+                byte_order_mark: 0xfffe,
+            },
+            fitm: {
+                online_file_listing: {
+                    xuid: userId.valueOf(),
+                    gamertag: '',
+                    unknown16: 1,
+                    unknown17: 2,
+                    unknown18: 3,
+                    unknown19: 4,
+                    quota_byte_count: HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
+                    quota_slot_count: 100,
+                    slot_count: listing_entries.length,
+                    message_length: 0,
+                    entries: listing_entries,
+                    message: '',
+                }
+            },
+            _eof: {
+                file_size: 0,
+                authentication_type: 0,
+            }
+        }));
     }
 }

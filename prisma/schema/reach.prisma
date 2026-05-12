@@ -371,6 +371,7 @@ model reach_file_share_file {
   id          Decimal @id @db.Decimal(20, 0)
   share_id    Decimal @db.Decimal(20, 0)
   is_uploaded Boolean @default(false)
+  uploaded_at DateTime?
 
   compressed_size Int
 
@@ -410,10 +411,38 @@ model reach_file_share_file {
   firefight_secondary_skulls  Int?
 
   tags                        String[]
-  recommended_to_friends_at   DateTime?
+
+  downloads                   reach_file_share_file_download[]
+  recommendations             reach_file_share_file_recommendation[]
 
   @@unique([id, share_id], map: "unique_id_share_id")
   @@map("file_share_file")
+  @@schema("reach")
+}
+
+model reach_file_share_file_recommendation {
+  file_id                     Decimal @db.Decimal(20, 0)
+  player_id                   Decimal @db.Decimal(20, 0)
+
+  recommended_at              DateTime
+
+  file                        reach_file_share_file @relation(fields: [file_id], references: [id], onDelete: Cascade)
+
+  @@id([file_id, player_id])
+  @@map("file_share_file_recommendation")
+  @@schema("reach")
+}
+
+model reach_file_share_file_download {
+  file_id                     Decimal @db.Decimal(20, 0)
+  player_id                   Decimal @db.Decimal(20, 0)
+
+  downloaded_at               DateTime
+
+  file                        reach_file_share_file @relation(fields: [file_id], references: [id], onDelete: Cascade)
+
+  @@id([file_id, player_id])
+  @@map("file_share_file_download")
   @@schema("reach")
 }
 

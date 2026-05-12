@@ -40,13 +40,13 @@ const ENABLE_DEBUG_MIME = true;
 const DEBUG_MIME = SHAREDFILE_MIME
 
 export enum e_predefined_query {
-    _predefined_query_most_downloaded = 17,
+    _predefined_query_most_downloaded = 12,
     _predefined_query_most_recommended = 13,
     _predefined_query_screenshots_of_you = 14,
     // Blam Network
     _predefined_query_most_downloaded_all_time = 15,
     _predefined_query_most_recommended_all_time = 16,
-    _predefined_query_recently_uploaded = 12,
+    _predefined_query_recently_uploaded = 17,
     _predefined_query_recently_downloaded = 18,
     _predefined_query_bungie_favorites = 19,
 }

@@ -5,12 +5,36 @@ import { time64_t } from "src/cstruct/time";
 
 export namespace HaloReach {
     export namespace v12065 {
+        export enum FileType {
+          Screenshot = 2,
+          Film = 3,
+          FilmClip = 4,
+          MapVariant = 5,
+          GameVariant = 6,
+        }
+        export enum GameEngine {
+          Multiplayer = 2,
+          Campaign = 3,
+          Firefight = 4,
+        }
+        export enum FileAgeFilter {
+          Day = 0,
+          Week = 1,
+          Month = 2,
+        }
+        export enum FileSortBy {
+          DateAdded = 0,
+          HighestRanked = 1,
+          MostViewed = 2,
+          MostRelated = 3, // ???
+        }
+
         export const s_online_file_summary_listing_entry = c.createCStruct({pack: 1, endian: 'big', fields: [
           {name: 'share_id', type: 'u64'},
           {name: 'screenshots_count', type: 'u32'},
           {name: 'films_count', type: 'u32'},
-          {name: 'map_variants_count', type: 'u32'},
           {name: 'game_variants_count', type: 'u32'},
+          {name: 'map_variants_count', type: 'u32'},
           {name: 'new_items_count', type: 'u32'},
           {name: 'unknown1C', type: 'u32'},
           {name: 'unknown20', type: 'u32'},

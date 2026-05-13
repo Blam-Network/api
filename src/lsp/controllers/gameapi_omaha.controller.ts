@@ -42,8 +42,6 @@ import { Response } from 'express';
 import { PrismaService } from 'src/db/prisma.service';
 import { find_chunk_in_file } from 'src/blf/helpers';
 
-const FILESHARE_BETA_MESSAGE = "Halo Reach File Share support is in alpha. Your files may be lost."
-
 @ApiTags('Game API Omaha', 'Halo: Reach')
 @Controller('/gameapi_omaha')
 export class GameApiOmahaController {
@@ -55,7 +53,6 @@ export class GameApiOmahaController {
     @Inject() private readonly uploadService: UploadService,
     @Inject() private readonly rewardsService: HaloReachRewardsService,
     @Inject() private readonly challengeService: HaloReachChallengeService,
-    @Inject() private readonly prisma: PrismaService,
   ) { }
 
   @Get('/ArenaGetSeasonStats.ashx')
@@ -198,9 +195,9 @@ export class GameApiOmahaController {
     @Query('machineId', ParseXUIDPipe) machineId: BigInt,
     @Query('userId', ParseXUIDPipe) userId: BigInt,
     @Query('shareId', ParseXUIDPipe) shareId: BigInt,
-    // @Query('shareIDs', ParseXUIDArrayPipe) shareIDs: BigInt[],
+    @Query('shareIDs', ParseXUIDArrayPipe) shareIDs: BigInt[],
   ) {
-    return this.fileshareService.getFileShareSummary(userId, shareId);
+    return this.fileshareService.getFileShareSummaries(userId, shareIDs);
   }
 
   @HttpCode(200)
@@ -454,22 +451,215 @@ export class GameApiOmahaController {
   @Get('/FilesGetSearchCount.ashx')
   @ApiTags('File Share')
   @ApiOperation({
-    description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
+    summary: 'Search Halo: Reach Files',
+    description: 'Returns the number of files matching a search query.',
   })
-  async getFileSearchCount() {
-    throw new NotImplementedException();
+  @ApiQuery({ name: 'machineId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'gamertaghex', type: 'string', required: false })
+  @ApiQuery({ name: 'fileType', type: 'number', required: false })
+  @ApiQuery({ name: 'authortaghex', type: 'string', required: false })
+  @ApiQuery({ name: 'gameEngine', type: 'number', required: false })
+  @ApiQuery({ name: 'megaloCategoryIndex', type: 'number', required: false })
+  @ApiQuery({ name: 'fileAge', type: 'number', required: false }) // unused?
+  @ApiQuery({ name: 'sortBy', type: 'number', required: false })
+  @ApiQuery({ name: 'taghex0', type: 'string', required: false }) // doesnt seem possible to add more than one tag
+  @ApiQuery({ name: 'mapId', type: 'number', required: false })
+  async getFileSearchCount(
+    @Query('machineId', ParseXUIDPipe) machineId: BigInt,
+    @Query('userId', ParseXUIDPipe) userId: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareId: BigInt,
+    @Query('gamertaghex') gamertaghex: string | undefined,
+    @Query('fileType', new ParseIntPipe({optional: true})) fileType: number | undefined,
+    @Query('authortaghex', new ParseIntPipe({optional: true})) authortaghex: number | undefined,
+    @Query('gameEngine', new ParseIntPipe({optional: true})) gameEngine: number | undefined,
+    @Query('megaloCategoryIndex', new ParseIntPipe({optional: true})) megaloCategoryIndex: number | undefined,
+    @Query('fileAge', new ParseIntPipe({optional: true})) fileAge: number | undefined,
+    @Query('sortBy', new ParseIntPipe({optional: true})) sortBy: number | undefined,
+    @Query('taghex0', new ParseIntPipe({optional: true})) taghex0: number | undefined,
+    @Query('mapId', new ParseIntPipe({optional: true})) mapId: number | undefined,
+  ) {
+    const hexStringSchema = z.string().regex(/^[0-9a-fA-F]+$/);
+
+    const searchByGamertag = z.object({
+      gamertaghex: hexStringSchema,
+    }).transform(({ gamertaghex }) => ({
+      gamertag: Buffer.from(gamertaghex, 'hex').toString('utf-8'),
+    }));
+
+    const customSearch = z
+      .object({
+        fileType: z.nativeEnum(HaloReach.v12065.FileType).optional(),
+        authortaghex: hexStringSchema.optional(),
+        gameEngine: z.nativeEnum(HaloReach.v12065.GameEngine).optional(),
+        megaloCategoryIndex: z.number().optional(),
+        fileAge: z.nativeEnum(HaloReach.v12065.FileAgeFilter).optional(),
+        sortBy: z.nativeEnum(HaloReach.v12065.FileSortBy).optional(),
+        taghex0: hexStringSchema.optional(),
+        mapId: z.number().optional(),
+      })
+      .transform(
+        ({
+          fileType,
+          authortaghex,
+          gameEngine,
+          megaloCategoryIndex,
+          fileAge,
+          sortBy,
+          taghex0,
+          mapId,
+        }) => ({
+          fileType,
+          author: authortaghex ? Buffer.from(authortaghex, 'hex').toString('utf-8') : undefined,
+          gameEngine,
+          megaloCategoryIndex,
+          fileAge,
+          sortBy,
+          tag: taghex0 ? Buffer.from(taghex0, 'hex').toString('utf-8') : undefined  ,
+          mapId,
+        }),
+      );
+
+    if (gamertaghex != null && gamertaghex !== '') {
+      const { gamertag } = searchByGamertag.parse({ gamertaghex });
+      return this.fileshareService.getfileShareSummary(userId, gamertag);
+    }
+
+    const searchParams = customSearch.safeParse({
+      fileType,
+      authortaghex,
+      gameEngine,
+      megaloCategoryIndex,
+      fileAge,
+      sortBy,
+      taghex0,
+      mapId,
+    });
+
+    if (!searchParams.success) {
+      console.error(searchParams.error);
+      throw new BadRequestException(searchParams.error.message);
+    }
+
+    return this.fileshareService.searchFileCount(
+      userId,
+      searchParams.data.fileType,
+      searchParams.data.author,
+      searchParams.data.gameEngine,
+      searchParams.data.megaloCategoryIndex,
+      searchParams.data.fileAge,
+      searchParams.data.sortBy,
+      searchParams.data.tag,
+      searchParams.data.mapId,
+    );
   }
 
   @HttpCode(200)
   @Get('/FilesGetSearch.ashx')
   @ApiTags('File Share')
   @ApiOperation({
-    description: 'Not yet implemented.',
-    deprecated: true // used to denote not-implemented.
+    summary: 'Search Halo: Reach Files',
+    description: 'Returns a list of files matching a search query.',
   })
-  async getFileSearch() {
-    throw new NotImplementedException();
+  @ApiQuery({ name: 'machineId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'userId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'shareId', type: 'string', example: EXAMPLE_XUID })
+  @ApiQuery({ name: 'gamertaghex', type: 'string', required: false })
+  @ApiQuery({ name: 'fileType', type: 'number', required: false })
+  @ApiQuery({ name: 'authortaghex', type: 'string', required: false })
+  @ApiQuery({ name: 'gameEngine', type: 'number', required: false })
+  @ApiQuery({ name: 'megaloCategoryIndex', type: 'number', required: false })
+  @ApiQuery({ name: 'fileAge', type: 'number', required: false })
+  @ApiQuery({ name: 'sortBy', type: 'number', required: false })
+  @ApiQuery({ name: 'taghex0', type: 'string', required: false })
+  @ApiQuery({ name: 'mapId', type: 'number', required: false })
+  async getFileSearch(
+    @Query('machineId', ParseXUIDPipe) machineId: BigInt,
+    @Query('userId', ParseXUIDPipe) userId: BigInt,
+    @Query('shareId', ParseXUIDPipe) shareId: BigInt,
+    @Query('gamertaghex') gamertaghex: string | undefined,
+    @Query('fileType', new ParseIntPipe({optional: true})) fileType: number | undefined,
+    @Query('authortaghex', new ParseIntPipe({optional: true})) authortaghex: number | undefined,
+    @Query('gameEngine', new ParseIntPipe({optional: true})) gameEngine: number | undefined,
+    @Query('megaloCategoryIndex', new ParseIntPipe({optional: true})) megaloCategoryIndex: number | undefined,
+    @Query('fileAge', new ParseIntPipe({optional: true})) fileAge: number | undefined,
+    @Query('sortBy', new ParseIntPipe({optional: true})) sortBy: number | undefined,
+    @Query('taghex0', new ParseIntPipe({optional: true})) taghex0: number | undefined,
+    @Query('mapId', new ParseIntPipe({optional: true})) mapId: number | undefined,
+    @Query('page', new ParseIntPipe({optional: true})) page: number | undefined,
+  ) {
+    const hexStringSchema = z.string().regex(/^[0-9a-fA-F]+$/);
+    const searchByGamertag = z.object({
+      gamertaghex: hexStringSchema,
+    }).transform(({ gamertaghex }) => ({
+      gamertag: Buffer.from(gamertaghex, 'hex').toString('utf-8'),
+    }));
+
+    const customSearch = z.object({
+      fileType: z.nativeEnum(HaloReach.v12065.FileType).optional(),
+      authortaghex: hexStringSchema.optional(),
+      gameEngine: z.nativeEnum(HaloReach.v12065.GameEngine).optional(),
+      megaloCategoryIndex: z.number().optional(),
+      fileAge: z.nativeEnum(HaloReach.v12065.FileAgeFilter).optional(),
+      sortBy: z.nativeEnum(HaloReach.v12065.FileSortBy).optional(),
+      taghex0: hexStringSchema.optional(),
+      mapId: z.number().optional(),
+    }).transform(
+      ({
+        fileType,
+        authortaghex,
+        gameEngine,
+        megaloCategoryIndex,
+        fileAge,
+        sortBy,
+        taghex0,
+        mapId,
+      }) => ({
+        fileType,
+        author: authortaghex ? Buffer.from(authortaghex, 'hex').toString('utf-8') : undefined,
+        gameEngine,
+        megaloCategoryIndex,
+        fileAge,
+        sortBy,
+        tag: taghex0 ? Buffer.from(taghex0, 'hex').toString('utf-8') : undefined,
+        mapId,
+      }),
+    );
+
+    if (gamertaghex != null && gamertaghex !== '') {
+      const { gamertag } = searchByGamertag.parse({ gamertaghex });
+      throw new NotImplementedException();
+    }
+
+    const searchParams = customSearch.safeParse({
+      fileType,
+      authortaghex,
+      gameEngine,
+      megaloCategoryIndex,
+      fileAge,
+      sortBy,
+      taghex0,
+      mapId,
+    });
+
+    if (!searchParams.success) {
+      console.error(searchParams.error);
+      throw new BadRequestException(searchParams.error.message);
+    }
+
+    return this.fileshareService.searchFiles(
+      userId,
+      searchParams.data.fileType,
+      searchParams.data.author,
+      searchParams.data.gameEngine,
+      searchParams.data.megaloCategoryIndex,
+      searchParams.data.fileAge,
+      searchParams.data.sortBy,
+      searchParams.data.tag,
+      searchParams.data.mapId,
+      page
+    );
   }
 
   @HttpCode(200)
@@ -507,6 +697,11 @@ export class GameApiOmahaController {
 
   @HttpCode(200)
   @Post('/MachineUpdateNetworkStats.ashx')
+  @ApiOperation({
+    summary: 'Update Halo: Reach Network Stats',
+    description: 'Updates the network stats for a Halo: Reach player\'s machine.',
+  })
+  @ApiHeader({ name: 'machineid', example: EXAMPLE_XUID })
   async machineUpdateNetworkStats(
     @Headers() headers: Record<string, string>,
     @UploadedFile() upload: Express.Multer.File | undefined,
@@ -633,6 +828,7 @@ export class GameApiOmahaController {
   @HttpCode(200)
   @Get('/UserGetServiceRecord.ashx')
   @ApiOperation({
+    summary: 'Get Halo: Reach Service Record',
     description: 'Returns a Service Record for a Halo: Reach user.',
   })
   @ApiQuery({ name: 'machineId', type: 'string', example: EXAMPLE_XUID })

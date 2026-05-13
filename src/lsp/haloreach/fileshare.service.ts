@@ -1226,7 +1226,7 @@ export class HaloReachFileShareService {
         await rm(filePath);
     }
 
-    public getfileShareSummary = async (viewerXuid: BigInt, gamertag: string, ) => {
+    public getfileShareSummary = async (viewerXuid: BigInt, gamertag: string) => {
         const trimmed = gamertag.trim();
         if (!trimmed) {
             throw new BadRequestException('Gamertag is required');
@@ -1243,7 +1243,41 @@ export class HaloReachFileShareService {
         }
 
         const shareXuid = BigInt(serviceRecord.player_xuid.toString());
-        return this.getFileShareSummary(viewerXuid, shareXuid);
+        const entry = await this.getFileShareSummary(viewerXuid, shareXuid);
+
+        const blfFileSchema = blf.createFileSchema([
+            HaloReach.v12065.s_blf_chunk_start_of_file,
+            blf.createChunkSchema({
+                name: 'finf',
+                majorVersion: 1,
+                minorVersion: 0,
+                endian: 'big',
+                pack: 1,
+                fields: [
+                    { name: 'entry_count', type: 'u16' },
+                    { name: 'pad', type: 'padding', count: 2 },
+                    { name: 'entries', count: 1, type: HaloReach.v12065.s_online_file_summary_listing_entry },
+                ],
+            }),
+            HaloReach.v12065.s_blf_chunk_end_of_file,
+        ]);
+
+        return new StreamableFile(
+            blfFileSchema.write({
+                _blf: {
+                    name: 'test',
+                    byte_order_mark: 0xfffe,
+                },
+                finf: {
+                    entry_count: 1,
+                    entries: entry,
+                },
+                _eof: {
+                    file_size: 0,
+                    authentication_type: 0,
+                },
+            }),
+        );
     };
 
     public getFileShareSummaries = async (userXuid: BigInt, shareXuid: BigInt[]) => {

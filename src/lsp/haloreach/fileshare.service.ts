@@ -240,10 +240,9 @@ export class HaloReachFileShareService {
     }
 
     public getUploadProgress = async (
-        uploaderXuid: number,
-        shareXuid: number,
-        slot: number,
-        serverId: string,
+        uploaderXuid: BigInt,
+        shareXuid: BigInt,
+        serverId: BigInt,
     ) => {
         if (!IS_FILESHARE_ENABLED) {
             throw new ServiceUnavailableException();
@@ -252,8 +251,8 @@ export class HaloReachFileShareService {
         const filePath = join(
             process.cwd(),
             HALOREACH_FILESHARE_FOLDER,
-            shareXuid.toString(16).padStart(16, '0'),
-            slot.toString(),
+            xuidToHexString(shareXuid),
+            serverIdToString(serverId),
         );
 
         try {

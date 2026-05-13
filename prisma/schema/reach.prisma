@@ -414,9 +414,21 @@ model reach_file_share_file {
 
   downloads                   reach_file_share_file_download[]
   recommendations             reach_file_share_file_recommendation[]
+  transfers                   reach_file_share_transfer[]
 
   @@unique([id, share_id], map: "unique_id_share_id")
   @@map("file_share_file")
+  @@schema("reach")
+}
+
+model reach_file_share_transfer {
+  player_xuid Decimal @db.Decimal(20, 0)
+  file_id     Decimal @db.Decimal(20, 0)
+
+  file reach_file_share_file @relation(fields: [file_id], references: [id], onDelete: Cascade)
+
+  @@unique([player_xuid, file_id])
+  @@map("file_share_transfer")
   @@schema("reach")
 }
 

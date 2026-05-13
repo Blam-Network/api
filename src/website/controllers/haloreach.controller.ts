@@ -1,11 +1,14 @@
-import { Controller, Get, Header, NotFoundException, Param, ParseIntPipe, Query, StreamableFile } from "@nestjs/common";
-import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
+import { BadRequestException, Body, Controller, Delete, Get, Header, Headers, NotFoundException, Param, ParseIntPipe, Post, Query, StreamableFile } from "@nestjs/common";
+import { ApiHeader, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import { PrismaService } from "src/db/prisma.service";
 import {
+    EXAMPLE_XUID,
+    HALOREACH_MAX_ACTIVE_TRANSFERS,
     HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA,
     HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
 } from "src/constants";
 import { HaloReachFileShareService } from "../services/haloreachfileshare.service";
+import { parseXuid } from "src/xbox/xuid";
 
 function mapReachServiceRecord(sr: {
     player_xuid: { toString(): string };
@@ -534,5 +537,142 @@ export class HaloReachController {
             author: screenshot.author,
             date: screenshot.date,
         };
+    }
+
+    @Post('/fileshare/transfer')
+    @ApiOperation({
+        summary: 'Create Fileshare Transfer (Reach)',
+        description: 'Creates a fileshare transfer for the logged-in user to download a file in Halo: Reach.',
+    })
+    @ApiHeader({ name: 'x-xuid', example: EXAMPLE_XUID })
+    async createFileshareTransfer(
+        @Headers('x-xuid') xuid: string,
+        @Body() body: { fileId: string },
+    ) {
+        const fileId = body.fileId;
+        const playerXuid = parseXuid(xuid).toString();
+
+        const file = await this.prisma.reach_file_share_file.findUnique({
+            where: { id: fileId as any },
+        });
+
+        if (!file) {
+            throw new NotFoundException('File not found');
+        }
+
+        if (!file.is_uploaded) {
+            throw new BadRequestException('File is not yet uploaded');
+        }
+
+        const existingTransfer = await this.prisma.reach_file_share_transfer.findUnique({
+            where: {
+                player_xuid_file_id: {
+                    player_xuid: playerXuid,
+                    file_id: fileId as any,
+                },
+            },
+        });
+
+        if (existingTransfer) {
+            return { success: true };
+        }
+
+        const transferCount = await this.prisma.reach_file_share_transfer.count({
+            where: {
+                player_xuid: playerXuid,
+            },
+        });
+
+        if (transferCount >= HALOREACH_MAX_ACTIVE_TRANSFERS) {
+            throw new BadRequestException(
+                `You have reached the maximum of ${HALOREACH_MAX_ACTIVE_TRANSFERS} active transfers. Please complete your transfers by launching Halo: Reach on your Xbox 360, or cancel existing transfers before adding new ones.`,
+            );
+        }
+
+        await this.prisma.reach_file_share_transfer.create({
+            data: {
+                player_xuid: playerXuid,
+                file_id: fileId as any,
+            },
+        });
+
+        return { success: true };
+    }
+
+    @Get('/fileshare/transfers')
+    @ApiOperation({
+        summary: 'Get Pending Fileshare Transfers (Reach)',
+        description: 'Returns pending fileshare transfers for the logged-in user.',
+    })
+    @ApiHeader({ name: 'x-xuid', example: EXAMPLE_XUID })
+    async getPendingTransfers(@Headers('x-xuid') xuid: string) {
+        const playerXuid = parseXuid(xuid).toString();
+
+        const transfers = await this.prisma.reach_file_share_transfer.findMany({
+            where: {
+                player_xuid: playerXuid,
+            },
+            include: {
+                file: {
+                    select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                        creator_name: true,
+                        file_type: true,
+                        modified_at: true,
+                        created_at: true,
+                        share_id: true,
+                        map_id: true,
+                        game_engine_type: true,
+                    },
+                },
+            },
+            orderBy: [
+                {
+                    file: {
+                        modified_at: 'desc',
+                    },
+                },
+            ],
+        });
+
+        return {
+            transfers: transfers.map(t => ({
+                fileId: t.file_id.toString(),
+                fileName: t.file.name,
+                fileDescription: t.file.description,
+                fileAuthor: t.file.creator_name,
+                fileType: t.file.file_type,
+                fileDate: (t.file.modified_at ?? t.file.created_at)?.toISOString() ?? '',
+                shareId: t.file.share_id.toString(),
+                slot: 0,
+                gameEngineType: t.file.game_engine_type ?? null,
+                mapId: t.file.map_id ?? null,
+            })),
+            maxTransfers: HALOREACH_MAX_ACTIVE_TRANSFERS,
+        };
+    }
+
+    @Delete('/fileshare/transfers/:fileId')
+    @ApiOperation({
+        summary: 'Delete Fileshare Transfer (Reach)',
+        description: 'Deletes a pending fileshare transfer for the logged-in user.',
+    })
+    @ApiHeader({ name: 'x-xuid', example: EXAMPLE_XUID })
+    @ApiParam({ name: 'fileId', description: 'Reach file server id (decimal string).' })
+    async deleteTransfer(@Headers('x-xuid') xuid: string, @Param('fileId') fileId: string) {
+        const playerXuid = parseXuid(xuid).toString();
+
+        await this.prisma.reach_file_share_transfer.delete({
+            where: {
+                player_xuid_file_id: {
+                    player_xuid: playerXuid,
+                    file_id: fileId as any,
+                },
+            },
+        });
+
+        return { success: true };
     }
 }

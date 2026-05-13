@@ -327,25 +327,25 @@ export class HaloReachFileShareService {
         await mkdir(destinationFolder, { recursive: true })
         const screenshotData = await this.prisma.reach_blind_screenshot.create({
             data: {
-                author: chdr.metadata.creator_name,
+                author: chdr.metadata.creation_history.name,
                 author_id: uploaderXuid.toString(),
-                author_is_xuid_online: chdr.metadata.creator_xuid_is_online,
+                author_is_xuid_online: chdr.metadata.creation_history.is_online,
                 difficulty: chdr.metadata.campaign_data?.campaign_difficulty || chdr.metadata.firefight_data?.firefight_difficulty,
                 campaign_id: chdr.metadata.campaign_data?.campaign_id,
-                date: chdr.metadata.creation_time,
+                date: chdr.metadata.creation_history.timestamp,
                 description: chdr.metadata.description,
-                file_type: chdr.metadata.file_type,
-                game_engine_type: chdr.metadata.game_engine_type,
-                game_mode: chdr.metadata.game_mode,
-                activity: chdr.metadata.activity,
-                game_id: chdr.metadata.game_id.toString(),
+                file_type: chdr.metadata.general.file_type,
+                game_engine_type: chdr.metadata.general.game_engine_type,
+                game_mode: chdr.metadata.general.game_mode,
+                activity: chdr.metadata.general.activity,
+                game_id: chdr.metadata.general.game_id.toString(),
                 length_seconds: chdr.metadata.film_data?.seconds,
-                map_id: chdr.metadata.map_id,
+                map_id: chdr.metadata.general.map_id,
                 name: chdr.metadata.name,
-                size_in_bytes: chdr.metadata.size_in_bytes.toString(),
-                unique_id: chdr.metadata.unique_id.toString(),
-                parent_unique_id: chdr.metadata.parent_unique_id.toString(),
-                root_unique_id: chdr.metadata.root_unique_id.toString(),
+                size_in_bytes: chdr.metadata.general.size_in_bytes.toString(),
+                unique_id: chdr.metadata.general.unique_id.toString(),
+                parent_unique_id: chdr.metadata.general.parent_unique_id.toString(),
+                root_unique_id: chdr.metadata.general.root_unique_id.toString(),
                 hopper_id: chdr.metadata.matchmaking_data?.hopper_identifier,
                 jpeg_length: scnd.jpeg_data.length,
                 build_number: chdr.build_number,
@@ -366,8 +366,8 @@ export class HaloReachFileShareService {
 
         // Try to send a discord message, but dont wait on it.
         this.discordWebhookService.sendHaloReachScreenshot({
-            authorXuid: chdr.metadata.creator_xuid,
-            authorName: chdr.metadata.creator_name,
+            authorXuid: chdr.metadata.creation_history.xuid,
+            authorName: chdr.metadata.creation_history.name,
             name: chdr.metadata.name,
             description: chdr.metadata.description,
             imageUrl: `https://halo3.blam.network/haloreach/screenshots/${screenshotData.id}/view`
@@ -523,24 +523,24 @@ export class HaloReachFileShareService {
                 is_uploaded: true,
                 uploaded_at: new Date(),
 
-                unique_id: contentHeader.metadata.unique_id.toString(),
-                file_type: contentHeader.metadata.file_type,
-                megalo_category_index: contentHeader.metadata.megalo_category_index,
-                size_in_bytes: contentHeader.metadata.size_in_bytes.toString(),
-                activity: contentHeader.metadata.activity,
-                game_mode: contentHeader.metadata.game_mode,
-                game_engine_type: contentHeader.metadata.game_engine_type,
-                map_id: contentHeader.metadata.map_id,
+                unique_id: contentHeader.metadata.general.unique_id.toString(),
+                file_type: contentHeader.metadata.general.file_type,
+                megalo_category_index: contentHeader.metadata.display.megalo_category_index,
+                size_in_bytes: contentHeader.metadata.general.size_in_bytes.toString(),
+                activity: contentHeader.metadata.general.activity,
+                game_mode: contentHeader.metadata.general.game_mode,
+                game_engine_type: contentHeader.metadata.general.game_engine_type,
+                map_id: contentHeader.metadata.general.map_id,
 
-                created_at: contentHeader.metadata.creation_time,
-                creator_name: contentHeader.metadata.creator_name,
-                creator_xuid: uploaderXuid.toString(),
-                creator_is_xuid_online: contentHeader.metadata.creator_xuid_is_online,
+                created_at: contentHeader.metadata.creation_history.xuid.toString(),
+                creator_name: contentHeader.metadata.creation_history.name,
+                creator_xuid: contentHeader.metadata.creation_history.xuid.toString(),
+                creator_is_xuid_online: contentHeader.metadata.creation_history.is_online,
 
-                modified_at: contentHeader.metadata.modification_time,
-                modifier_name: contentHeader.metadata.modifier_name,
-                modifier_xuid: contentHeader.metadata.modifier_xuid.toString(),
-                modifier_is_xuid_online: contentHeader.metadata.modifier_xuid_is_online,
+                modified_at: contentHeader.metadata.modification_history.xuid.toString(),
+                modifier_name: contentHeader.metadata.modification_history.name,
+                modifier_xuid: contentHeader.metadata.modification_history.xuid.toString(),
+                modifier_is_xuid_online: contentHeader.metadata.modification_history.is_online,
 
                 name: contentHeader.metadata.name,
                 description: contentHeader.metadata.description,
@@ -1144,6 +1144,14 @@ export class HaloReachFileShareService {
             xuidToHexString(shareXuid),
             serverIdToString(serverId),
         );
+
+        // If this download started from an active transfer, clear it 
+        await this.prisma.reach_file_share_transfer.deleteMany({
+            where: {
+                player_xuid: downloaderXuid.toString(),
+                file_id: serverId.toString(),
+            },
+        });
 
         try {
             await access(filePath);
@@ -2065,8 +2073,6 @@ export class HaloReachFileShareService {
             acc[curr.file_type ?? 0] = curr._count._all ?? 0;
             return acc;
         }, {});
-
-        console.log({fileCountByType});
 
         const blfFileSchema = blf.createFileSchema([
             HaloReach.v12065.s_blf_chunk_start_of_file,

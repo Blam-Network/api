@@ -1,9 +1,9 @@
 import { Inject, Injectable } from "@nestjs/common";
 import * as BLF from '@blam-network/blf_lsp';
-import { parseXuid } from "src/xbox/xuid";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
 import { reach_player_data_nameplate } from "@prisma/client";
+import { HALOREACH_MAX_ACTIVE_TRANSFERS } from "src/constants";
 import { CAMPAIGN_COMMENDATIONS, COMMENDATIONS_FROM_DB_MAP, FIREFIGHT_COMMENDATIONS, MATCHMAKING_COMMENDATIONS } from "./commendations";
 import { HaloReachChallengeService } from "./challenge.service";
 import { addYears } from "date-fns";
@@ -26,9 +26,60 @@ export class HaloReachUserService {
         let srid: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record = undefined;
         let chpr: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_progress = undefined;
         let umsg: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_user_messaging_data = undefined;
+        let filq: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_file_transfers = undefined;
 
         const playerDataPromise = this.prisma.$transaction(async (prisma) => {
             const playerData = await prisma.reach_player_data.findUnique({ where: { player_xuid: xuid.toString() } });
+
+            const transfers = await prisma.reach_file_share_transfer.findMany({
+                where: {
+                    player_xuid: xuid.toString(),
+                    file: { is_uploaded: true },
+                },
+                include: {
+                    file: {
+                        select: {
+                            id: true,
+                            share_id: true,
+                            name: true,
+                            file_type: true,
+                            activity: true,
+                            game_engine_type: true,
+                            megalo_category_index: true,
+                            map_id: true,
+                            modified_at: true,
+                            created_at: true,
+                            modifier_name: true,
+                            creator_name: true,
+                            icon_index: true,
+                        },
+                    },
+                },
+                take: HALOREACH_MAX_ACTIVE_TRANSFERS,
+                orderBy: { file: { modified_at: 'desc' } },
+            });
+
+            if (transfers.length > 0) {
+                filq = {
+                    transfers: transfers.map(transfer => {
+                        const file = transfer.file;
+                        const modified_by = (file.modifier_name ?? file.creator_name ?? '').slice(0, 16);
+                        return {
+                            server_id: BigInt(file.id.toString()),
+                            file_type: file.file_type ?? 0,
+                            activity: file.activity ?? 0,
+                            game_engine_type: file.game_engine_type ?? 0,
+                            megalo_category_index: file.megalo_category_index ?? 0,
+                            map_id: file.map_id ?? 0,
+                            modified_time: (file.modified_at ?? file.created_at) ?? new Date(),
+                            modified_by,
+                            file_name: file.name ?? '',
+                            share_id: BigInt(file.share_id.toString()),
+                            icon_index: file.icon_index ?? -1,
+                        } satisfies BLF.haloreach_12065_11_08_24_1738_tu1actual.s_files_user_auto_download_queue_item;
+                    }),
+                };
+            }
 
             if (playerData) {
                 let bungie_user_role = 0;
@@ -115,12 +166,7 @@ export class HaloReachUserService {
         let name = srid ? srid.player_name : '<unknown>';
         this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
 
-        return BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_file(
-            fupd,
-            chpr,
-            srid,
-            umsg,
-        );
+        return BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_file(fupd, chpr, srid, umsg, filq);
     }
 
     public getServiceRecord = async (xuid: BigInt): Promise<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record> => {

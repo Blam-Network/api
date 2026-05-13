@@ -52,6 +52,7 @@ export class HaloReachUserService {
                             modifier_name: true,
                             creator_name: true,
                             icon_index: true,
+                            size_in_bytes: true,
                         },
                     },
                 },
@@ -76,6 +77,7 @@ export class HaloReachUserService {
                             file_name: file.name ?? '',
                             share_id: BigInt(file.share_id.toString()),
                             icon_index: file.icon_index ?? -1,
+                            size_bytes: file.size_in_bytes ?? 0,
                         } satisfies BLF.haloreach_12065_11_08_24_1738_tu1actual.s_files_user_auto_download_queue_item;
                     }),
                 };

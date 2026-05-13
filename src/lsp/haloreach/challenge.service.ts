@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import * as BLF from '@blam-network/blf_lsp';
+import { Prisma } from "@prisma/client";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
 import { AVAILABLE_BOUNTY_CHALLENGES, AVAILABLE_CAMPAIGN_CHALLENGES, AVAILABLE_FIREFIGHT_CHALLENGES, AVAILABLE_MATCHMAKING_CHALELNGES, AVAILABLE_WEEKLY_CHALLENGES, HaloReachFirefightChallenge, HaloReachWeeklyChallenge } from "./challenges";
@@ -237,21 +238,25 @@ export class HaloReachChallengeService {
             })),
         ];
 
-        await this.prisma.$transaction(async (tx) => {
-            for (const { challenge_set, challenge_index, progress, expiresAt } of allProgress) {
-                // Use upsert with raw SQL to ensure progress never decreases
-                await tx.$executeRawUnsafe(`
-                    INSERT INTO reach.player_challenge_progress (
-                        player_xuid, challenge_set, challenge_index, progress, "expiresAt"
-                    )
-                    VALUES (${xuid.toString()}, ${challenge_set}, ${challenge_index}, ${progress}, TO_TIMESTAMP(${Math.floor(expiresAt.getTime() / 1000)}))
-                    ON CONFLICT (player_xuid, challenge_set, challenge_index)
-                    DO UPDATE SET
-                    progress = GREATEST(reach.player_challenge_progress.progress, EXCLUDED.progress),
-                    "expiresAt" = EXCLUDED."expiresAt";
-                `);
-            }
-        });
+        if (allProgress.length === 0) {
+            return;
+        }
+
+        const valueRows = allProgress.map(
+            ({ challenge_set, challenge_index, progress, expiresAt }) =>
+                Prisma.sql`(${xuid.toString()}::numeric, ${challenge_set}, ${challenge_index}, ${progress}, ${expiresAt})`,
+        );
+
+        await this.prisma.$executeRaw`
+            INSERT INTO reach.player_challenge_progress (
+                player_xuid, challenge_set, challenge_index, progress, "expiresAt"
+            )
+            VALUES ${Prisma.join(valueRows)}
+            ON CONFLICT (player_xuid, challenge_set, challenge_index)
+            DO UPDATE SET
+                progress = GREATEST(reach.player_challenge_progress.progress, EXCLUDED.progress),
+                "expiresAt" = EXCLUDED."expiresAt";
+        `;
     };
 
 }

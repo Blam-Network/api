@@ -498,7 +498,7 @@ export class HaloReachFileShareService {
             throw new BadRequestException('No header found for upload.'); 
         }
 
-        if (contentHeader.build_number !== HALOREACH_BUILD_NUMBERS.RELEASE_TU1) {
+        if (contentHeader.build_number !== HALOREACH_BUILD_NUMBERS.RELEASE_TU1 && contentHeader.build_number !== HALOREACH_BUILD_NUMBERS.RELEASE_TU0) {
             this.logger.warn(`[FileShare] Got a file with build number ${contentHeader.build_number}, rejecting.`)
             throw new BadRequestException("Bad Version: The file is unsupported.")
         }

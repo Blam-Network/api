@@ -532,12 +532,12 @@ export class HaloReachFileShareService {
                 game_engine_type: contentHeader.metadata.general.game_engine_type,
                 map_id: contentHeader.metadata.general.map_id,
 
-                created_at: contentHeader.metadata.creation_history.xuid.toString(),
+                created_at: contentHeader.metadata.creation_history.timestamp.toISOString(),
                 creator_name: contentHeader.metadata.creation_history.name,
                 creator_xuid: contentHeader.metadata.creation_history.xuid.toString(),
                 creator_is_xuid_online: contentHeader.metadata.creation_history.is_online,
 
-                modified_at: contentHeader.metadata.modification_history.xuid.toString(),
+                modified_at: contentHeader.metadata.modification_history.timestamp.toISOString(),
                 modifier_name: contentHeader.metadata.modification_history.name,
                 modifier_xuid: contentHeader.metadata.modification_history.xuid.toString(),
                 modifier_is_xuid_online: contentHeader.metadata.modification_history.is_online,

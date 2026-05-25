@@ -232,7 +232,7 @@ export class GameApiOmahaController {
   async deleteFile(
     @Query('userId', ParseXUIDPipe) userid: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
-    @Query('serverId', ParseBigIntPipe) serverId: BigInt,
+    @Query('serverId', new ParseBigIntPipe({ hex: true })) serverId: BigInt,
   ) {
     await this.fileshareService.deleteFile(userid, shareID, serverId);
     return "ok";
@@ -280,7 +280,7 @@ export class GameApiOmahaController {
   async getUploadProgress(
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
-    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+    @Query('serverId', new ParseBigIntPipe({ hex: true })) serverId: BigInt,
   ) {
     return await this.fileshareService.getUploadProgress(userID, shareID, serverId);
   }
@@ -301,7 +301,7 @@ export class GameApiOmahaController {
     @Query('machineId', ParseXUIDPipe) machineId: BigInt,
     @Query('userId', ParseXUIDPipe) userId: BigInt,
     @Query('shareId', ParseXUIDPipe) shareId: BigInt,
-    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+    @Query('serverId', new ParseBigIntPipe({ hex: true })) serverId: BigInt,
     @Query('taghex') taghex: string,
   ) {
     const tag = Buffer.from(taghex, 'hex').toString('utf-8');
@@ -326,7 +326,7 @@ export class GameApiOmahaController {
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
     @Query('locale', new DefaultValuePipe('en')) locale,
-    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+    @Query('serverId', new ParseBigIntPipe({ hex: true })) serverId: BigInt,
   ) {
     const fileCatalog = await this.fileshareService.viewFileDetails(userID, shareID, serverId, locale);
     return fileCatalog;
@@ -394,7 +394,7 @@ export class GameApiOmahaController {
     @UploadedFile() upload: Express.Multer.File | undefined,
     @Query('userId', ParseXUIDPipe) userId: BigInt,
     @Query('shareId', ParseXUIDPipe) shareId: BigInt,
-    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+    @Query('serverId', new ParseBigIntPipe({ hex: true })) serverId: BigInt,
   ) {
     // Uploads an ilds 1.1 chunk which is a list of friend XUIDs
     // we dont need to use it here.
@@ -682,8 +682,6 @@ export class GameApiOmahaController {
       serverid: parseBungieHeader(hexStringXuidSchema),
     }).parse(headers);
 
-    console.log({headers})
-
     await this.fileshareService.handleFileUpload(upload, machineId, userId, shareId, serverId);
 
     return "ok";
@@ -767,7 +765,7 @@ export class GameApiOmahaController {
     @Query('machineId', ParseXUIDPipe) machineID: BigInt,
     @Query('userId', ParseXUIDPipe) userID: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
-    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+    @Query('serverId', new ParseBigIntPipe({ hex: true })) serverId: BigInt,
     @Query('startPosition', ParseIntPipe) startPosition: number,
     @Query('fromAutoQueue', ParseIntPipe) fromAutoQueue: number,
     @Query('view', new ParseIntPipe({optional: true})) view: number,
@@ -792,7 +790,7 @@ export class GameApiOmahaController {
     @Headers() headers,
     @Query('userId', ParseXUIDPipe) userid: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
-    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+    @Query('serverId', new ParseBigIntPipe({ hex: true })) serverId: BigInt,
     @Query('startPosition', ParseIntPipe) startPosition: number,
     @Res() res: Response,
   ) {
@@ -821,7 +819,7 @@ export class GameApiOmahaController {
   async resumeFileDownload(
     @Query('userId', ParseXUIDPipe) userid: BigInt,
     @Query('shareId', ParseXUIDPipe) shareID: BigInt,
-    @Query('serverId', ParseXUIDPipe) serverId: BigInt,
+    @Query('serverId', new ParseBigIntPipe({ hex: true })) serverId: BigInt,
     @Query('startPosition', ParseIntPipe) startPosition: number,
     @Res() res: Response,
   ) {

@@ -592,7 +592,7 @@ export class HaloReachController {
         await this.prisma.reach_file_share_transfer.create({
             data: {
                 player_xuid: playerXuid,
-                file_id: fileId as any,
+                file_id: fileId,
             },
         });
 

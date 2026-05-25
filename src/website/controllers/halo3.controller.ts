@@ -332,6 +332,7 @@ export class Halo3Controller {
             gamesCompleted: sr.games_completed,
         };
     }
+
     @Get('/players/:xuid/screenshots')
     @ApiParam({ name: 'xuid' })
     async listPlayerScreenshotsByXuid(
@@ -688,7 +689,7 @@ export class Halo3Controller {
 
     @Get('/emblem')
     @ApiOperation({
-        summary: 'Get Emblemr',
+        summary: 'Get Emblem',
         description: `Renders a Halo 3 Emblem PNG using the provided parameters.`,
     })
     @Header('Content-Type', 'image/png')
@@ -1311,7 +1312,7 @@ export class Halo3Controller {
             data: {
                 player_xuid: playerXuid,
                 file_id: fileId,
-                is_odst: false, // Default to Halo 3, could be determined from file metadata if needed
+                is_odst: false,
             },
         });
 

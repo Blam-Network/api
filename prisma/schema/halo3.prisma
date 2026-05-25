@@ -792,6 +792,9 @@ model halo3_file_share_file {
   campaign_insertion_point  Int?                        @db.SmallInt
   hopper_id                 Int?                        @db.SmallInt
   game_id                   Decimal?                    @db.Decimal(20, 0)
+
+  is_odst                   Boolean
+
   halo3_file_share_transfer halo3_file_share_transfer[]
 
   @@unique([share_id, slot], map: "unique_share_id_slot")

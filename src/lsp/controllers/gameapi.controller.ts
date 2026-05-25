@@ -205,7 +205,8 @@ export class GameApiController {
           uniqueID,
           fileType,
           uncompressedSize,
-          compressedSize
+          compressedSize,
+          title === TITLE_IDS.HALO3_ODST
         )
         return uuid.replace(/-/g, '');
       default:

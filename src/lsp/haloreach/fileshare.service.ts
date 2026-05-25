@@ -18,8 +18,17 @@ import { c } from "src/cstruct";
 import { createReadStream } from "fs";
 import { Decimal } from "@prisma/client/runtime/library";
 import * as sharp from "sharp";
-import { Prisma } from "@prisma/client";
-
+import { Prisma, reach_file_share } from "@prisma/client";
+import { find_chunk } from '@blamnetwork/blf'
+import {
+    e_file_type,
+    s_blf_chunk_content_header,
+    s_content_item_film_metadata,
+    s_content_item_game_variant_metadata,
+    s_content_item_matchmaking_metadata,
+    s_content_item_campaign_metadata,
+    s_content_item_firefight_metadata,
+} from "@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 const FILESHARE_WELCOME_MESSAGE = 'Pardon our dust! File Share support is currently in Beta, some features may be unavailable.';
@@ -39,6 +48,13 @@ const SHAREDFILE_MIME = 'application/x-reach-sharedfile'
 
 const ENABLE_DEBUG_MIME = true;
 const DEBUG_MIME = SHAREDFILE_MIME
+
+const OMAHA_BUNGIE_FAVOURITES_XUID = BigInt('0xFFFFFFFFFFFFFF03');
+const BLAMNET_XUID = 0xffffffffffffff10n;
+
+const isBlamNetworkXuid = (xuid: BigInt) => {
+    return xuid === BLAMNET_XUID;
+}
 
 export enum e_predefined_query {
     _predefined_query_most_downloaded = 12,
@@ -374,7 +390,7 @@ export class HaloReachFileShareService {
         }).catch((err) => this.logger.error(`Failed to send screenshot to discord: ${err}`))
     }
 
-    private getFileShare = async (viewerXuid: BigInt, ownerXuid: BigInt) => {
+    private getFileShare = async (viewerXuid: BigInt, ownerXuid: BigInt): Promise<reach_file_share | null> => {
         const ownsFileshare = viewerXuid === ownerXuid;
 
         let fileShare = await this.prisma.reach_file_share.findUnique({
@@ -384,12 +400,25 @@ export class HaloReachFileShareService {
         })
 
         if (!fileShare && ownsFileshare) {
-            fileShare = await this.prisma.reach_file_share.create({
-                data: {
-                    share_id: ownerXuid.toString(),
-                    message: FILESHARE_WELCOME_MESSAGE,
-                }
-            })
+            if (ownerXuid === BLAMNET_XUID) {
+                fileShare = await this.prisma.reach_file_share.create({
+                    data: {
+                        share_id: ownerXuid.toString(),
+                        quota_slots: 0xff,
+                        quota_bytes: 0x7fffffff,
+                        message: null,
+                        lastHash: 0,
+                        unsubscribe_stage: null,
+                    }
+                })
+            } else {
+                fileShare = await this.prisma.reach_file_share.create({
+                    data: {
+                        share_id: ownerXuid.toString(),
+                        message: FILESHARE_WELCOME_MESSAGE,
+                    }
+                })
+            }
         }
 
         return fileShare;
@@ -433,7 +462,7 @@ export class HaloReachFileShareService {
             })
 
             const quotaSlots = fileshare?.quota_slots ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA;
-            if (currentFileCount > quotaSlots) {
+            if (currentFileCount > quotaSlots && !isBlamNetworkXuid(shareXuid)) {
                 this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot quota.`);
                 throw new BadRequestException("Your file share is full.")
             }
@@ -448,7 +477,7 @@ export class HaloReachFileShareService {
             })
             const quotaSpace = fileshare?.quota_bytes ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA;
             const usedSpace = usedSlots.map(slot => slot.compressed_size).reduce((acc, cur) => acc + cur, 0)
-            if (usedSpace + compressedSize > quotaSpace) {
+            if (usedSpace + compressedSize > quotaSpace && !isBlamNetworkXuid(shareXuid)) {
                 this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot byte quota.`);
                 throw new BadRequestException("This file is too large to store.");
             }
@@ -465,7 +494,7 @@ export class HaloReachFileShareService {
                 }
             });
 
-            this.logger.log(`[FileShare] User ${uploaderXuid} started uploading file ${fileShareSlot.id}`);
+            this.logger.log(`[FileShare] User ${xuidToHexString(uploaderXuid)} started uploading file ${fileShareSlot.id}`);
 
             return serverId.toString(16).padStart(16, '0');
         });
@@ -492,14 +521,49 @@ export class HaloReachFileShareService {
             throw new UnauthorizedException("Can't upload to someone elses file share.")
         }
 
-        const contentHeader = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_content_header(file.buffer);
-        if (!contentHeader) { 
+        const chdr = new s_blf_chunk_content_header();
+        const found_chdr = find_chunk(file.buffer, chdr, "big");
+        let game_variant_data: s_content_item_game_variant_metadata | undefined = undefined;
+        let film_data: s_content_item_film_metadata | undefined = undefined;
+        let matchmaking_data: s_content_item_matchmaking_metadata | undefined = undefined;
+        let campaign_data: s_content_item_campaign_metadata | undefined = undefined;
+        let firefight_data: s_content_item_firefight_metadata | undefined = undefined;
+
+        switch (chdr.metadata.general.file_type) {
+            case e_file_type.Film | e_file_type.FilmClip: {
+                film_data = chdr.metadata.file_type_data as s_content_item_film_metadata;
+            }
+            case e_file_type.GameVariant: {
+                game_variant_data = chdr.metadata.file_type_data as s_content_item_game_variant_metadata;
+            }
+        }
+        switch (chdr.metadata.general.activity) {
+            case 3: {
+                matchmaking_data = chdr.metadata.activity_data as s_content_item_matchmaking_metadata;
+            }
+        }
+        switch (chdr.metadata.general.game_mode) {
+            case 1: {
+                campaign_data = chdr.metadata.game_mode_data as s_content_item_campaign_metadata;
+            }
+            case 2: {
+                firefight_data = chdr.metadata.game_mode_data as s_content_item_firefight_metadata;
+            }
+        }
+
+        // const contentHeader = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_content_header(file.buffer);
+        if (!found_chdr) { 
             await this.uploadService.storeUploadedFile(file);
             throw new BadRequestException('No header found for upload.'); 
         }
 
-        if (contentHeader.build_number !== HALOREACH_BUILD_NUMBERS.RELEASE_TU1) {
-            this.logger.warn(`[FileShare] Got a file with build number ${contentHeader.build_number}, rejecting.`)
+        const supportedVersions = [
+            HALOREACH_BUILD_NUMBERS.RELEASE_TU0,
+            HALOREACH_BUILD_NUMBERS.RELEASE_TU1,
+        ]
+
+        if (!supportedVersions.includes(chdr.build_number)) {
+            this.logger.warn(`[FileShare] Got a file with build number ${chdr.build_number}, rejecting.`)
             throw new BadRequestException("Bad Version: The file is unsupported.")
         }
 
@@ -523,39 +587,40 @@ export class HaloReachFileShareService {
                 is_uploaded: true,
                 uploaded_at: new Date(),
 
-                unique_id: contentHeader.metadata.general.unique_id.toString(),
-                file_type: contentHeader.metadata.general.file_type,
-                megalo_category_index: contentHeader.metadata.display.megalo_category_index,
-                size_in_bytes: contentHeader.metadata.general.size_in_bytes.toString(),
-                activity: contentHeader.metadata.general.activity,
-                game_mode: contentHeader.metadata.general.game_mode,
-                game_engine_type: contentHeader.metadata.general.game_engine_type,
-                map_id: contentHeader.metadata.general.map_id,
+                unique_id: chdr.metadata.general.unique_id.toString(),
+                file_type: chdr.metadata.general.file_type,
+                megalo_category_index: chdr.metadata.display.megalo_category_index,
+                size_in_bytes: chdr.metadata.general.size_in_bytes,
+                activity: chdr.metadata.general.activity,
+                game_mode: chdr.metadata.general.game_mode,
+                game_engine_type: chdr.metadata.general.game_engine_type,
+                map_id: chdr.metadata.general.map_id,
 
-                created_at: contentHeader.metadata.creation_history.xuid.toString(),
-                creator_name: contentHeader.metadata.creation_history.name,
-                creator_xuid: contentHeader.metadata.creation_history.xuid.toString(),
-                creator_is_xuid_online: contentHeader.metadata.creation_history.is_online,
+                created_at: chdr.metadata.creation_history.timestamp.toISOString(),
+                creator_name: chdr.metadata.creation_history.name,
+                creator_xuid: chdr.metadata.creation_history.xuid.toString(),
+                creator_is_xuid_online: chdr.metadata.creation_history.is_online,
 
-                modified_at: contentHeader.metadata.modification_history.xuid.toString(),
-                modifier_name: contentHeader.metadata.modification_history.name,
-                modifier_xuid: contentHeader.metadata.modification_history.xuid.toString(),
-                modifier_is_xuid_online: contentHeader.metadata.modification_history.is_online,
+                modified_at: chdr.metadata.modification_history.timestamp.toISOString(),
+                modifier_name: chdr.metadata.modification_history.name,
+                modifier_xuid: chdr.metadata.modification_history.xuid.toString(),
+                modifier_is_xuid_online: chdr.metadata.modification_history.is_online,
 
-                name: contentHeader.metadata.name,
-                description: contentHeader.metadata.description,
+                name: chdr.metadata.name,
+                description: chdr.metadata.description,
 
-                icon_index: contentHeader.metadata.game_variant_data?.icon_index,
-                length_seconds: contentHeader.metadata.film_data?.seconds,
-                hopper_identifier: contentHeader.metadata.matchmaking_data?.hopper_identifier,
-                campaign_id: contentHeader.metadata.campaign_data?.campaign_id,
-                campaign_difficulty: contentHeader.metadata.campaign_data?.campaign_difficulty,
-                campaign_insertion_point: contentHeader.metadata.campaign_data?.campaign_insertion_point,
-                campaign_metagame_scoring: contentHeader.metadata.campaign_data?.campaign_metagame_scoring,
-                campaign_primary_skulls: contentHeader.metadata.campaign_data?.campaign_primary_skulls,
-                campaign_secondary_skulls: contentHeader.metadata.campaign_data?.campaign_secondary_skulls,
-                firefight_difficulty: contentHeader.metadata.firefight_data?.firefight_difficulty,
-                firefight_secondary_skulls: contentHeader.metadata.firefight_data?.firefight_secondary_skulls,
+                icon_index: game_variant_data?.icon_index,
+                length_seconds: film_data?.seconds,
+                hopper_identifier: matchmaking_data?.hopper_identifier,
+                campaign_id: campaign_data?.campaign_id,
+                campaign_difficulty: campaign_data?.campaign_difficulty,
+                campaign_insertion_point: campaign_data?.campaign_insertion_point,
+                campaign_metagame_scoring: campaign_data?.campaign_metagame_scoring,
+                campaign_primary_skulls: campaign_data?.campaign_primary_skulls,
+                campaign_secondary_skulls: campaign_data?.campaign_secondary_skulls,
+                firefight_difficulty: firefight_data?.firefight_difficulty,
+                firefight_primary_skulls: firefight_data?.firefight_primary_skulls,
+                firefight_secondary_skulls: firefight_data?.firefight_secondary_skulls,
             }
         });
     }

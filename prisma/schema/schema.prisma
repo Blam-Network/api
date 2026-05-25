@@ -71,6 +71,7 @@ model bnet_user {
   player_xuid     Decimal @id @db.Decimal(20, 0)
   is_registered   Boolean @default(false)
   datamine_access Boolean @default(false)
+  is_admin        Boolean @default(false)
 
   @@schema("public")
 }

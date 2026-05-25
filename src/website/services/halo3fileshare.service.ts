@@ -94,5 +94,29 @@ export class Halo3FileShareService {
 
         return screenshot_12070?.scnd.jpeg_data;
     }
+
+    /** ODST fileshare slot screenshots use the blind-screenshot BLF reader (no separate fileshare reader in blf_lsp). */
+    public viewOdstFileshareScreenshot = async (shareId: string, slot: number): Promise<number[]> => {
+        const shareIdDecimal = parseXuid(shareId);
+        const shareIdHex = xuidToHexString(shareIdDecimal);
+
+        const screenshotPath = join(
+            process.cwd(),
+            FILESHARE_FOLDER,
+            'halo3',
+            shareIdHex,
+            slot.toString()
+        );
+
+        if (!existsSync(screenshotPath)) throw new NotFoundException('fileshare screenshot file not found');
+
+        const blfFile = BLF.halo3odst_13895_09_04_27_2201_atlas_release.read_blind_screenshot(
+            readFileSync(screenshotPath),
+        );
+
+        if (!blfFile) throw new InternalServerErrorException('Bad Screenshot File');
+
+        return blfFile.scnd.jpeg_data;
+    }
 }
 

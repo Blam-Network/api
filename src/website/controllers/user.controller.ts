@@ -2,7 +2,9 @@ import { Controller, Post, Get, Inject, Body, Param, BadRequestException, Unauth
 import { ApiOperation, ApiParam, ApiTags, ApiBody, ApiHeader } from "@nestjs/swagger";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
+import { EXAMPLE_XUID } from "src/constants";
 import { JwtService } from "../services/jwt.service";
+import { BnetUserService } from "../services/bnetuser.service";
 
 @ApiTags('User')
 @Controller('/user')
@@ -11,6 +13,7 @@ export class UserController {
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
+        private readonly bnetUserService: BnetUserService,
     ) { }
 
     @Post('/register')
@@ -71,33 +74,32 @@ export class UserController {
     @Get()
     @ApiOperation({
         summary: 'Get User',
-        description: 'Get current user information including datamine access',
+        description: 'Get current user validated via Xbox XSTS token',
     })
-    @ApiHeader({ name: 'Authorization', description: 'NextAuth JWT token (Bearer token)' })
+    @ApiHeader({ name: 'x-xuid', example: EXAMPLE_XUID })
+    @ApiHeader({ name: 'x-uhs' })
+    @ApiHeader({ name: 'Authorization', description: 'XSTS token' })
     async getUser(
-        @Headers('Authorization') jwtToken: string,
+        @Headers('x-xuid') xuidHex: string,
+        @Headers('x-uhs') userHash: string,
+        @Headers('Authorization') xstsToken: string,
     ) {
-        if (!jwtToken) {
-            throw new BadRequestException('Authorization header with JWT token is required');
+        if (!xuidHex || !userHash || !xstsToken) {
+            throw new BadRequestException('x-xuid, x-uhs, and Authorization headers are required');
         }
 
-        // Validate JWT token and get user XUID
-        const { user: jwtUser } = await this.jwtService.validateJwtToken(jwtToken);
-        const xuid = jwtUser.xuid;
+        const { xuid } = await this.bnetUserService.validateXboxToken(xuidHex, userHash, xstsToken);
 
-        // Get datamine access
-        const dbUser = await this.prisma.bnet_user.findUnique({
+        const user = await this.prisma.bnet_user.findUnique({
             where: {
                 player_xuid: xuid,
-            },
-            select: {
-                datamine_access: true,
             },
         });
 
         return {
-            datamineAccess: dbUser?.datamine_access ?? false,
-        };
+            datamine_access: user?.datamine_access,
+            is_admin: user?.is_admin,
+        }
     }
 }
 

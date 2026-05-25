@@ -964,6 +964,7 @@ export class Halo3FileShareService {
         fileType: number,
         uncompressedSize: number,
         compressedSize: number,
+        isODST: boolean,
     ): Promise<string> => {
         if (!IS_FILESHARE_ENABLED) {
             this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload into share but fileshare is disabled.`);
@@ -1020,6 +1021,7 @@ export class Halo3FileShareService {
                     file_type: fileType,
                     size_in_bytes: uncompressedSize,
                     unique_id: uniqueId.toString(),
+                    is_odst: isODST,
                 }
             });
 

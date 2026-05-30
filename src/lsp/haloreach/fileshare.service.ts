@@ -1931,6 +1931,12 @@ export class HaloReachFileShareService {
             case e_predefined_query._predefined_query_most_downloaded_all_time: {
                 const downloads = await this.prisma.reach_file_share_file_download.groupBy({
                     by: ['file_id'],
+                    where: {
+                        file: {
+                            file_type: fileType,
+                            is_uploaded: true,
+                        },
+                    },
                     _count: { _all: true },
                     orderBy: {
                         _count: {
@@ -1946,6 +1952,12 @@ export class HaloReachFileShareService {
             case e_predefined_query._predefined_query_most_recommended_all_time: {
                 const recommendations = await this.prisma.reach_file_share_file_recommendation.groupBy({
                     by: ['file_id'],
+                    where: {
+                        file: {
+                            file_type: fileType,
+                            is_uploaded: true,
+                        },
+                    },
                     _count: { _all: true },
                     orderBy: {
                         _count: {
@@ -1965,6 +1977,7 @@ export class HaloReachFileShareService {
                     },
                     where: {
                         is_uploaded: true,
+                        file_type: fileType,
                     },
                     take: MAX_FILES_PER_PAGE,
                     skip: page * MAX_FILES_PER_PAGE,
@@ -1974,9 +1987,17 @@ export class HaloReachFileShareService {
             }
             case e_predefined_query._predefined_query_recently_downloaded: {
                 const recentlyDownloadedFiles = await this.prisma.reach_file_share_file_download.findMany({
+                    where: {
+                        file: {
+                            file_type: fileType,
+                            is_uploaded: true,
+                        },
+                    },
                     orderBy: {
                         downloaded_at: 'desc',
                     },
+                    take: MAX_FILES_PER_PAGE,
+                    skip: page * MAX_FILES_PER_PAGE,
                 });
                 file_ids = recentlyDownloadedFiles.map((r) => r.file_id.toString());
                 break;
@@ -1986,6 +2007,7 @@ export class HaloReachFileShareService {
                     where: {
                         share_id: BLAMNET_SYSTEM_XUID.toString(),
                         is_uploaded: true,
+                        file_type: fileType,
                     },
                     orderBy: {
                         uploaded_at: 'desc',

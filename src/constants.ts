@@ -22,12 +22,12 @@ export const HALOREACH_MAX_ACTIVE_TRANSFERS = 16;
 export const BLAMNET_SYSTEM_XUID = 0xffffffffffffff10n;
 
 /** Bungie favourites system file share (admin uploads). */
-export const BUNGIE_SYSTEM_XUID = 0xffffffffffffff03n;
+export const HALOREACH_BUNGIE_FAVOURITES_SYSTEM_XUID = 0xffffffffffffff03n;
 
 export const isBlamNetworkXuid = (xuid: { toString(): string }) =>
     BigInt(xuid.toString()) === BLAMNET_SYSTEM_XUID;
 
 export const isReachAdminFileshareXuid = (xuid: { toString(): string }) => {
     const value = BigInt(xuid.toString());
-    return value === BLAMNET_SYSTEM_XUID || value === BUNGIE_SYSTEM_XUID;
+    return value === BLAMNET_SYSTEM_XUID || value === HALOREACH_BUNGIE_FAVOURITES_SYSTEM_XUID;
 };

@@ -14,6 +14,7 @@ import { createReadStream } from "fs";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { xuidToHexString } from "src/xbox/xuid";
 import { UploadService } from "../services/upload.service";
+
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 

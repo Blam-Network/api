@@ -4,7 +4,7 @@ import * as BLF from '@blam-network/blf_lsp'
 import { PrismaService } from "src/db/prisma.service";
 import { access, mkdir, readFile, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
-import { FILESHARE_FOLDER, HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA, HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA, SCREENSHOTS_FOLDER } from "../../constants";
+import { BLAMNET_SYSTEM_XUID, FILESHARE_FOLDER, HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA, HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA, isBlamNetworkXuid, SCREENSHOTS_FOLDER } from "../../constants";
 import dedent from "dedent";
 import { h32 } from 'xxhashjs';
 import { DiscordWebhookService } from "../services/discordwebhook.service";
@@ -35,9 +35,6 @@ const FILESHARE_WELCOME_MESSAGE = 'Pardon our dust! File Share support is curren
 
 const HALOREACH_FILESHARE_FOLDER = join(FILESHARE_FOLDER, 'haloreach');
 
-const MEGABYTE = 1024 * 1024;
-const UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA = 25 * MEGABYTE;
-const UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA = 0;
 const DOWNLOAD_ENDPOINT = '/gameapi_omaha/FilesStartDownload.ashx';
 const SCREENSHOT_PREVIEW_MAX_FILE_SIZE = 0x5000;
 const SCREENSHOT_PREVIEW_WIDTH = 320;
@@ -50,13 +47,6 @@ const SHAREDFILE_MIME = 'application/x-reach-sharedfile'
 const ENABLE_DEBUG_MIME = true;
 const DEBUG_MIME = SHAREDFILE_MIME
 
-const OMAHA_BUNGIE_FAVOURITES_XUID = 0xFFFFFFFFFFFFFF03n;
-const BLAMNET_XUID = 0xffffffffffffff10n;
-
-const isBlamNetworkXuid = (xuid: BigInt) => {
-    return xuid === BLAMNET_XUID || xuid === OMAHA_BUNGIE_FAVOURITES_XUID;
-}
-
 export enum e_predefined_query {
     _predefined_query_most_downloaded = 12,
     _predefined_query_most_recommended = 13,
@@ -66,6 +56,7 @@ export enum e_predefined_query {
     _predefined_query_most_recommended_all_time = 16,
     _predefined_query_recently_uploaded = 17,
     _predefined_query_recently_downloaded = 18,
+    _predefined_query_blam_network = 19,
 }
 
 const OFFER_IDS = {
@@ -170,8 +161,8 @@ export class HaloReachFileShareService {
         ) {
             const hasher = h32().init(0);
             hasher.update(JSON.stringify({
-                quotaSlots: fileShare?.quota_slots || UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
-                quotaBytes: fileShare?.quota_bytes || UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
+                quotaSlots: fileShare?.quota_slots || HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA,
+                quotaBytes: fileShare?.quota_bytes || HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
                 message: fileShare?.message
             }))
     
@@ -410,11 +401,11 @@ export class HaloReachFileShareService {
         })
 
         if (!fileShare && ownsFileshare) {
-            if (ownerXuid === BLAMNET_XUID) {
+            if (ownerXuid === BLAMNET_SYSTEM_XUID) {
                 fileShare = await this.prisma.reach_file_share.create({
                     data: {
                         share_id: ownerXuid.toString(),
-                        quota_slots: 0xff,
+                        quota_slots: 50,
                         quota_bytes: 0x7fffffff,
                         message: null,
                         lastHash: 0,
@@ -892,7 +883,7 @@ export class HaloReachFileShareService {
                 },
                 fitm: {
                     online_file_listing: {
-                        xuid: viewerXuid.valueOf(),
+                        xuid: shareXuid.valueOf(),
                         gamertag: '',
                         unknown16: 0,
                         unknown17: 0,
@@ -939,8 +930,8 @@ export class HaloReachFileShareService {
                 },
                 fitm: {
                     online_file_listing: {
-                        xuid: viewerXuid.valueOf(),
-                        gamertag: '1234567891234567',
+                        xuid: shareXuid.valueOf(),
+                        gamertag: '',
                         unknown16: 1,
                         unknown17: 2,
                         unknown18: 3,
@@ -1446,11 +1437,11 @@ export class HaloReachFileShareService {
         const fileShareFileTypes = await this.prisma.reach_file_share_file.groupBy({
             by: ['file_type'],
             where: {
-            share_id: shareXuid.toString(),
-            is_uploaded: true,
+                share_id: shareXuid.toString(),
+                is_uploaded: true,
             },
             _count: {
-            _all: true,
+                _all: true,
             },
         });
     
@@ -1864,6 +1855,23 @@ export class HaloReachFileShareService {
               }
               break;
             }
+            case e_predefined_query._predefined_query_blam_network: {
+              const fileTypeGroups =
+                  await this.prisma.reach_file_share_file.groupBy({
+                      by: ['file_type'],
+                      where: {
+                          share_id: BLAMNET_SYSTEM_XUID.toString(),
+                          is_uploaded: true,
+                          file_type: { not: null },
+                      },
+                      _count: { _all: true },
+                  });
+              fileShareFileTypeDownloads = fileTypeGroups.reduce((acc, curr) => {
+                acc[curr.file_type ?? 0] = curr._count._all;
+                return acc;
+              }, {});
+              break;
+            }
             default:
               throw new BadRequestException('Invalid search ID');
           }
@@ -1960,6 +1968,21 @@ export class HaloReachFileShareService {
                     },
                 });
                 file_ids = recentlyDownloadedFiles.map((r) => r.file_id.toString());
+                break;
+            }
+            case e_predefined_query._predefined_query_blam_network: {
+                const blamNetworkFiles = await this.prisma.reach_file_share_file.findMany({
+                    where: {
+                        share_id: BLAMNET_SYSTEM_XUID.toString(),
+                        is_uploaded: true,
+                    },
+                    orderBy: {
+                        uploaded_at: 'desc',
+                    },
+                    take: MAX_FILES_PER_PAGE,
+                    skip: page * MAX_FILES_PER_PAGE,
+                });
+                file_ids = blamNetworkFiles.map((r) => r.id.toString());
                 break;
             }
             default:

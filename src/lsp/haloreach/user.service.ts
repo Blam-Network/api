@@ -23,10 +23,10 @@ export class HaloReachUserService {
     public getUserFile = async (xuid: BigInt) => {
         // If the DB is too slow, or data isn't present, we'll return a file without player data or a service record.
         let fupd: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_player_data = undefined;
-        let srid: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record = undefined;
         let chpr: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_progress = undefined;
         let umsg: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_user_messaging_data = undefined;
         let filq: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_file_transfers = undefined;
+        let name = '<unknown>';
 
         const playerDataPromise = this.prisma.$transaction(async (prisma) => {
             const playerData = await prisma.reach_player_data.findUnique({ where: { player_xuid: xuid.toString() } });
@@ -151,7 +151,12 @@ export class HaloReachUserService {
         const challengesPromise = this.challengeService.getChallengeProgress(xuid)
             .then(_chpr => chpr = _chpr);
 
-        await Promise.allSettled([playerDataPromise, challengesPromise]);
+        const namePromise = this.prisma.reach_service_record.findUnique({
+            where: { player_xuid: xuid.toString() },
+            select: { player_name: true },
+        }).then(serviceRecord => name = serviceRecord?.player_name ?? '<unknown>');
+
+        await Promise.allSettled([playerDataPromise, challengesPromise, namePromise]);
 
         if (!fupd) {
             fupd = {
@@ -163,12 +168,9 @@ export class HaloReachUserService {
             }
         }
 
-        // Typescript is dumb
-        // @ts-ignore
-        let name = srid ? srid.player_name : '<unknown>';
         this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
 
-        return BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_file(fupd, chpr, srid, umsg, filq);
+        return BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_file(fupd, chpr, undefined, umsg, filq);
     }
 
     public getServiceRecord = async (xuid: BigInt): Promise<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record> => {

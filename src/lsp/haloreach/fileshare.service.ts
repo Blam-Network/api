@@ -43,6 +43,7 @@ const SCREENSHOT_PREVIEW_MAX_FILE_SIZE = 0x5000;
 const SCREENSHOT_PREVIEW_WIDTH = 320;
 const SCREENSHOT_PREVIEW_HEIGHT = 180;
 const MAX_TAGS_PER_FILE = 7;
+const MAX_FILES_PER_PAGE = 50;
 
 const SHAREDFILE_MIME = 'application/x-reach-sharedfile'
 
@@ -1558,7 +1559,7 @@ export class HaloReachFileShareService {
             return new ServiceUnavailableException();
         }
 
-        const maxUniqueFiles = 100;
+        const maxUniqueFiles = MAX_FILES_PER_PAGE;
         // Fetch more rows than the cap: many rows can refer to the same file (different recommenders).
         const recommendationRows =
             await this.prisma.reach_file_share_file_recommendation.findMany({
@@ -1707,7 +1708,7 @@ export class HaloReachFileShareService {
                     unknown18: 3,
                     unknown19: 4,
                     quota_byte_count: HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
-                    quota_slot_count: 100,
+                    quota_slot_count: MAX_FILES_PER_PAGE,
                     slot_count: listing_entries.length,
                     message_length: 0,
                     entries: listing_entries,
@@ -1757,7 +1758,7 @@ export class HaloReachFileShareService {
                               player_id: 'desc',
                           },
                       },
-                      take: 100,
+                      take: MAX_FILES_PER_PAGE,
                   });
               if (downloadByFile.length > 0) {
                   const fileIds = downloadByFile.map((r) => r.file_id.toString());
@@ -1788,7 +1789,7 @@ export class HaloReachFileShareService {
                               player_id: 'desc',
                           },
                       },
-                      take: 100,
+                      take: MAX_FILES_PER_PAGE,
                   });
               if (recommendationByFile.length > 0) {
                   const fileIds = recommendationByFile.map((r) => r.file_id.toString());
@@ -1815,7 +1816,7 @@ export class HaloReachFileShareService {
                       orderBy: {
                           created_at: 'desc',
                       },
-                      take: 100,
+                      take: MAX_FILES_PER_PAGE,
                   });
               if (recentlyUploadedFiles.length > 0) {
                   const fileIds = recentlyUploadedFiles.map((r) => r.id.toString());
@@ -1842,7 +1843,7 @@ export class HaloReachFileShareService {
                       orderBy: {
                           downloaded_at: 'desc',
                       },
-                      take: 100,
+                      take: MAX_FILES_PER_PAGE,
                   });
               if (recentlyDownloadedFiles.length > 0) {
                   const fileIds = recentlyDownloadedFiles.map((r) => r.file_id.toString());
@@ -1917,8 +1918,8 @@ export class HaloReachFileShareService {
                             player_id: 'desc',
                         },
                     },
-                    take: 100,
-                    skip: page * 100,
+                    take: MAX_FILES_PER_PAGE,
+                    skip: page * MAX_FILES_PER_PAGE,
                 });
                 file_ids = downloads.map((r) => r.file_id.toString());
                 break;
@@ -1932,8 +1933,8 @@ export class HaloReachFileShareService {
                             player_id: 'desc',
                         },
                     },
-                    take: 100,
-                    skip: page * 100,
+                    take: MAX_FILES_PER_PAGE,
+                    skip: page * MAX_FILES_PER_PAGE,
                 });
                 file_ids = recommendations.map((r) => r.file_id.toString());
                 break;
@@ -1946,8 +1947,8 @@ export class HaloReachFileShareService {
                     where: {
                         is_uploaded: true,
                     },
-                    take: 100,
-                    skip: page * 100,
+                    take: MAX_FILES_PER_PAGE,
+                    skip: page * MAX_FILES_PER_PAGE,
                 });
                 file_ids = recentlyUploadedFiles.map((r) => r.id.toString());
                 break;
@@ -2087,7 +2088,7 @@ export class HaloReachFileShareService {
                     unknown18: 3,
                     unknown19: 4,
                     quota_byte_count: HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
-                    quota_slot_count: 100,
+                    quota_slot_count: MAX_FILES_PER_PAGE,
                     slot_count: listing_entries.length,
                     message_length: 0,
                     entries: listing_entries,
@@ -2243,8 +2244,8 @@ export class HaloReachFileShareService {
                 uploaded_at: 'desc',
             },
             select: { id: true },
-            take: 25,
-            skip: page * 25,
+            take: MAX_FILES_PER_PAGE,
+            skip: page * MAX_FILES_PER_PAGE,
         });
 
         const files = await this.prisma.reach_file_share_file.findMany({
@@ -2282,7 +2283,7 @@ export class HaloReachFileShareService {
                     unknown18: 3,
                     unknown19: 4,
                     quota_byte_count: HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
-                    quota_slot_count: 25,
+                    quota_slot_count: MAX_FILES_PER_PAGE,
                     slot_count: files.length,
                     message_length: 0,
                     entries: files.map((file) => ({

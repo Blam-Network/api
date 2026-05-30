@@ -2243,8 +2243,8 @@ export class HaloReachFileShareService {
                 uploaded_at: 'desc',
             },
             select: { id: true },
-            take: 100,
-            skip: page * 100,
+            take: 25,
+            skip: page * 25,
         });
 
         const files = await this.prisma.reach_file_share_file.findMany({
@@ -2282,7 +2282,7 @@ export class HaloReachFileShareService {
                     unknown18: 3,
                     unknown19: 4,
                     quota_byte_count: HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
-                    quota_slot_count: 100,
+                    quota_slot_count: 25,
                     slot_count: files.length,
                     message_length: 0,
                     entries: files.map((file) => ({

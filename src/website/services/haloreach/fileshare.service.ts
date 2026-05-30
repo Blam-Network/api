@@ -21,9 +21,13 @@ import { randomBytes } from "crypto";
 import { mkdir, rm, writeFile } from "fs/promises";
 import { join } from "path";
 import {
+    BLAMNET_SYSTEM_XUID,
     FILESHARE_FOLDER,
+    HALOREACH_BUNGIE_FAVOURITES_SLOT_QUOTA,
+    HALOREACH_BUNGIE_FAVOURITES_SYSTEM_XUID,
     HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA,
     HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
+    isBlamNetworkXuid,
     isReachAdminFileshareXuid,
 } from "src/constants";
 import { PrismaService } from "src/db/prisma.service";
@@ -39,7 +43,6 @@ const HALOREACH_FILESHARE_FOLDER = join(FILESHARE_FOLDER, "haloreach");
 const SHAREDFILE_MIME = "application/x-reach-sharedfile";
 const ENABLE_DEBUG_MIME = true;
 const DEBUG_MIME = SHAREDFILE_MIME;
-const BLAMNET_XUID = 0xffffffffffffff10n;
 
 const serverIdToString = (serverId: BigInt | Decimal) => {
     if (serverId instanceof Decimal) {
@@ -114,8 +117,19 @@ export class FileShareUploadService {
             },
         });
 
-        if (!fileShare && ownsFileshare) {
-            if (ownerXuid === BLAMNET_XUID) {
+        if (!fileShare && (ownsFileshare || isReachAdminFileshareXuid(ownerXuid))) {
+            if (ownerXuid === HALOREACH_BUNGIE_FAVOURITES_SYSTEM_XUID) {
+                fileShare = await this.prisma.reach_file_share.create({
+                    data: {
+                        share_id: ownerXuid.toString(),
+                        quota_slots: HALOREACH_BUNGIE_FAVOURITES_SLOT_QUOTA,
+                        quota_bytes: 0x7fffffff,
+                        message: null,
+                        lastHash: 0,
+                        unsubscribe_stage: null,
+                    },
+                });
+            } else if (ownerXuid === BLAMNET_SYSTEM_XUID) {
                 fileShare = await this.prisma.reach_file_share.create({
                     data: {
                         share_id: ownerXuid.toString(),
@@ -177,7 +191,7 @@ export class FileShareUploadService {
 
             const quotaSlots =
                 fileshare?.quota_slots ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA;
-            if (currentFileCount > quotaSlots && !isReachAdminFileshareXuid(shareXuid)) {
+            if (currentFileCount >= quotaSlots && !isBlamNetworkXuid(shareXuid)) {
                 this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot quota.`);
                 throw new BadRequestException("Your file share is full.");
             }
@@ -195,7 +209,7 @@ export class FileShareUploadService {
             const usedSpace = usedSlots
                 .map((slot) => slot.compressed_size)
                 .reduce((acc, cur) => acc + cur, 0);
-            if (usedSpace + compressedSize > quotaSpace && !isReachAdminFileshareXuid(shareXuid)) {
+            if (usedSpace + compressedSize > quotaSpace && !isBlamNetworkXuid(shareXuid)) {
                 this.logger.warn(
                     `[FileShare] ${uploaderXuid} tried to upload beyond their slot byte quota.`,
                 );

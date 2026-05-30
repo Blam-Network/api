@@ -16,12 +16,10 @@ export const HALO3_MAX_ACTIVE_TRANSFERS = 8;
 
 export const HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA = 50 * MEGABYTE;
 export const HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA = 10;
+export const HALOREACH_BUNGIE_FAVOURITES_SLOT_QUOTA = 50;
 export const HALOREACH_MAX_ACTIVE_TRANSFERS = 16;
 
-/** Blam Network system file share (admin uploads). */
 export const BLAMNET_SYSTEM_XUID = 0xffffffffffffff10n;
-
-/** Bungie favourites system file share (admin uploads). */
 export const HALOREACH_BUNGIE_FAVOURITES_SYSTEM_XUID = 0xffffffffffffff03n;
 
 export const isBlamNetworkXuid = (xuid: { toString(): string }) =>

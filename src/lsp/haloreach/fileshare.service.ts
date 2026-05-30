@@ -4,7 +4,7 @@ import * as BLF from '@blam-network/blf_lsp'
 import { PrismaService } from "src/db/prisma.service";
 import { access, mkdir, readFile, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
-import { BLAMNET_SYSTEM_XUID, FILESHARE_FOLDER, HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA, HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA, isBlamNetworkXuid, SCREENSHOTS_FOLDER } from "../../constants";
+import { BLAMNET_SYSTEM_XUID, FILESHARE_FOLDER, HALOREACH_BUNGIE_FAVOURITES_SLOT_QUOTA, HALOREACH_BUNGIE_FAVOURITES_SYSTEM_XUID, HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA, HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA, isBlamNetworkXuid, isReachAdminFileshareXuid, SCREENSHOTS_FOLDER } from "../../constants";
 import dedent from "dedent";
 import { h32 } from 'xxhashjs';
 import { DiscordWebhookService } from "../services/discordwebhook.service";
@@ -128,9 +128,9 @@ export class HaloReachFileShareService {
     }
 
     private assertFileshareWritable(shareXuid: BigInt) {
-        if (isBlamNetworkXuid(shareXuid)) {
+        if (isReachAdminFileshareXuid(shareXuid)) {
             this.logger.warn(
-                `[FileShare] Write to Blam Network file share ${xuidToHexString(shareXuid)} is forbidden.`,
+                `[FileShare] Write to system file share ${xuidToHexString(shareXuid)} is forbidden.`,
             );
             throw new ForbiddenException('This file share cannot be modified in-game.');
         }
@@ -400,12 +400,23 @@ export class HaloReachFileShareService {
             }
         })
 
-        if (!fileShare && ownsFileshare) {
-            if (ownerXuid === BLAMNET_SYSTEM_XUID) {
+        if (!fileShare && (ownsFileshare || isReachAdminFileshareXuid(ownerXuid))) {
+            if (ownerXuid === HALOREACH_BUNGIE_FAVOURITES_SYSTEM_XUID) {
                 fileShare = await this.prisma.reach_file_share.create({
                     data: {
                         share_id: ownerXuid.toString(),
-                        quota_slots: 50,
+                        quota_slots: HALOREACH_BUNGIE_FAVOURITES_SLOT_QUOTA,
+                        quota_bytes: 0x7fffffff,
+                        message: null,
+                        lastHash: 0,
+                        unsubscribe_stage: null,
+                    }
+                })
+            } else if (ownerXuid === BLAMNET_SYSTEM_XUID) {
+                fileShare = await this.prisma.reach_file_share.create({
+                    data: {
+                        share_id: ownerXuid.toString(),
+                        quota_slots: 0xff,
                         quota_bytes: 0x7fffffff,
                         message: null,
                         lastHash: 0,
@@ -465,7 +476,7 @@ export class HaloReachFileShareService {
             })
 
             const quotaSlots = fileshare?.quota_slots ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA;
-            if (currentFileCount > quotaSlots) {
+            if (currentFileCount >= quotaSlots && !isBlamNetworkXuid(shareXuid)) {
                 this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot quota.`);
                 throw new BadRequestException("Your file share is full.")
             }
@@ -480,7 +491,7 @@ export class HaloReachFileShareService {
             })
             const quotaSpace = fileshare?.quota_bytes ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA;
             const usedSpace = usedSlots.map(slot => slot.compressed_size).reduce((acc, cur) => acc + cur, 0)
-            if (usedSpace + compressedSize > quotaSpace) {
+            if (usedSpace + compressedSize > quotaSpace && !isBlamNetworkXuid(shareXuid)) {
                 this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot byte quota.`);
                 throw new BadRequestException("This file is too large to store.");
             }

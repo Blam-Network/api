@@ -25,7 +25,7 @@ export class JwtService {
         if (!secretString) {
             throw new Error('NEXTAUTH_SECRET environment variable is required');
         }
-        this.secret = secretString;
+        this.secret = secretString.trim();
     }
 
     /**
@@ -41,7 +41,9 @@ export class JwtService {
 
         try {
             // Remove "Bearer " prefix if present
-            const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
+            const cleanToken = decodeURIComponent(
+                token.startsWith('Bearer ') ? token.slice(7) : token,
+            );
 
             // Decrypt the JWE token using NextAuth's decode function
             const payload = await decode({

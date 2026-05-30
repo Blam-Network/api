@@ -9,7 +9,9 @@ import { Halo3EmblemsService } from './services/halo3emblems.service';
 import { Halo3FileShareService } from './services/halo3fileshare.service';
 import { Halo3ODSTController } from './controllers/halo3odst.controller';
 import { HaloReachController } from './controllers/haloreach.controller';
+import { HaloReachFileshareController } from './controllers/haloreach-fileshare.controller';
 import { HaloReachFileShareService } from './services/haloreachfileshare.service';
+import { FileShareUploadService } from './services/haloreach/fileshare.service';
 import { Halo3PopulationService } from './services/halo3population.service';
 import { DatamineController } from './controllers/datamine.controller';
 import { UserController } from './controllers/user.controller';
@@ -19,6 +21,8 @@ import { loggerWithPrefix } from 'src/utils/logger'
 import { AresController } from './controllers/ares.controller';
 import { AresPopulationService } from './services/arespopulation.service';
 import { AresFileShareService } from './services/aresfileshare.service';
+import { CompressionService } from 'src/lsp/services/compression.service';
+import { UploadService } from 'src/lsp/services/upload.service';
 
 @Module({
     imports: [
@@ -32,6 +36,7 @@ import { AresFileShareService } from './services/aresfileshare.service';
         Halo3Controller,
         Halo3ODSTController,
         HaloReachController,
+        HaloReachFileshareController,
         DatamineController,
         UserController,
     ],
@@ -40,6 +45,9 @@ import { AresFileShareService } from './services/aresfileshare.service';
         Halo3EmblemsService,
         Halo3FileShareService,
         HaloReachFileShareService,
+        FileShareUploadService,
+        CompressionService,
+        UploadService,
         Halo3PopulationService,
         AresPopulationService,
         AresFileShareService,

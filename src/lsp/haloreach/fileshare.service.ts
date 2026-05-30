@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException, ServiceUnavailableException, StreamableFile, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable, InternalServerErrorException, NotFoundException, ServiceUnavailableException, StreamableFile, UnauthorizedException } from "@nestjs/common";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import * as BLF from '@blam-network/blf_lsp'
 import { PrismaService } from "src/db/prisma.service";
@@ -49,11 +49,11 @@ const SHAREDFILE_MIME = 'application/x-reach-sharedfile'
 const ENABLE_DEBUG_MIME = true;
 const DEBUG_MIME = SHAREDFILE_MIME
 
-const OMAHA_BUNGIE_FAVOURITES_XUID = BigInt('0xFFFFFFFFFFFFFF03');
+const OMAHA_BUNGIE_FAVOURITES_XUID = 0xFFFFFFFFFFFFFF03n;
 const BLAMNET_XUID = 0xffffffffffffff10n;
 
 const isBlamNetworkXuid = (xuid: BigInt) => {
-    return xuid === BLAMNET_XUID;
+    return xuid === BLAMNET_XUID || xuid === OMAHA_BUNGIE_FAVOURITES_XUID;
 }
 
 export enum e_predefined_query {
@@ -132,6 +132,15 @@ export class HaloReachFileShareService {
     private applyDebugMime = (file: Express.Multer.File) => {
         if (ENABLE_DEBUG_MIME && file.mimetype === 'application/octet-stream') {
             file.mimetype = DEBUG_MIME;
+        }
+    }
+
+    private assertFileshareWritable(shareXuid: BigInt) {
+        if (isBlamNetworkXuid(shareXuid)) {
+            this.logger.warn(
+                `[FileShare] Write to Blam Network file share ${xuidToHexString(shareXuid)} is forbidden.`,
+            );
+            throw new ForbiddenException('This file share cannot be modified in-game.');
         }
     }
 
@@ -442,6 +451,8 @@ export class HaloReachFileShareService {
             throw new UnauthorizedException("Can't upload to someone elses file share.")
         }
 
+        this.assertFileshareWritable(shareXuid);
+
         const fileshare = await this.getFileShare(uploaderXuid, shareXuid);
 
         // tx prevents over-quota errors from concurrent uploads.
@@ -462,7 +473,7 @@ export class HaloReachFileShareService {
             })
 
             const quotaSlots = fileshare?.quota_slots ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA;
-            if (currentFileCount > quotaSlots && !isBlamNetworkXuid(shareXuid)) {
+            if (currentFileCount > quotaSlots) {
                 this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot quota.`);
                 throw new BadRequestException("Your file share is full.")
             }
@@ -477,7 +488,7 @@ export class HaloReachFileShareService {
             })
             const quotaSpace = fileshare?.quota_bytes ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA;
             const usedSpace = usedSlots.map(slot => slot.compressed_size).reduce((acc, cur) => acc + cur, 0)
-            if (usedSpace + compressedSize > quotaSpace && !isBlamNetworkXuid(shareXuid)) {
+            if (usedSpace + compressedSize > quotaSpace) {
                 this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot byte quota.`);
                 throw new BadRequestException("This file is too large to store.");
             }
@@ -520,6 +531,8 @@ export class HaloReachFileShareService {
         if (uploaderXuid !== shareXuid) {
             throw new UnauthorizedException("Can't upload to someone elses file share.")
         }
+
+        this.assertFileshareWritable(shareXuid);
 
         const chdr = new s_blf_chunk_content_header();
         const found_chdr = find_chunk(file.buffer, chdr, "big");
@@ -1266,6 +1279,8 @@ export class HaloReachFileShareService {
             this.logger.error(`[FileShare] User ${userXuid} tried to delete file ${serverIdToString(serverId)} from share ${shareXuid}`)
             throw new UnauthorizedException();
         }
+
+        this.assertFileshareWritable(shareXuid);
 
         if (!await this.prisma.reach_file_share_file.findUnique( {
             where: {

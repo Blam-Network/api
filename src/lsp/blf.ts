@@ -175,7 +175,7 @@ export namespace HaloReach {
           pack: 1,
           fields: [
             { name: 'build_number', type: 'u16' },
-            { name: 'map_minor_version', type: 'u16' },
+            { name: 'build_sequence_number', type: 'u16' },
             { name: 'metadata', type: c_content_item_metadata },
           ],
         });

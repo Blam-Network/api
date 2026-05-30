@@ -409,7 +409,7 @@ export const AVAILABLE_FIREFIGHT_CHALLENGES = [
     // HaloReachFirefightChallenge.temp_f_5,
 ]
 
-export const AVAILABLE_MATCHMAKING_CHALELNGES = [
+export const AVAILABLE_MATCHMAKING_CHALLENGES = [
     HaloReachMultiplayerChallenge.double_double_chall,
     HaloReachMultiplayerChallenge.triple_double_chall,
     HaloReachMultiplayerChallenge.quadruple_double_chal,

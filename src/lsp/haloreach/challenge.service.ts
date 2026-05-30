@@ -3,7 +3,7 @@ import * as BLF from '@blam-network/blf_lsp';
 import { Prisma } from "@prisma/client";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
-import { AVAILABLE_BOUNTY_CHALLENGES, AVAILABLE_CAMPAIGN_CHALLENGES, AVAILABLE_FIREFIGHT_CHALLENGES, AVAILABLE_MATCHMAKING_CHALELNGES, AVAILABLE_WEEKLY_CHALLENGES, HaloReachFirefightChallenge, HaloReachWeeklyChallenge } from "./challenges";
+import { AVAILABLE_BOUNTY_CHALLENGES, AVAILABLE_CAMPAIGN_CHALLENGES, AVAILABLE_FIREFIGHT_CHALLENGES, AVAILABLE_MATCHMAKING_CHALLENGES, AVAILABLE_WEEKLY_CHALLENGES, HaloReachFirefightChallenge, HaloReachWeeklyChallenge } from "./challenges";
 import { DeterministicRandomizer } from "src/utils/random";
 import { differenceInDays, differenceInWeeks } from "date-fns";
 
@@ -13,6 +13,8 @@ const DAILY_CHALLENGES_COUNT = 4;
 const WEEKLY_CHALLENGES_COUNT = 1;
 const MAXIMUM_CHALLENGES_PER_SET = 10;
 const JAN_1_2000 = new Date(2000, 1, 1);
+const DAILY_CHALLENGE_CREDITS_MULTIPLIER = 1.5;
+const WEEKLY_CHALLENGE_CREDITS_MULTIPLIER = 1.5;
 
 @Injectable()
 export class HaloReachChallengeService {
@@ -83,7 +85,7 @@ export class HaloReachChallengeService {
         const REMAINING_BOUNTY_CHALLENGES = [...AVAILABLE_BOUNTY_CHALLENGES];
         const REMAINING_CAMPAIGN_CHALLENGES = [...AVAILABLE_CAMPAIGN_CHALLENGES];
         const REMAINING_FIREFIGHT_CHALLENGES = [...AVAILABLE_FIREFIGHT_CHALLENGES];
-        const REMAINING_MATCHMAKING_CHALLENGES = [...AVAILABLE_MATCHMAKING_CHALELNGES];
+        const REMAINING_MATCHMAKING_CHALLENGES = [...AVAILABLE_MATCHMAKING_CHALLENGES];
 
         for (let challengeNumber = 0; challengeNumber < DAILY_CHALLENGES_COUNT; challengeNumber++) {
             const randomizer = new DeterministicRandomizer(`${this.getNextDailyResetDate().getDate().toString()}-${challengeNumber}`)
@@ -117,7 +119,7 @@ export class HaloReachChallengeService {
 
             challenges[challengeNumber].category = challengeCategory;
             challenges[challengeNumber].challenge = challenge;
-            challenges[challengeNumber].cookie_reward = randomizer.pick(CHALLENGE_CREDITS_RANGE);
+            challenges[challengeNumber].cookie_reward = randomizer.pick(CHALLENGE_CREDITS_RANGE) * DAILY_CHALLENGE_CREDITS_MULTIPLIER;
         }
 
         return challenges;
@@ -142,7 +144,7 @@ export class HaloReachChallengeService {
 
             challenges[challengeNumber].category = challengeCategory
             challenges[challengeNumber].challenge = challenge;
-            challenges[challengeNumber].cookie_reward = randomizer.pick(CHALLENGE_CREDITS_RANGE);
+            challenges[challengeNumber].cookie_reward = randomizer.pick(CHALLENGE_CREDITS_RANGE) * WEEKLY_CHALLENGE_CREDITS_MULTIPLIER;
         }
 
         return challenges;

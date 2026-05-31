@@ -6,6 +6,7 @@ import { parseXuid } from "src/xbox/xuid";
 import { PrismaService } from "src/db/prisma.service";
 import { Halo3FileShareService } from "../services/halo3fileshare.service";
 import { HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA, HALO3_MAX_ACTIVE_TRANSFERS } from "src/constants";
+import { buildFileshareSearchFilter, fileshareUniqueIdPartition } from "../fileshare-search";
 
 @ApiTags('Halo 3: ODST')
 @Controller('/halo3odst')
@@ -202,8 +203,9 @@ export class Halo3ODSTController {
     })
     async listAllFileshareFiles(
         @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
-        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 50,
         @Query('fileType') fileType?: string,
+        @Query('search') search?: string,
     ) {
         const skip = (page - 1) * pageSize;
 
@@ -227,6 +229,8 @@ export class Halo3ODSTController {
         const fileTypeFilter = fileTypes.length > 0
             ? `AND file_type IN (${fileTypes.join(', ')})`
             : '';
+        const searchFilter = buildFileshareSearchFilter(search, 'name', 'description', 'author');
+        const uniqueIdPartition = fileshareUniqueIdPartition('unique_id', 'id');
 
         const filesQuery = `
             WITH ranked_files AS (
@@ -236,7 +240,10 @@ export class Halo3ODSTController {
                     length_seconds, campaign_id, map_id, game_engine_type,
                     campaign_difficulty, hopper_id, game_id, campaign_insertion_point,
                     share_id,
-                    ROW_NUMBER() OVER (PARTITION BY unique_id ORDER BY date DESC NULLS LAST) as rn
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ${uniqueIdPartition}
+                        ORDER BY date DESC NULLS LAST
+                    ) as rn
                 FROM halo3.file_share_slot
                 WHERE is_uploaded = true AND is_odst = true ${fileTypeFilter}
             )
@@ -247,7 +254,7 @@ export class Halo3ODSTController {
                 campaign_difficulty, hopper_id, game_id, campaign_insertion_point,
                 share_id
             FROM ranked_files
-            WHERE rn = 1
+            WHERE rn = 1 ${searchFilter}
             ORDER BY date DESC NULLS LAST
             LIMIT ${pageSize} OFFSET ${skip}
         `;
@@ -276,9 +283,19 @@ export class Halo3ODSTController {
         }>>(filesQuery);
 
         const totalQuery = `
-            SELECT COUNT(DISTINCT unique_id) as count
-            FROM halo3.file_share_slot
-            WHERE is_uploaded = true AND is_odst = true ${fileTypeFilter}
+            WITH ranked_files AS (
+                SELECT
+                    name, description, author,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ${uniqueIdPartition}
+                        ORDER BY date DESC NULLS LAST
+                    ) as rn
+                FROM halo3.file_share_slot
+                WHERE is_uploaded = true AND is_odst = true ${fileTypeFilter}
+            )
+            SELECT COUNT(*) as count
+            FROM ranked_files
+            WHERE rn = 1 ${searchFilter}
         `;
         const totalResult = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(totalQuery);
         const total = Number(totalResult[0]?.count ?? 0);

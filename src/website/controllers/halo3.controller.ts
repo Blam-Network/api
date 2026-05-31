@@ -10,6 +10,7 @@ import { Halo3FileShareService } from "../services/halo3fileshare.service";
 import { TitleID } from "src/xbox/titles";
 import { HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA, HALO3_MAX_ACTIVE_TRANSFERS } from "src/constants";
 import { Halo3PopulationService } from "../services/halo3population.service";
+import { buildFileshareSearchFilter, fileshareUniqueIdPartition } from "../fileshare-search";
 
 const RECON_REQUIRED_ACHIEVEMENTS = [
     {
@@ -450,7 +451,7 @@ export class Halo3Controller {
         });
 
         const files = await this.prisma.halo3_file_share_file.findMany({
-            where: { share_id: shareId, is_uploaded: true },
+            where: { share_id: shareId, is_uploaded: true, is_odst: false },
             orderBy: { slot: 'asc' },
             select: {
                 id: true,
@@ -519,8 +520,9 @@ export class Halo3Controller {
     })
     async listAllFileshareFiles(
         @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
-        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 50,
         @Query('fileType') fileType?: string,
+        @Query('search') search?: string,
     ) {
         const skip = (page - 1) * pageSize;
         
@@ -545,6 +547,8 @@ export class Halo3Controller {
         const fileTypeFilter = fileTypes.length > 0 
             ? `AND file_type IN (${fileTypes.join(', ')})` 
             : '';
+        const searchFilter = buildFileshareSearchFilter(search, 'name', 'description', 'author');
+        const uniqueIdPartition = fileshareUniqueIdPartition('unique_id', 'id');
 
         // Use a subquery to get distinct unique_ids with the most recent file for each
         const filesQuery = `
@@ -555,9 +559,12 @@ export class Halo3Controller {
                     length_seconds, campaign_id, map_id, game_engine_type,
                     campaign_difficulty, hopper_id, game_id, campaign_insertion_point,
                     share_id,
-                    ROW_NUMBER() OVER (PARTITION BY unique_id ORDER BY date DESC NULLS LAST) as rn
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ${uniqueIdPartition}
+                        ORDER BY date DESC NULLS LAST
+                    ) as rn
                 FROM halo3.file_share_slot
-                WHERE is_uploaded = true ${fileTypeFilter}
+                WHERE is_uploaded = true AND is_odst = false ${fileTypeFilter}
             )
             SELECT 
                 id, slot, unique_id, name, description, author, file_type,
@@ -566,7 +573,7 @@ export class Halo3Controller {
                 campaign_difficulty, hopper_id, game_id, campaign_insertion_point,
                 share_id
             FROM ranked_files
-            WHERE rn = 1
+            WHERE rn = 1 ${searchFilter}
             ORDER BY date DESC NULLS LAST
             LIMIT ${pageSize} OFFSET ${skip}
         `;
@@ -596,9 +603,19 @@ export class Halo3Controller {
 
         // Get total count of distinct unique_ids
         const totalQuery = `
-            SELECT COUNT(DISTINCT unique_id) as count
-            FROM halo3.file_share_slot
-            WHERE is_uploaded = true ${fileTypeFilter}
+            WITH ranked_files AS (
+                SELECT
+                    name, description, author,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ${uniqueIdPartition}
+                        ORDER BY date DESC NULLS LAST
+                    ) as rn
+                FROM halo3.file_share_slot
+                WHERE is_uploaded = true AND is_odst = false ${fileTypeFilter}
+            )
+            SELECT COUNT(*) as count
+            FROM ranked_files
+            WHERE rn = 1 ${searchFilter}
         `;
         const totalResult = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(totalQuery);
         const total = Number(totalResult[0]?.count ?? 0);
@@ -1171,6 +1188,7 @@ export class Halo3Controller {
             where: {
                 game_id: gameId,
                 is_uploaded: true,
+                is_odst: false,
             },
             orderBy: { date: 'desc' },
             take: 20,
@@ -1281,6 +1299,10 @@ export class Halo3Controller {
             throw new BadRequestException('File is not yet uploaded');
         }
 
+        if (file.is_odst) {
+            throw new BadRequestException('File is not a Halo 3 file share item');
+        }
+
         // Check if transfer already exists
         const existingTransfer = await this.prisma.halo3_file_share_transfer.findUnique({
             where: {
@@ -1334,6 +1356,7 @@ export class Halo3Controller {
         const transfers = await this.prisma.halo3_file_share_transfer.findMany({
             where: {
                 player_xuid: playerXuid,
+                is_odst: false,
             },
             include: {
                 file: {
@@ -1387,6 +1410,18 @@ export class Halo3Controller {
         @Param('fileId') fileId: string,
     ) {
         const playerXuid = parseXuid(xuid).toString();
+
+        const existing = await this.prisma.halo3_file_share_transfer.findUnique({
+            where: {
+                player_xuid_file_id: {
+                    player_xuid: playerXuid,
+                    file_id: fileId,
+                }
+            },
+        });
+        if (!existing || existing.is_odst) {
+            throw new NotFoundException('Transfer not found');
+        }
 
         await this.prisma.halo3_file_share_transfer.delete({
             where: {

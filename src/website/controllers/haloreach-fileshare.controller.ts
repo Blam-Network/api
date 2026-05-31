@@ -26,6 +26,7 @@ import { HaloReachFileShareService } from "../services/haloreachfileshare.servic
 import { FileShareUploadService } from "../services/haloreach/fileshare.service";
 import { JwtService } from "../services/jwt.service";
 import { parseXuid } from "src/xbox/xuid";
+import { buildFileshareSearchFilter, fileshareUniqueIdPartition } from "../fileshare-search";
 
 const REACH_SHAREDFILE_MIME = 'application/x-reach-sharedfile';
 
@@ -78,9 +79,10 @@ export class HaloReachFileshareController {
     })
     async listAllFileshareFiles(
         @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
-        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 50,
         @Query('fileType') fileType?: string,
         @Query('shareId') shareIdHex?: string,
+        @Query('search') search?: string,
     ) {
         const skip = (page - 1) * pageSize;
 
@@ -108,30 +110,61 @@ export class HaloReachFileshareController {
         if (shareIdHex) {
             shareIdFilter = `AND share_id = ${parseXuid(shareIdHex).toString()}`;
         }
+        const searchFilter = buildFileshareSearchFilter(search, 'name', 'description', 'creator_name');
+        const uniqueIdPartition = fileshareUniqueIdPartition('unique_id', 'id');
 
         const filesQuery = `
+            WITH ranked_files AS (
+                SELECT
+                    id::text AS id,
+                    share_id::text AS share_id,
+                    unique_id::text AS unique_id,
+                    name,
+                    description,
+                    creator_name,
+                    file_type,
+                    creator_is_xuid_online,
+                    creator_xuid::text AS creator_xuid,
+                    size_in_bytes::text AS size_in_bytes,
+                    COALESCE(modified_at, created_at) AS date,
+                    length_seconds,
+                    campaign_id,
+                    map_id,
+                    game_engine_type,
+                    icon_index,
+                    campaign_difficulty,
+                    hopper_identifier,
+                    campaign_insertion_point,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ${uniqueIdPartition}
+                        ORDER BY COALESCE(modified_at, created_at) DESC NULLS LAST
+                    ) AS rn
+                FROM reach.file_share_file
+                WHERE is_uploaded = true ${fileTypeFilter}${shareIdFilter}
+            )
             SELECT
-                id::text AS id,
-                share_id::text AS share_id,
-                unique_id::text AS unique_id,
+                id,
+                share_id,
+                unique_id,
                 name,
                 description,
                 creator_name,
                 file_type,
                 creator_is_xuid_online,
-                creator_xuid::text AS creator_xuid,
-                size_in_bytes::text AS size_in_bytes,
-                COALESCE(modified_at, created_at) AS date,
+                creator_xuid,
+                size_in_bytes,
+                date,
                 length_seconds,
                 campaign_id,
                 map_id,
                 game_engine_type,
+                icon_index,
                 campaign_difficulty,
                 hopper_identifier,
                 campaign_insertion_point
-            FROM reach.file_share_file
-            WHERE is_uploaded = true ${fileTypeFilter}${shareIdFilter}
-            ORDER BY COALESCE(modified_at, created_at) DESC NULLS LAST
+            FROM ranked_files
+            WHERE rn = 1 ${searchFilter}
+            ORDER BY date DESC NULLS LAST
             LIMIT ${pageSize} OFFSET ${skip}
         `;
 
@@ -152,6 +185,7 @@ export class HaloReachFileshareController {
                 campaign_id: number | null;
                 map_id: number | null;
                 game_engine_type: number | null;
+                icon_index: number | null;
                 campaign_difficulty: number | null;
                 hopper_identifier: number | null;
                 campaign_insertion_point: number | null;
@@ -159,9 +193,21 @@ export class HaloReachFileshareController {
         >(filesQuery);
 
         const totalQuery = `
+            WITH ranked_files AS (
+                SELECT
+                    name,
+                    description,
+                    creator_name,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ${uniqueIdPartition}
+                        ORDER BY COALESCE(modified_at, created_at) DESC NULLS LAST
+                    ) AS rn
+                FROM reach.file_share_file
+                WHERE is_uploaded = true ${fileTypeFilter}${shareIdFilter}
+            )
             SELECT COUNT(*)::bigint AS count
-            FROM reach.file_share_file
-            WHERE is_uploaded = true ${fileTypeFilter}${shareIdFilter}
+            FROM ranked_files
+            WHERE rn = 1 ${searchFilter}
         `;
         const totalResult = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(totalQuery);
         const total = Number(totalResult[0]?.count ?? 0);
@@ -188,6 +234,7 @@ export class HaloReachFileshareController {
                     campaignId: f.campaign_id ?? 0,
                     mapId: f.map_id ?? 0,
                     gameEngineType: f.game_engine_type ?? 0,
+                    iconIndex: f.icon_index ?? null,
                     campaignDifficulty: f.campaign_difficulty ?? 0,
                     hopperId: f.hopper_identifier ?? 0,
                     gameId: 0,
@@ -427,6 +474,7 @@ export class HaloReachFileshareController {
                         share_id: true,
                         map_id: true,
                         game_engine_type: true,
+                        icon_index: true,
                     },
                 },
             },
@@ -450,6 +498,7 @@ export class HaloReachFileshareController {
                 shareId: t.file.share_id.toString(),
                 slot: 0,
                 gameEngineType: t.file.game_engine_type ?? null,
+                iconIndex: t.file.icon_index ?? null,
                 mapId: t.file.map_id ?? null,
             })),
             maxTransfers: HALOREACH_MAX_ACTIVE_TRANSFERS,

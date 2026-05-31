@@ -556,6 +556,7 @@ export class Halo3ODSTController {
                         share_id: true,
                         slot: true,
                         game_engine_type: true,
+                        map_id: true,
                     }
                 }
             },
@@ -579,6 +580,7 @@ export class Halo3ODSTController {
                 shareId: t.file.share_id.toString(),
                 slot: t.file.slot,
                 gameEngineType: t.file.game_engine_type ?? null,
+                mapId: t.file.map_id ?? null,
             })),
             maxTransfers: HALO3_MAX_ACTIVE_TRANSFERS,
         };

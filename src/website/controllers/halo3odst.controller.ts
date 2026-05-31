@@ -7,6 +7,9 @@ import { PrismaService } from "src/db/prisma.service";
 import { Halo3FileShareService } from "../services/halo3fileshare.service";
 import { HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA, HALO3_MAX_ACTIVE_TRANSFERS } from "src/constants";
 import { buildFileshareSearchFilter, fileshareUniqueIdPartition } from "../fileshare-search";
+import { lookupHalo3FileshareUploader } from "../fileshare-uploader";
+import { mapHalo3FileShareFileToApi } from "../fileshare-file-response";
+import { queryHalo3SchemaFileshareTypeTotals } from "../fileshare-type-totals";
 
 @ApiTags('Halo 3: ODST')
 @Controller('/halo3odst')
@@ -309,6 +312,10 @@ export class Halo3ODSTController {
         `;
         const totalResult = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(totalQuery);
         const total = Number(totalResult[0]?.count ?? 0);
+        const totalsByType = await queryHalo3SchemaFileshareTypeTotals(this.prisma, {
+            isOdst: true,
+            search,
+        });
 
         return {
             data: files.map(f => ({
@@ -343,6 +350,117 @@ export class Halo3ODSTController {
             page,
             pageSize,
             totalPages: Math.ceil(total / pageSize),
+            totalsByType,
+        };
+    }
+
+    @Get('/fileshare/files/:fileId/related-files')
+    @ApiOperation({
+        summary: 'List Related Fileshare Files (ODST)',
+        description: 'Returns uploaded ODST fileshare files with the same game_id as the given file.',
+    })
+    @ApiParam({ name: 'fileId', description: 'File server id (UUID).' })
+    async getRelatedFileshareFiles(@Param('fileId') fileId: string) {
+        const sourceFile = await this.prisma.halo3_file_share_file.findUnique({
+            where: { id: fileId },
+            select: { game_id: true, is_uploaded: true, is_odst: true },
+        });
+
+        if (
+            !sourceFile?.is_uploaded ||
+            !sourceFile.is_odst ||
+            sourceFile.game_id == null ||
+            sourceFile.game_id.toString() === '0'
+        ) {
+            return { data: [] };
+        }
+
+        const files = await this.prisma.halo3_file_share_file.findMany({
+            where: {
+                game_id: sourceFile.game_id,
+                is_uploaded: true,
+                is_odst: true,
+                id: { not: fileId },
+            },
+            orderBy: { date: 'desc' },
+            take: 20,
+            select: {
+                id: true,
+                share_id: true,
+                slot: true,
+                unique_id: true,
+                name: true,
+                description: true,
+                author: true,
+                file_type: true,
+                author_is_xuid_online: true,
+                author_id: true,
+                size_in_bytes: true,
+                date: true,
+                length_seconds: true,
+                campaign_id: true,
+                map_id: true,
+                game_engine_type: true,
+                campaign_difficulty: true,
+                hopper_id: true,
+                game_id: true,
+                campaign_insertion_point: true,
+            },
+        });
+
+        return {
+            data: files.map(f => mapHalo3FileShareFileToApi({
+                ...f,
+                campaign_survival_enabled: false,
+            })),
+        };
+    }
+
+    @Get('/fileshare/files/:fileId')
+    @ApiOperation({
+        summary: 'Get Fileshare File (ODST)',
+        description: 'Returns metadata for a single Halo 3: ODST fileshare file by ID.',
+    })
+    @ApiParam({ name: 'fileId', description: 'File server id (UUID).' })
+    async getFileshareFile(@Param('fileId') fileId: string) {
+        const file = await this.prisma.halo3_file_share_file.findUnique({
+            where: { id: fileId },
+        });
+
+        if (!file || !file.is_uploaded || !file.is_odst) {
+            throw new NotFoundException('File not found');
+        }
+
+        const uploaderInfo = await lookupHalo3FileshareUploader(this.prisma, file.share_id);
+
+        return {
+            id: file.id,
+            uniqueId: String(file.unique_id ?? ''),
+            slotNumber: file.slot,
+            shareId: String(file.share_id),
+            ...(uploaderInfo ?? {}),
+            header: {
+                buildNumber: 0,
+                mapVersion: 0,
+                uniqueId: String(file.unique_id ?? ''),
+                filename: file.name ?? '',
+                description: file.description ?? '',
+                author: file.author ?? '',
+                filetype: file.file_type,
+                authorXuidIsOnline: !!file.author_is_xuid_online,
+                authorXuid: file.author_id ? String(file.author_id) : '',
+                size: Number(file.size_in_bytes ?? 0),
+                date: file.date?.toISOString() ?? '',
+                lengthSeconds: file.length_seconds ?? 0,
+                campaignId: file.campaign_id ?? 0,
+                mapId: file.map_id ?? 0,
+                gameEngineType: file.game_engine_type ?? 0,
+                campaignDifficulty: file.campaign_difficulty ?? 0,
+                hopperId: file.hopper_id ?? 0,
+                gameId: file.game_id ? Number(file.game_id) : 0,
+                campaignInsertionPoint: file.campaign_insertion_point ?? 0,
+                campaignSurvivalEnabled: false,
+            },
         };
     }
 

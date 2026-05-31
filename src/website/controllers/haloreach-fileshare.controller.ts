@@ -20,6 +20,7 @@ import {
 } from "@nestjs/common";
 import { ApiConsumes, ApiHeader, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/db/prisma.service";
 import { EXAMPLE_XUID, HALOREACH_MAX_ACTIVE_TRANSFERS, isReachAdminFileshareXuid } from "src/constants";
 import { HaloReachFileShareService } from "../services/haloreachfileshare.service";
@@ -27,6 +28,9 @@ import { FileShareUploadService } from "../services/haloreach/fileshare.service"
 import { JwtService } from "../services/jwt.service";
 import { parseXuid } from "src/xbox/xuid";
 import { buildFileshareSearchFilter, fileshareUniqueIdPartition } from "../fileshare-search";
+import { lookupReachFileshareUploader } from "../fileshare-uploader";
+import { mapReachFileShareFileToApi } from "../reach-file-response";
+import { queryReachFileshareTypeTotals } from "../fileshare-type-totals";
 
 const REACH_SHAREDFILE_MIME = 'application/x-reach-sharedfile';
 
@@ -132,6 +136,7 @@ export class HaloReachFileshareController {
                     map_id,
                     game_engine_type,
                     icon_index,
+                    game_id::text AS game_id,
                     campaign_difficulty,
                     hopper_identifier,
                     campaign_insertion_point,
@@ -159,6 +164,7 @@ export class HaloReachFileshareController {
                 map_id,
                 game_engine_type,
                 icon_index,
+                game_id,
                 campaign_difficulty,
                 hopper_identifier,
                 campaign_insertion_point
@@ -186,6 +192,7 @@ export class HaloReachFileshareController {
                 map_id: number | null;
                 game_engine_type: number | null;
                 icon_index: number | null;
+                game_id: string | null;
                 campaign_difficulty: number | null;
                 hopper_identifier: number | null;
                 campaign_insertion_point: number | null;
@@ -211,41 +218,79 @@ export class HaloReachFileshareController {
         `;
         const totalResult = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(totalQuery);
         const total = Number(totalResult[0]?.count ?? 0);
+        const totalsByType = await queryReachFileshareTypeTotals(this.prisma, {
+            search,
+            shareIdFilter,
+        });
 
         return {
-            data: files.map(f => ({
-                id: f.id,
-                uniqueId: f.unique_id ?? '',
-                slotNumber: 0,
-                shareId: f.share_id,
-                header: {
-                    buildNumber: 0,
-                    mapVersion: 0,
-                    uniqueId: f.unique_id ?? '',
-                    filename: f.name ?? '',
-                    description: f.description ?? '',
-                    author: f.creator_name ?? '',
-                    filetype: f.file_type ?? 0,
-                    authorXuidIsOnline: !!f.creator_is_xuid_online,
-                    authorXuid: f.creator_xuid ?? '',
-                    size: Number(f.size_in_bytes ?? 0),
-                    date: f.date?.toISOString() ?? '',
-                    lengthSeconds: f.length_seconds ?? 0,
-                    campaignId: f.campaign_id ?? 0,
-                    mapId: f.map_id ?? 0,
-                    gameEngineType: f.game_engine_type ?? 0,
-                    iconIndex: f.icon_index ?? null,
-                    campaignDifficulty: f.campaign_difficulty ?? 0,
-                    hopperId: f.hopper_identifier ?? 0,
-                    gameId: 0,
-                    campaignInsertionPoint: f.campaign_insertion_point ?? 0,
-                    campaignSurvivalEnabled: false,
-                },
+            data: files.map(f => mapReachFileShareFileToApi({
+                ...f,
+                game_id: f.game_id ? new Prisma.Decimal(f.game_id) : null,
             })),
             total,
             page,
             pageSize,
             totalPages: Math.ceil(total / pageSize),
+            totalsByType,
+        };
+    }
+
+    @Get('/files/:fileId/related-files')
+    @ApiOperation({
+        summary: 'List Related Fileshare Files (Reach)',
+        description: 'Returns uploaded Reach fileshare files with the same game_id as the given file.',
+    })
+    @ApiParam({ name: 'fileId', description: 'Reach file server id (decimal string).' })
+    async getRelatedFileshareFiles(@Param('fileId') fileId: string) {
+        const sourceFile = await this.prisma.reach_file_share_file.findUnique({
+            where: { id: fileId as any },
+            select: { game_id: true, is_uploaded: true },
+        });
+
+        if (
+            !sourceFile?.is_uploaded ||
+            sourceFile.game_id == null ||
+            sourceFile.game_id.toString() === '0'
+        ) {
+            return { data: [] };
+        }
+
+        const files = await this.prisma.reach_file_share_file.findMany({
+            where: {
+                game_id: sourceFile.game_id,
+                is_uploaded: true,
+                id: { not: fileId as any },
+            },
+            orderBy: [{ modified_at: 'desc' }, { created_at: 'desc' }],
+            take: 20,
+        });
+
+        return {
+            data: files.map(f => mapReachFileShareFileToApi(f)),
+        };
+    }
+
+    @Get('/files/:fileId')
+    @ApiOperation({
+        summary: 'Get Fileshare File (Reach)',
+        description: 'Returns metadata for a single Reach fileshare file by ID.',
+    })
+    @ApiParam({ name: 'fileId', description: 'Reach file server id (decimal string).' })
+    async getFileshareFile(@Param('fileId') fileId: string) {
+        const file = await this.prisma.reach_file_share_file.findUnique({
+            where: { id: fileId as any },
+        });
+
+        if (!file || !file.is_uploaded) {
+            throw new NotFoundException('File not found');
+        }
+
+        const uploaderInfo = await lookupReachFileshareUploader(this.prisma, file.share_id);
+
+        return {
+            ...(uploaderInfo ?? {}),
+            ...mapReachFileShareFileToApi(file),
         };
     }
 

@@ -728,11 +728,15 @@ export class AresController {
 
     @Get('/players/:xuid/screenshots')
     @ApiParam({ name: 'xuid' })
-    async listPlayerScreenshotsByXuid(@Param('xuid') xuid: string) {
+    async listPlayerScreenshotsByXuid(
+        @Param('xuid') xuid: string,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
+    ) {
+        const take = Math.min(Math.max(pageSize, 1), 48);
         const screenshots = await this.prisma.ares_blind_screenshot.findMany({
             where: { author_id: xuid as any },
             orderBy: { date: 'desc' },
-            take: 48,
+            take,
             select: {
                 id: true,
                 name: true,
@@ -770,11 +774,15 @@ export class AresController {
 
     @Get('/players/by-gamertag/:gamertag/screenshots')
     @ApiParam({ name: 'gamertag' })
-    async listPlayerScreenshotsByGamertag(@Param('gamertag') gamertag: string) {
+    async listPlayerScreenshotsByGamertag(
+        @Param('gamertag') gamertag: string,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
+    ) {
+        const take = Math.min(Math.max(pageSize, 1), 48);
         const screenshots = await this.prisma.ares_blind_screenshot.findMany({
             where: { author: gamertag },
             orderBy: { date: 'desc' },
-            take: 48,
+            take,
             select: {
                 id: true,
                 name: true,

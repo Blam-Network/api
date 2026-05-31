@@ -611,6 +611,7 @@ export class HaloReachFileShareService {
                 game_mode: chdr.metadata.general.game_mode,
                 game_engine_type: chdr.metadata.general.game_engine_type,
                 map_id: chdr.metadata.general.map_id,
+                game_id: chdr.metadata.general.game_id.toString(),
 
                 created_at: chdr.metadata.creation_history.timestamp.toISOString(),
                 creator_name: chdr.metadata.creation_history.name,

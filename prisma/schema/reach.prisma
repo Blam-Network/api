@@ -383,6 +383,7 @@ model reach_file_share_file {
   game_mode                   Int?                        @db.SmallInt
   game_engine_type            Int?
   map_id                      Int?
+  game_id                     Decimal?                    @db.Decimal(20, 0)
 
   created_at                  DateTime?                   @db.Timestamp(6)
   creator_xuid                Decimal?                    @db.Decimal(20, 0)

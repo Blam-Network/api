@@ -11,6 +11,10 @@ import { TitleID } from "src/xbox/titles";
 import { HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA, HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA, HALO3_MAX_ACTIVE_TRANSFERS } from "src/constants";
 import { Halo3PopulationService } from "../services/halo3population.service";
 import { buildFileshareSearchFilter, fileshareUniqueIdPartition } from "../fileshare-search";
+import { lookupHalo3FileshareUploader } from "../fileshare-uploader";
+import { mapHalo3FileShareFileToApi } from "../fileshare-file-response";
+import { lookupHalo3FileshareSourceGame } from "../fileshare-source-game";
+import { queryHalo3SchemaFileshareTypeTotals } from "../fileshare-type-totals";
 
 const RECON_REQUIRED_ACHIEVEMENTS = [
     {
@@ -352,7 +356,9 @@ export class Halo3Controller {
     @ApiParam({ name: 'xuid' })
     async listPlayerScreenshotsByXuid(
         @Param('xuid') xuid: string,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
     ) {
+        const take = Math.min(Math.max(pageSize, 1), 48);
         const screenshots = await this.prisma.halo3_blind_screenshot.findMany({
             where: {
                 author_id: xuid as any,
@@ -360,7 +366,7 @@ export class Halo3Controller {
             orderBy: {
                 date: 'desc',
             },
-            take: 48,
+            take,
             select: {
                 id: true,
                 name: true,
@@ -404,7 +410,9 @@ export class Halo3Controller {
     @ApiParam({ name: 'gamertag' })
     async listPlayerScreenshotsByGamertag(
         @Param('gamertag') gamertag: string,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
     ) {
+        const take = Math.min(Math.max(pageSize, 1), 48);
         const screenshots = await this.prisma.halo3_blind_screenshot.findMany({
             where: {
                 author: gamertag,
@@ -412,7 +420,7 @@ export class Halo3Controller {
             orderBy: {
                 date: 'desc',
             },
-            take: 48,
+            take,
             select: {
                 id: true,
                 name: true,
@@ -644,6 +652,10 @@ export class Halo3Controller {
         `;
         const totalResult = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(totalQuery);
         const total = Number(totalResult[0]?.count ?? 0);
+        const totalsByType = await queryHalo3SchemaFileshareTypeTotals(this.prisma, {
+            isOdst: false,
+            search,
+        });
 
         return {
             data: files.map(f => ({
@@ -678,6 +690,153 @@ export class Halo3Controller {
             page,
             pageSize,
             totalPages: Math.ceil(total / pageSize),
+            totalsByType,
+        };
+    }
+
+    @Get('/fileshare/files/:fileId/related-files')
+    @ApiOperation({
+        summary: 'List Related Fileshare Files',
+        description: 'Returns uploaded fileshare files with the same game_id as the given file.',
+    })
+    @ApiParam({ name: 'fileId', description: 'File server id (UUID).' })
+    async getRelatedFileshareFiles(@Param('fileId') fileId: string) {
+        const sourceFile = await this.prisma.halo3_file_share_file.findUnique({
+            where: { id: fileId },
+            select: { game_id: true, is_uploaded: true, is_odst: true },
+        });
+
+        if (
+            !sourceFile?.is_uploaded ||
+            sourceFile.is_odst ||
+            sourceFile.game_id == null ||
+            sourceFile.game_id.toString() === '0'
+        ) {
+            return { data: [] };
+        }
+
+        const files = await this.prisma.halo3_file_share_file.findMany({
+            where: {
+                game_id: sourceFile.game_id,
+                is_uploaded: true,
+                is_odst: false,
+                id: { not: fileId },
+            },
+            orderBy: { date: 'desc' },
+            take: 20,
+            select: {
+                id: true,
+                share_id: true,
+                slot: true,
+                unique_id: true,
+                name: true,
+                description: true,
+                author: true,
+                file_type: true,
+                author_is_xuid_online: true,
+                author_id: true,
+                size_in_bytes: true,
+                date: true,
+                length_seconds: true,
+                campaign_id: true,
+                map_id: true,
+                game_engine_type: true,
+                campaign_difficulty: true,
+                hopper_id: true,
+                game_id: true,
+                campaign_insertion_point: true,
+                campaign_survival_enabled: true,
+            },
+        });
+
+        return {
+            data: files.map(f => mapHalo3FileShareFileToApi({
+                ...f,
+                campaign_survival_enabled: f.campaign_survival_enabled,
+            })),
+        };
+    }
+
+    @Get('/fileshare/files/:fileId/source-game')
+    @ApiOperation({
+        summary: 'Get Fileshare File Source Game',
+        description:
+            'For screenshots and films with a game_id, returns carnage report summary when one exists.',
+    })
+    @ApiParam({ name: 'fileId', description: 'File server id (UUID).' })
+    async getFileshareFileSourceGame(@Param('fileId') fileId: string) {
+        const sourceGame = await lookupHalo3FileshareSourceGame(this.prisma, fileId);
+
+        if (!sourceGame) {
+            return { sourceGame: null };
+        }
+
+        return {
+            sourceGame: {
+                reportType: sourceGame.reportType,
+                reportId: sourceGame.reportId,
+                mapId: sourceGame.mapId,
+                startTime: sourceGame.startTime.toISOString(),
+                finishTime: sourceGame.finishTime.toISOString(),
+                teamGame: sourceGame.teamGame,
+                mapVariantName: sourceGame.mapVariantName,
+                gameVariantName: sourceGame.gameVariantName,
+                hopperName: sourceGame.hopperName,
+                ...(sourceGame.campaignDifficulty !== undefined
+                    ? { campaignDifficulty: sourceGame.campaignDifficulty }
+                    : {}),
+                ...(sourceGame.campaignId !== undefined
+                    ? { campaignId: sourceGame.campaignId }
+                    : {}),
+            },
+        };
+    }
+
+    @Get('/fileshare/files/:fileId')
+    @ApiOperation({
+        summary: 'Get Fileshare File',
+        description: 'Returns metadata for a single Halo 3 fileshare file by ID.',
+    })
+    @ApiParam({ name: 'fileId', description: 'File server id (UUID).' })
+    async getFileshareFile(@Param('fileId') fileId: string) {
+        const file = await this.prisma.halo3_file_share_file.findUnique({
+            where: { id: fileId },
+        });
+
+        if (!file || !file.is_uploaded || file.is_odst) {
+            throw new NotFoundException('File not found');
+        }
+
+        const uploaderInfo = await lookupHalo3FileshareUploader(this.prisma, file.share_id);
+
+        return {
+            id: file.id,
+            uniqueId: String(file.unique_id ?? ''),
+            slotNumber: file.slot,
+            shareId: String(file.share_id),
+            ...(uploaderInfo ?? {}),
+            header: {
+                buildNumber: 0,
+                mapVersion: 0,
+                uniqueId: String(file.unique_id ?? ''),
+                filename: file.name ?? '',
+                description: file.description ?? '',
+                author: file.author ?? '',
+                filetype: file.file_type,
+                authorXuidIsOnline: !!file.author_is_xuid_online,
+                authorXuid: file.author_id ? String(file.author_id) : '',
+                size: Number(file.size_in_bytes ?? 0),
+                date: file.date?.toISOString() ?? '',
+                lengthSeconds: file.length_seconds ?? 0,
+                campaignId: file.campaign_id ?? 0,
+                mapId: file.map_id ?? 0,
+                gameEngineType: file.game_engine_type ?? 0,
+                campaignDifficulty: file.campaign_difficulty ?? 0,
+                hopperId: file.hopper_id ?? 0,
+                gameId: file.game_id ? Number(file.game_id) : 0,
+                campaignInsertionPoint: file.campaign_insertion_point ?? 0,
+                campaignSurvivalEnabled: !!file.campaign_survival_enabled,
+            },
         };
     }
 

@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { Halo3CarnageReportService } from "./carnagereport.service";
+import * as BLF from "@blam-network/blf_lsp"
 
 const HALO3_UPLOAD_MIME_TYPES = {
     MULTI: 'application/x-halo3-multi',
@@ -43,7 +44,6 @@ export class Halo3UploadService {
             case HALO3_UPLOAD_MIME_TYPES.UPLOAD:
             case HALO3_UPLOAD_MIME_TYPES.EVENT:
             case HALO3_UPLOAD_MIME_TYPES.BAD_THING:
-            case HALO3_UPLOAD_MIME_TYPES.QOS:
             case HALO3_UPLOAD_MIME_TYPES.TEST:
                 return;
             default:

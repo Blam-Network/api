@@ -509,11 +509,12 @@ export class Halo3ODSTController {
         const transferCount = await this.prisma.halo3_file_share_transfer.count({
             where: {
                 player_xuid: playerXuid,
+                is_odst: true,
             },
         });
 
         if (transferCount >= HALO3_MAX_ACTIVE_TRANSFERS) {
-            throw new BadRequestException(`You have reached the maximum of ${HALO3_MAX_ACTIVE_TRANSFERS} active transfers. Please complete your transfers by launching Halo 3 or Halo 3: ODST on your Xbox 360, or cancel existing transfers before adding new ones.`);
+            throw new BadRequestException(`You have reached the maximum of ${HALO3_MAX_ACTIVE_TRANSFERS} active transfers. Please complete your transfers by launching Halo 3: ODST on your Xbox 360, or cancel existing transfers before adding new ones.`);
         }
 
         await this.prisma.halo3_file_share_transfer.create({

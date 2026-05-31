@@ -56,6 +56,16 @@ export class Halo3Controller {
         private readonly populationService: Halo3PopulationService,
     ) { }
 
+    private async getRoadToReconCompleted(playerXuid: string): Promise<boolean> {
+        const playerData = await this.prisma.halo3_player_data.findUnique({
+            where: { player_xuid: playerXuid },
+            select: {
+                road_to_recon_completed: true,
+            },
+        });
+        return !!playerData?.road_to_recon_completed;
+    }
+
     @Get('/players/by-gamertag/:gamertag/carnage-reports')
     @ApiParam({ name: 'gamertag' })
     async listPlayerCarnageReportsByGamertag(
@@ -251,8 +261,9 @@ export class Halo3Controller {
         if (!sr) {
             return {};
         }
+        const playerXuid = String(sr.player_xuid);
         return {
-            id: String(sr.player_xuid),
+            id: playerXuid,
             playerName: sr.player_name,
             appearanceFlags: sr.appearance_flags,
             primaryColor: sr.primary_color,
@@ -284,6 +295,7 @@ export class Halo3Controller {
             firstPlayed: sr.first_played,
             lastPlayed: sr.last_played,
             gamesCompleted: sr.games_completed,
+            roadToReconCompleted: await this.getRoadToReconCompleted(playerXuid),
         };
     }
 
@@ -298,8 +310,9 @@ export class Halo3Controller {
         if (!sr) {
             return {};
         }
+        const playerXuid = String(sr.player_xuid);
         return {
-            id: String(sr.player_xuid),
+            id: playerXuid,
             playerName: sr.player_name,
             appearanceFlags: sr.appearance_flags,
             primaryColor: sr.primary_color,
@@ -331,6 +344,7 @@ export class Halo3Controller {
             firstPlayed: sr.first_played,
             lastPlayed: sr.last_played,
             gamesCompleted: sr.games_completed,
+            roadToReconCompleted: await this.getRoadToReconCompleted(playerXuid),
         };
     }
 
@@ -795,6 +809,7 @@ export class Halo3Controller {
             }
         })
 
+        return { roadToReconCompleted: true };
     }
 
     @Get('/carnage-reports/:id')
@@ -1318,10 +1333,11 @@ export class Halo3Controller {
             return { success: true };
         }
 
-        // Check transfer limit (8 active transfers max)
+        // Check transfer limit (8 active Halo 3 transfers max; separate from ODST)
         const transferCount = await this.prisma.halo3_file_share_transfer.count({
             where: {
                 player_xuid: playerXuid,
+                is_odst: false,
             },
         });
 

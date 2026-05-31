@@ -7,6 +7,10 @@ import { Halo3EmblemsService } from "../services/halo3emblems.service";
 import { AresPopulationService } from "../services/arespopulation.service";
 import { AresFileShareService } from "../services/aresfileshare.service";
 import { parseXuid } from "src/xbox/xuid";
+import {
+    lookupAresRelatedFileshareFilesByGameId,
+    mapAresRelatedFileshareFilesToApi,
+} from "../ares-fileshare-related-files";
 
 @ApiTags('Ares')
 @Controller('/ares')
@@ -505,7 +509,11 @@ export class AresController {
     async getRelatedFiles(@Param('id') id: string) {
         const carnageReport = await this.prisma.ares_carnage_report.findUnique({
             where: { id },
-            select: { game_id: true },
+            select: {
+                game_id: true,
+                map_variant_unique_id: true,
+                game_variant_unique_id: true,
+            },
         });
 
         if (!carnageReport) {
@@ -514,36 +522,16 @@ export class AresController {
 
         const gameId = carnageReport.game_id;
 
-        const fileshareFiles = await this.prisma.ares_file_share_file.findMany({
-            where: {
-                game_id: gameId,
-                is_uploaded: true,
-            },
-            orderBy: { date: 'desc' },
-            take: 20,
-            select: {
-                id: true,
-                share_id: true,
-                slot: true,
-                unique_id: true,
-                name: true,
-                description: true,
-                author: true,
-                file_type: true,
-                author_is_xuid_online: true,
-                author_id: true,
-                size_in_bytes: true,
-                date: true,
-                length_seconds: true,
-                campaign_id: true,
-                map_id: true,
-                game_engine_type: true,
-                campaign_difficulty: true,
-                hopper_id: true,
-                game_id: true,
-                campaign_insertion_point: true,
-            },
-        });
+        const fileshareFiles = await lookupAresRelatedFileshareFilesByGameId(
+            this.prisma,
+            gameId,
+            [],
+            20,
+            [
+                carnageReport.map_variant_unique_id,
+                carnageReport.game_variant_unique_id,
+            ],
+        );
 
         const screenshots = await this.prisma.ares_blind_screenshot.findMany({
             where: { game_id: gameId },
@@ -559,34 +547,7 @@ export class AresController {
         });
 
         return {
-            fileshare: fileshareFiles.map((f) => ({
-                id: f.id,
-                uniqueId: String(f.unique_id ?? ''),
-                slotNumber: f.slot,
-                shareId: String(f.share_id),
-                header: {
-                    buildNumber: 0,
-                    mapVersion: 0,
-                    uniqueId: String(f.unique_id ?? ''),
-                    filename: f.name ?? '',
-                    description: f.description ?? '',
-                    author: f.author ?? '',
-                    filetype: f.file_type,
-                    authorXuidIsOnline: !!f.author_is_xuid_online,
-                    authorXuid: f.author_id ? String(f.author_id) : '',
-                    size: Number(f.size_in_bytes ?? 0),
-                    date: f.date?.toISOString() ?? '',
-                    lengthSeconds: f.length_seconds ?? 0,
-                    campaignId: f.campaign_id ?? 0,
-                    mapId: f.map_id ?? 0,
-                    gameEngineType: f.game_engine_type ?? 0,
-                    campaignDifficulty: f.campaign_difficulty ?? 0,
-                    hopperId: f.hopper_id ?? 0,
-                    gameId: f.game_id ? Number(f.game_id) : 0,
-                    campaignInsertionPoint: f.campaign_insertion_point ?? 0,
-                    campaignSurvivalEnabled: false,
-                },
-            })),
+            fileshare: mapAresRelatedFileshareFilesToApi(fileshareFiles),
             screenshots: screenshots.map((sc) => ({
                 id: sc.id,
                 header: {

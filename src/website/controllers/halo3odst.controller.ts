@@ -9,6 +9,7 @@ import { HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA, HALO3_UNSUBSCRIBED_DEFAULT_
 import { buildFileshareSearchFilter, fileshareUniqueIdPartition } from "../fileshare-search";
 import { lookupHalo3FileshareUploader } from "../fileshare-uploader";
 import { mapHalo3FileShareFileToApi } from "../fileshare-file-response";
+import { lookupHalo3FileshareRelatedFiles } from "../fileshare-related-files";
 import { queryHalo3SchemaFileshareTypeTotals } from "../fileshare-type-totals";
 
 @ApiTags('Halo 3: ODST')
@@ -361,59 +362,8 @@ export class Halo3ODSTController {
     })
     @ApiParam({ name: 'fileId', description: 'File server id (UUID).' })
     async getRelatedFileshareFiles(@Param('fileId') fileId: string) {
-        const sourceFile = await this.prisma.halo3_file_share_file.findUnique({
-            where: { id: fileId },
-            select: { game_id: true, is_uploaded: true, is_odst: true },
-        });
-
-        if (
-            !sourceFile?.is_uploaded ||
-            !sourceFile.is_odst ||
-            sourceFile.game_id == null ||
-            sourceFile.game_id.toString() === '0'
-        ) {
-            return { data: [] };
-        }
-
-        const files = await this.prisma.halo3_file_share_file.findMany({
-            where: {
-                game_id: sourceFile.game_id,
-                is_uploaded: true,
-                is_odst: true,
-                id: { not: fileId },
-            },
-            orderBy: { date: 'desc' },
-            take: 20,
-            select: {
-                id: true,
-                share_id: true,
-                slot: true,
-                unique_id: true,
-                name: true,
-                description: true,
-                author: true,
-                file_type: true,
-                author_is_xuid_online: true,
-                author_id: true,
-                size_in_bytes: true,
-                date: true,
-                length_seconds: true,
-                campaign_id: true,
-                map_id: true,
-                game_engine_type: true,
-                campaign_difficulty: true,
-                hopper_id: true,
-                game_id: true,
-                campaign_insertion_point: true,
-            },
-        });
-
-        return {
-            data: files.map(f => mapHalo3FileShareFileToApi({
-                ...f,
-                campaign_survival_enabled: false,
-            })),
-        };
+        const data = await lookupHalo3FileshareRelatedFiles(this.prisma, fileId, true);
+        return { data };
     }
 
     @Get('/fileshare/files/:fileId')

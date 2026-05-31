@@ -133,11 +133,12 @@ export class Halo3ODSTController {
         });
 
         const files = await this.prisma.halo3_file_share_file.findMany({
-            where: { share_id: shareId, is_uploaded: true, is_odst: true },
-            orderBy: { slot: 'asc' },
+            where: { share_id: shareId, is_uploaded: true },
+            orderBy: [{ slot: 'asc' }, { date: 'desc' }],
             select: {
                 id: true,
                 slot: true,
+                is_odst: true,
                 unique_id: true,
                 name: true,
                 description: true,
@@ -159,17 +160,26 @@ export class Halo3ODSTController {
             }
         });
 
+        const filesBySlot = new Map<number, typeof files[number]>();
+        for (const file of files) {
+            if (!filesBySlot.has(file.slot)) {
+                filesBySlot.set(file.slot, file);
+            }
+        }
+        const slots = Array.from(filesBySlot.values()).sort((a, b) => a.slot - b.slot);
+
         return {
             id: String(share?.share_id ?? shareId),
             ownerId: String(share?.share_id ?? shareId),
-            visibleSlots: files.length,
+            visibleSlots: slots.length,
             quotaBytes: share?.quota_bytes ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
             quotaSlots: share?.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
             subscriptionHash: share?.lastHash ?? 0,
-            slots: files.map(f => ({
+            slots: slots.map(f => ({
                 id: f.id,
                 uniqueId: String(f.unique_id ?? ''),
                 slotNumber: f.slot,
+                isOdst: f.is_odst,
                 header: {
                     buildNumber: 0,
                     mapVersion: 0,

@@ -465,11 +465,12 @@ export class Halo3Controller {
         });
 
         const files = await this.prisma.halo3_file_share_file.findMany({
-            where: { share_id: shareId, is_uploaded: true, is_odst: false },
-            orderBy: { slot: 'asc' },
+            where: { share_id: shareId, is_uploaded: true },
+            orderBy: [{ slot: 'asc' }, { date: 'desc' }],
             select: {
                 id: true,
                 slot: true,
+                is_odst: true,
                 unique_id: true,
                 name: true,
                 description: true,
@@ -487,20 +488,30 @@ export class Halo3Controller {
                 hopper_id: true,
                 game_id: true,
                 campaign_insertion_point: true,
+                campaign_survival_enabled: true,
             }
         });
+
+        const filesBySlot = new Map<number, typeof files[number]>();
+        for (const file of files) {
+            if (!filesBySlot.has(file.slot)) {
+                filesBySlot.set(file.slot, file);
+            }
+        }
+        const slots = Array.from(filesBySlot.values()).sort((a, b) => a.slot - b.slot);
 
         return {
             id: String(share?.share_id ?? shareId),
             ownerId: String(share?.share_id ?? shareId),
-            visibleSlots: files.length,
+            visibleSlots: slots.length,
             quotaBytes: share?.quota_bytes ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_SIZE_QUOTA,
             quotaSlots: share?.quota_slots ?? HALO3_UNSUBSCRIBED_DEFAULT_SLOT_COUNT_QUOTA,
             subscriptionHash: share?.lastHash ?? 0,
-            slots: files.map(f => ({
+            slots: slots.map(f => ({
                 id: f.id,
                 uniqueId: String(f.unique_id ?? ''),
                 slotNumber: f.slot,
+                isOdst: f.is_odst,
                 header: {
                     buildNumber: 0,
                     mapVersion: 0,
@@ -521,7 +532,7 @@ export class Halo3Controller {
                     hopperId: f.hopper_id ?? 0,
                     gameId: f.game_id ? Number(f.game_id) : 0,
                     campaignInsertionPoint: f.campaign_insertion_point ?? 0,
-                    campaignSurvivalEnabled: false,
+                    campaignSurvivalEnabled: !!f.campaign_survival_enabled,
                 }
             })),
         };

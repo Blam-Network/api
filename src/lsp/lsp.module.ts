@@ -81,7 +81,7 @@ export class LSPModule implements NestModule {
             .apply(AppLoggerMiddleware)
             .exclude(
                 // This one is noisy.
-                // { path: '/ReachPresenceApi/heartbeat.ashx', method: RequestMethod.POST }
+                { path: '/ReachPresenceApi/heartbeat.ashx', method: RequestMethod.POST }
             )
             .forRoutes('*');
     }

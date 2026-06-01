@@ -94,9 +94,6 @@ export class ReachPresenceApiController {
       throw new BadRequestException('Missing query upload');
     }
 
-    await this.uploadService.handleDebug(upload);
-    await this.uploadService.storeUploadedFile(upload);
-
     throw new NotImplementedException();
   }
 }

@@ -6,8 +6,12 @@ import {
     HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
 } from "src/constants";
 import { HaloReachFileShareService } from "../services/haloreachfileshare.service";
-import { HaloReachPopulationService } from "src/lsp/haloreach/population.service";
+import {
+    ACTIVE_PLAYER_QUERY_24H_MS,
+    HaloReachPopulationService,
+} from "src/lsp/haloreach/population.service";
 import { HaloReachSpartanRenderService } from "src/lsp/haloreach/spartan-render.service";
+import { HaloReachHoppersService } from "../services/haloreach-hoppers.service";
 
 function mapReachServiceRecord(sr: {
     player_xuid: { toString(): string };
@@ -103,6 +107,7 @@ export class HaloReachController {
         private readonly fileshareService: HaloReachFileShareService,
         private readonly populationService: HaloReachPopulationService,
         private readonly spartanRenderService: HaloReachSpartanRenderService,
+        private readonly hoppersService: HaloReachHoppersService,
     ) { }
 
     @Get('/online-players')
@@ -115,6 +120,30 @@ export class HaloReachController {
         return {
             count: await this.populationService.getTotalActivePlayers(),
         };
+    }
+
+    @Get('/online-players-24h')
+    @ApiOperation({
+        summary: 'Get Reach players seen in the last 24 hours',
+        description:
+            'Returns distinct players with LSP presence heartbeats in the last 24 hours.',
+    })
+    async getOnlinePlayersCount24h() {
+        return {
+            count: await this.populationService.getTotalActivePlayers(
+                ACTIVE_PLAYER_QUERY_24H_MS,
+            ),
+        };
+    }
+
+    @Get('/hoppers')
+    @ApiOperation({
+        summary: 'Get matchmaking hopper names',
+        description:
+            'Returns hopper identifier to display name from title-storage matchmaking_hopper_027.bin.',
+    })
+    getHopperNames() {
+        return { hoppers: this.hoppersService.getHopperNames() };
     }
 
     @Get('/lobbies')
@@ -150,6 +179,7 @@ export class HaloReachController {
                 guiGameMode: lobby.guiGameMode,
                 sessionGameMode: lobby.sessionGameMode,
                 hopperId: lobby.hopperId,
+                hopperName: this.hoppersService.resolveHopperName(lobby.hopperId),
                 sessionPrivacy: lobby.sessionPrivacy,
                 sessionClosed: lobby.sessionClosed,
                 players: lobby.players.map((player) => {
@@ -160,6 +190,7 @@ export class HaloReachController {
                             team: player.team,
                             playerName: null,
                             appearance: null,
+                            rank: null,
                         };
                     }
 
@@ -177,6 +208,10 @@ export class HaloReachController {
                             emblemBackgroundColor: sr.emblemBackgroundColor,
                             model: sr.model,
                             serviceTag: sr.serviceTag,
+                        },
+                        rank: {
+                            grade: sr.grade,
+                            subGrade: sr.subGrade,
                         },
                     };
                 }),
@@ -395,7 +430,7 @@ export class HaloReachController {
             throw new NotFoundException('Player not found');
         }
 
-        const png = await this.spartanRenderService.getLatestSpartanRenderPng(
+        const png = await this.spartanRenderService.getSpartanRenderPng(
             BigInt(sr.player_xuid.toString()),
         );
         if (!png) {

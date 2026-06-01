@@ -59,9 +59,6 @@ export class ReachPresenceApiController {
       throw new BadRequestException('Missing presence heartbeat upload');
     }
 
-    await this.uploadService.handleDebug(upload);
-    await this.uploadService.storeUploadedFile(upload);
-
     const phbt = new s_blf_chunk_network_lsp_heartbeat_data();
     if (!find_chunk(upload.buffer, phbt, 'big')) {
       throw new BadRequestException(
@@ -89,7 +86,17 @@ export class ReachPresenceApiController {
     description: 'We dont know anything about this endpoint yet.',
     deprecated: true // Deprecated to denote not implemented.
   })
-  async postQuery() {
+  @UseInterceptors(FileInterceptor('upload'))
+  async postQuery(
+    @UploadedFile() upload: Express.Multer.File | undefined,
+  ) {
+    if (!upload?.buffer?.length) {
+      throw new BadRequestException('Missing query upload');
+    }
+
+    await this.uploadService.handleDebug(upload);
+    await this.uploadService.storeUploadedFile(upload);
+
     throw new NotImplementedException();
   }
 }

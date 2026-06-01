@@ -25,6 +25,7 @@ import { CompressionService } from 'src/lsp/services/compression.service';
 import { UploadService } from 'src/lsp/services/upload.service';
 import { HaloReachPopulationService } from 'src/lsp/haloreach/population.service';
 import { HaloReachSpartanRenderService } from 'src/lsp/haloreach/spartan-render.service';
+import { HaloReachHoppersService } from './services/haloreach-hoppers.service';
 
 @Module({
     imports: [
@@ -53,6 +54,7 @@ import { HaloReachSpartanRenderService } from 'src/lsp/haloreach/spartan-render.
         Halo3PopulationService,
         HaloReachPopulationService,
         HaloReachSpartanRenderService,
+        HaloReachHoppersService,
         AresPopulationService,
         AresFileShareService,
         BnetUserService,

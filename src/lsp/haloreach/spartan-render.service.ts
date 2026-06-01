@@ -11,23 +11,18 @@ import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { SPARTAN_RENDER_FOLDER } from "../../constants";
 import { xuidToHexString } from "src/xbox/xuid";
 
-export type SpartanRenderStoredFiles = {
-  blfPath: string;
-  pngPath: string;
-};
-
 @Injectable()
 export class HaloReachSpartanRenderService {
   constructor(@Inject(ILoggerSymbol) private readonly logger: ILogger) {}
 
   /**
    * Persist a `UserUpdateImage.ashx` upload: original BLF plus converted PNG.
-   * Layout: `uploads/spartan_renders/haloreach/{xuidHex}/{timestamp}.blf|.png`
+   * Layout: `uploads/spartan_renders/haloreach/{xuidHex}.png`
    */
   async storeUserSpartanRender(
     userXuid: bigint,
     blfBytes: Buffer
-  ): Promise<SpartanRenderStoredFiles> {
+  ): Promise<void> {
     const file = new Uint8Array(blfBytes);
     const cmp = new s_blf_chunk_compressed_data(s_blf_chunk_auth_upload_image);
     if (!find_chunk(file, cmp, "big")) {
@@ -41,13 +36,11 @@ export class HaloReachSpartanRenderService {
     const folder = join(
       process.cwd(),
       SPARTAN_RENDER_FOLDER,
-      "haloreach",
-      xuidToHexString(userXuid)
+      "haloreach"
     );
     await mkdir(folder, { recursive: true });
 
-    const baseName = Date.now().toString();
-    const blfPath = join(folder, `${baseName}.blf`);
+    const baseName = xuidToHexString(userXuid);
     const pngPath = join(folder, `${baseName}.png`);
 
     // await writeFile(blfPath, blfBytes);
@@ -56,40 +49,20 @@ export class HaloReachSpartanRenderService {
     this.logger.log(
       `[SpartanRender] Stored render for ${xuidToHexString(userXuid)}: ${pngPath}`
     );
-
-    return { blfPath, pngPath };
   }
 
   /** Latest stored PNG for a player, or `null` if none exist. */
-  async getLatestSpartanRenderPng(userXuid: bigint): Promise<Buffer | null> {
+  async getSpartanRenderPng(userXuid: bigint): Promise<Buffer | null> {
     const folder = join(
       process.cwd(),
       SPARTAN_RENDER_FOLDER,
-      "haloreach",
-      xuidToHexString(userXuid)
+      "haloreach"
     );
 
-    let entries: string[];
-    try {
-      entries = await readdir(folder);
-    } catch {
+    const pngPath = join(folder, `${xuidToHexString(userXuid)}.png`);
+    if (!(await stat(pngPath)).isFile()) {
       return null;
     }
-
-    const pngNames = entries.filter((name) => name.endsWith(".png"));
-    if (pngNames.length === 0) {
-      return null;
-    }
-
-    const ranked = await Promise.all(
-      pngNames.map(async (name) => {
-        const path = join(folder, name);
-        const { mtimeMs } = await stat(path);
-        return { path, mtimeMs };
-      })
-    );
-    ranked.sort((a, b) => b.mtimeMs - a.mtimeMs);
-
-    return readFile(ranked[0]!.path);
+    return await readFile(pngPath);
   }
 }

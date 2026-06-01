@@ -20,6 +20,9 @@ const ACTIVE_PLAYER_RETENTION_MS = 24 * 60 * 60 * 1000;
 /** Default query window: players seen within the last minute. */
 const ACTIVE_PLAYER_QUERY_RECENT_MS = 60 * 1000;
 
+/** Rolling window for navbar 24h population (distinct presence heartbeats). */
+export const ACTIVE_PLAYER_QUERY_24H_MS = 24 * 60 * 60 * 1000;
+
 /** Hopper statistics BLF (per-hopper counts and total) uses a longer rolling window. */
 const ACTIVE_PLAYER_QUERY_HOPPER_STATS_MS = 30 * 60 * 1000;
 
@@ -258,7 +261,7 @@ export class HaloReachPopulationService {
       session_id: new Prisma.Decimal(chunk.machine_id.toString()),
       gui_game_mode: session.gui_game_mode,
       session_game_mode: session.session_game_mode,
-      hopper_id: session.hopper_id,
+      hopper_id: session.hopper_id === 0 ? null : session.hopper_id,
       session_privacy: session.session_piracy_mode.network_session_privacy,
       session_closed: session.session_piracy_mode.network_session_closed_status,
     };

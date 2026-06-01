@@ -59,6 +59,9 @@ export class ReachPresenceApiController {
       throw new BadRequestException('Missing presence heartbeat upload');
     }
 
+    await this.uploadService.handleDebug(upload);
+    await this.uploadService.storeUploadedFile(upload);
+
     const phbt = new s_blf_chunk_network_lsp_heartbeat_data();
     if (!find_chunk(upload.buffer, phbt, 'big')) {
       throw new BadRequestException(

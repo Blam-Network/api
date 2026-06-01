@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@blam-network/blf_lsp": "^1.10.10",
-    "@blamnetwork/blf": "^1.1.0-alpha.1",
+    "@blamnetwork/blf": "^1.1.0-alpha.3",
     "@craftycodie/cstruct": "^1.1.1",
     "@faker-js/faker": "^8.4.1",
     "@nestjs/common": "^11.1.0",

@@ -24,6 +24,7 @@ import { AresFileShareService } from './services/aresfileshare.service';
 import { CompressionService } from 'src/lsp/services/compression.service';
 import { UploadService } from 'src/lsp/services/upload.service';
 import { HaloReachPopulationService } from 'src/lsp/haloreach/population.service';
+import { HaloReachSpartanRenderService } from 'src/lsp/haloreach/spartan-render.service';
 
 @Module({
     imports: [
@@ -51,6 +52,7 @@ import { HaloReachPopulationService } from 'src/lsp/haloreach/population.service
         UploadService,
         Halo3PopulationService,
         HaloReachPopulationService,
+        HaloReachSpartanRenderService,
         AresPopulationService,
         AresFileShareService,
         BnetUserService,

@@ -31,6 +31,7 @@ import { loggerWithPrefix } from 'src/utils/logger'
 import { HaloReachUploadService } from './haloreach/upload.service';
 import { HaloReachCarnageReportService } from './haloreach/carnagereport.service';
 import { HaloReachPopulationService } from './haloreach/population.service';
+import { HaloReachSpartanRenderService } from './haloreach/spartan-render.service';
 
 @Module({
     imports: [
@@ -65,6 +66,7 @@ import { HaloReachPopulationService } from './haloreach/population.service';
         HaloReachWhitelistService,
         HaloReachRewardsService,
         HaloReachChallengeService,
+        HaloReachSpartanRenderService,
         DatamineUploadService,
         CompressionService,
         DiscordWebhookService,

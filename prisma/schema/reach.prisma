@@ -502,7 +502,7 @@ model reach_service_record {
   @@schema("reach")
 }
 
-/// Live population from LSP presence heartbeats (phbt).
+/// Live population from LSP presence heartbeats (phbt 6.0).
 model reach_active_player {
   player_xuid       Decimal  @id @db.Decimal(20, 0)
   session_id        Decimal? @db.Decimal(20, 0)

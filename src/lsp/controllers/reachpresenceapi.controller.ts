@@ -49,7 +49,7 @@ export class ReachPresenceApiController {
   @ApiOperation({
     summary: 'Post Halo: Reach Presence file',
     description:
-      'Accepts a phbt 5.1 presence heartbeat upload and returns a phbr heartbeat response.',
+      'Accepts a phbt 6.0 presence heartbeat upload and returns a phbr heartbeat response.',
   })
   @UseInterceptors(FileInterceptor('upload'))
   async postHeartbeat(
@@ -65,7 +65,7 @@ export class ReachPresenceApiController {
     const phbt = new s_blf_chunk_network_lsp_heartbeat_data();
     if (!find_chunk(upload.buffer, phbt, 'big')) {
       throw new BadRequestException(
-        `phbt 5.1 chunk not found in ${upload.buffer.length}-byte presence upload`,
+        `phbt 6.0 chunk not found in ${upload.buffer.length}-byte presence upload`,
       );
     }
 

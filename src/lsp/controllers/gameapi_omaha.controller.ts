@@ -32,6 +32,7 @@ import { e_predefined_query, HaloReachFileShareService } from '../haloreach/file
 import { HaloReachRewardsService } from '../haloreach/rewards.service';
 import { HaloReachUserService } from '../haloreach/user.service';
 import { HaloReachChallengeService } from '../haloreach/challenge.service';
+import { HaloReachSpartanRenderService } from '../haloreach/spartan-render.service';
 import { blf } from 'src/blf';
 import { ParseBigIntPipe } from 'src/utils/parse-big-int.pipe';
 import { HaloReach } from '../blf';
@@ -48,6 +49,7 @@ export class GameApiOmahaController {
     @Inject() private readonly fileshareService: HaloReachFileShareService,
     @Inject() private readonly uploadService: UploadService,
     @Inject() private readonly rewardsService: HaloReachRewardsService,
+    @Inject() private readonly spartanRenderService: HaloReachSpartanRenderService,
     @Inject() private readonly challengeService: HaloReachChallengeService,
   ) { }
 
@@ -142,7 +144,8 @@ export class GameApiOmahaController {
   @Post('/UserUpdateImage.ashx')
   @UseInterceptors(FileInterceptor('upload'))
   @ApiOperation({
-    description: 'When user image upload is enabled in network_configuration, images are uploaded here.',
+    description:
+      'When user image upload is enabled in network_configuration, the game uploads a Spartan render BLF (`_cmp` + `auiu` 1.2).',
   })
   async userUpdateImage(
     @Headers() headers: Record<string, string>,
@@ -155,11 +158,14 @@ export class GameApiOmahaController {
       userid: parseBungieHeader(hexStringXuidSchema),
     }).parse(headers);
 
-    this.logger.log(`[MACHINE] Got user image upload for user ${userid} / machine ${machineid}`)
-    this.logger.log(`[MACHINE] Mime type = ${upload.mimetype}`)
+    this.logger.log(
+      `[SpartanRender] UserUpdateImage from ${userid} / machine ${machineid} (${upload.mimetype})`
+    );
 
     await this.uploadService.handleDebug(upload);
     await this.uploadService.storeUploadedFile(upload);
+
+    await this.spartanRenderService.storeUserSpartanRender(userid, upload.buffer);
   }
 
   @HttpCode(200)

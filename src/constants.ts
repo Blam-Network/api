@@ -7,6 +7,7 @@ export const TITLE_STORAGE_FOLDER = 'title_storage';
 export const RESOURCES_FOLDER = 'resources';
 export const UPLOADS_FOLDER = 'uploads'
 export const SCREENSHOTS_FOLDER = join(UPLOADS_FOLDER, 'screenshots');
+export const SPARTAN_RENDER_FOLDER = join(UPLOADS_FOLDER, 'spartan_renders');
 export const FILESHARE_FOLDER = join(UPLOADS_FOLDER, 'fileshare')
 
 const MEGABYTE = 1024 * 1024;

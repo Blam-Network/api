@@ -7,6 +7,7 @@ import {
 } from "src/constants";
 import { HaloReachFileShareService } from "../services/haloreachfileshare.service";
 import { HaloReachPopulationService } from "src/lsp/haloreach/population.service";
+import { HaloReachSpartanRenderService } from "src/lsp/haloreach/spartan-render.service";
 
 function mapReachServiceRecord(sr: {
     player_xuid: { toString(): string };
@@ -101,6 +102,7 @@ export class HaloReachController {
         private readonly prisma: PrismaService,
         private readonly fileshareService: HaloReachFileShareService,
         private readonly populationService: HaloReachPopulationService,
+        private readonly spartanRenderService: HaloReachSpartanRenderService,
     ) { }
 
     @Get('/online-players')
@@ -371,6 +373,36 @@ export class HaloReachController {
                 },
             })),
         };
+    }
+
+    @Get('/spartan/:gamertag.png')
+    @ApiOperation({
+        summary: 'View Spartan render',
+        description:
+            'Returns the most recent Halo: Reach Spartan render PNG uploaded for the player (by gamertag).',
+    })
+    @ApiParam({ name: 'gamertag' })
+    @Header('Content-Type', 'image/png')
+    async viewSpartanRender(
+        @Param('gamertag') gamertag: string,
+    ) {
+        const decodedGamertag = decodeURIComponent(gamertag);
+        const sr = await this.prisma.reach_service_record.findFirst({
+            where: { player_name: decodedGamertag },
+            select: { player_xuid: true },
+        });
+        if (!sr?.player_xuid) {
+            throw new NotFoundException('Player not found');
+        }
+
+        const png = await this.spartanRenderService.getLatestSpartanRenderPng(
+            BigInt(sr.player_xuid.toString()),
+        );
+        if (!png) {
+            throw new NotFoundException('Spartan render not found');
+        }
+
+        return new StreamableFile(Uint8Array.from(png));
     }
 
     @Get('/screenshots')

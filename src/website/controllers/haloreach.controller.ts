@@ -6,6 +6,7 @@ import {
     HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
 } from "src/constants";
 import { HaloReachFileShareService } from "../services/haloreachfileshare.service";
+import { HaloReachPopulationService } from "src/lsp/haloreach/population.service";
 
 function mapReachServiceRecord(sr: {
     player_xuid: { toString(): string };
@@ -99,7 +100,87 @@ export class HaloReachController {
     constructor(
         private readonly prisma: PrismaService,
         private readonly fileshareService: HaloReachFileShareService,
+        private readonly populationService: HaloReachPopulationService,
     ) { }
+
+    @Get('/online-players')
+    @ApiOperation({
+        summary: 'Get live online players count',
+        description:
+            'Returns the number of players seen in LSP presence heartbeats within the last minute.',
+    })
+    async getOnlinePlayersCount() {
+        return {
+            count: await this.populationService.getTotalActivePlayers(),
+        };
+    }
+
+    @Get('/lobbies')
+    @ApiOperation({
+        summary: 'List active Reach lobbies',
+        description:
+            'Returns players currently online from LSP presence heartbeats, grouped by session id and enriched with service record appearance when available.',
+    })
+    async getActiveLobbies() {
+        const lobbies = await this.populationService.getActiveLobbies();
+        const xuids = lobbies.flatMap((lobby) =>
+            lobby.players.map((player) => player.playerXuid),
+        );
+
+        const serviceRecords =
+            xuids.length > 0
+                ? await this.prisma.reach_service_record.findMany({
+                      where: { player_xuid: { in: xuids as any } },
+                  })
+                : [];
+
+        const serviceRecordByXuid = new Map(
+            serviceRecords.map((sr) => [
+                sr.player_xuid.toString(),
+                mapReachServiceRecord(sr),
+            ]),
+        );
+
+        return {
+            totalPlayers: xuids.length,
+            lobbies: lobbies.map((lobby) => ({
+                sessionId: lobby.sessionId,
+                guiGameMode: lobby.guiGameMode,
+                sessionGameMode: lobby.sessionGameMode,
+                hopperId: lobby.hopperId,
+                sessionPrivacy: lobby.sessionPrivacy,
+                sessionClosed: lobby.sessionClosed,
+                players: lobby.players.map((player) => {
+                    const sr = serviceRecordByXuid.get(player.playerXuid);
+                    if (!sr?.playerName) {
+                        return {
+                            xuid: player.playerXuid,
+                            team: player.team,
+                            playerName: null,
+                            appearance: null,
+                        };
+                    }
+
+                    return {
+                        xuid: player.playerXuid,
+                        team: player.team,
+                        playerName: sr.playerName,
+                        appearance: {
+                            primaryColor: sr.primaryColor,
+                            foregroundEmblem: sr.foregroundEmblem,
+                            backgroundEmblem: sr.backgroundEmblem,
+                            emblemFlags: sr.emblemFlags,
+                            emblemPrimaryColor: sr.emblemPrimaryColor,
+                            emblemSecondaryColor: sr.emblemSecondaryColor,
+                            emblemBackgroundColor: sr.emblemBackgroundColor,
+                            model: sr.model,
+                            serviceTag: sr.serviceTag,
+                        },
+                    };
+                }),
+            })),
+        };
+    }
 
     @Get('/players/:xuid/servicerecord')
     @ApiParam({ name: 'xuid' })

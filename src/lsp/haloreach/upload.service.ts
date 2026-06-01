@@ -38,11 +38,11 @@ export class HaloReachUploadService {
                 return;
             case HALO_REACH_UPLOAD_MIME_TYPES.SIGNBUFFER:
             case HALO_REACH_UPLOAD_MIME_TYPES.IDLS:
-            case HALO_REACH_UPLOAD_MIME_TYPES.REWARD_SYNC:
             case HALO_REACH_UPLOAD_MIME_TYPES.SHAREDFILE:
                 this.logger.log(`[Upload] Upload service received a file-share upload. Ignoring.`)
                 return;
             case HALO_REACH_UPLOAD_MIME_TYPES.EVENT:
+            case HALO_REACH_UPLOAD_MIME_TYPES.REWARD_SYNC:
             default:
                 this.logger.log(`[Upload] Received unsupported Halo Reach upload type ${upload.mimetype}. Skipping.`)
         }

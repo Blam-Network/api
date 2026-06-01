@@ -30,6 +30,7 @@ import { DatamineUploadService } from './services/datamineupload.service';
 import { loggerWithPrefix } from 'src/utils/logger'
 import { HaloReachUploadService } from './haloreach/upload.service';
 import { HaloReachCarnageReportService } from './haloreach/carnagereport.service';
+import { HaloReachPopulationService } from './haloreach/population.service';
 
 @Module({
     imports: [
@@ -53,6 +54,7 @@ import { HaloReachCarnageReportService } from './haloreach/carnagereport.service
         HaloReachUploadService,
         Halo3CarnageReportService,
         HaloReachCarnageReportService,
+        HaloReachPopulationService,
         Halo3UserService,
         HaloReachUserService,
         Halo3MachineService,

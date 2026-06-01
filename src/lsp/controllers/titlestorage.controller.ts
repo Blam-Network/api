@@ -17,6 +17,7 @@ import { Response } from 'express';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { TITLE_STORAGE_FOLDER } from '../../constants';
 import { Halo3PopulationService } from '../halo3/population.service';
+import { HaloReachPopulationService } from '../haloreach/population.service';
 import { TitleID } from 'src/xbox/titles';
 import { ParseHexPipe } from 'src/middleware/ParseHexPipe';
 import * as BLF from '@blam-network/blf_lsp';
@@ -27,6 +28,7 @@ export class TitleStorageController {
   constructor(
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
     private readonly halo3PopulationService: Halo3PopulationService,
+    private readonly reachPopulationService: HaloReachPopulationService,
   ) {}
 
   @ApiOperation({
@@ -43,13 +45,7 @@ export class TitleStorageController {
     @Param('title_id', ParseHexPipe) titleId: number,
   ) {
     if (titleId === TitleID.HALOREACH) {
-      const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.build_hopper_statistics_file({
-        unknown_population_1: 0,
-        unknown_population_2: 0,
-        unknown_population_3: 0,
-        hoppers: [],
-      })
-
+      const blfFile = await this.reachPopulationService.getHopperStatistics();
       return new StreamableFile(blfFile, { disposition: "filename=dynamic_pres_hopper_statistics.bin" });
     }
 

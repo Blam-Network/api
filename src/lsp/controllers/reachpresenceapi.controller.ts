@@ -1,33 +1,80 @@
 import {
+  BadRequestException,
   Controller,
-  Inject,
-  StreamableFile,
-  Post,
   HttpCode,
+  Inject,
   NotImplementedException,
+  Post,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
-import * as BLF from '@blam-network/blf_lsp';
+import { UploadService } from 'src/lsp/services/upload.service';
+import { find_chunk, write_blffile } from '@blamnetwork/blf';
+import {
+  s_blf_chunk_end_of_file,
+  s_blf_chunk_network_lsp_heartbeat_data,
+  s_blf_chunk_player_heartbeat_response,
+  s_blf_chunk_start_of_file,
+} from '@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual';
+import { HaloReachPopulationService } from '../haloreach/population.service';
 
 @ApiTags('Reach Presence API')
 @Controller('/ReachPresenceApi')
 export class ReachPresenceApiController {
   constructor(
     @Inject(ILoggerSymbol) private readonly logger: ILogger,
+    private readonly uploadService: UploadService,
+    private readonly populationService: HaloReachPopulationService,
   ) { }
 
   @HttpCode(200)
   @Post('/heartbeat.ashx')
   @ApiTags('Halo: Reach')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        upload: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
   @ApiOperation({
     summary: 'Post Halo: Reach Presence file',
-    description: 'Uploads presence data and returns a heartbeat response file. Stubbed.',
+    description:
+      'Accepts a phbt 5.1 presence heartbeat upload and returns a phbr heartbeat response.',
   })
-  async postHeartbeat() {
-    const blfFile =  BLF.haloreach_12065_11_08_24_1738_tu1actual.build_heartbeat_response_file({
-      unknown1: new Array(0x93).fill(0, 0, 0x93),
-    });
+  @UseInterceptors(FileInterceptor('upload'))
+  async postHeartbeat(
+    @UploadedFile() upload: Express.Multer.File | undefined,
+  ) {
+    if (!upload?.buffer?.length) {
+      throw new BadRequestException('Missing presence heartbeat upload');
+    }
+
+    const phbt = new s_blf_chunk_network_lsp_heartbeat_data();
+    if (!find_chunk(upload.buffer, phbt, 'big')) {
+      throw new BadRequestException(
+        `phbt 5.1 chunk not found in ${upload.buffer.length}-byte presence upload`,
+      );
+    }
+
+    await this.populationService.recordPresenceHeartbeat(phbt);
+
+    const phbr = new s_blf_chunk_player_heartbeat_response();
+
+    const blfFile = write_blffile('big', [
+      s_blf_chunk_start_of_file.create(''),
+      phbr,
+      new s_blf_chunk_end_of_file(),
+    ]);
 
     return new StreamableFile(blfFile);
   }

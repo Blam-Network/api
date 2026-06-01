@@ -501,3 +501,22 @@ model reach_service_record {
   @@map("service_record")
   @@schema("reach")
 }
+
+/// Live population from LSP presence heartbeats (phbt).
+model reach_active_player {
+  player_xuid       Decimal  @id @db.Decimal(20, 0)
+  session_id        Decimal? @db.Decimal(20, 0)
+  gui_game_mode     Int?     @db.SmallInt
+  session_game_mode Int?     @db.SmallInt
+  hopper_id         Int?     @db.SmallInt
+  team              Int?     @db.SmallInt
+  session_privacy   Int?     @db.SmallInt
+  session_closed    Int?     @db.SmallInt
+  updated_at        DateTime @updatedAt
+
+  @@index([session_id])
+  @@index([hopper_id])
+  @@index([updated_at])
+  @@map("active_players")
+  @@schema("reach")
+}

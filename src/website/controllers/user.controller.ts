@@ -99,6 +99,7 @@ export class UserController {
         return {
             datamine_access: user?.datamine_access,
             is_admin: user?.is_admin,
+            is_uploader: user?.is_uploader,
         }
     }
 }

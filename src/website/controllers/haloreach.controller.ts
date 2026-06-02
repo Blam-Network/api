@@ -1,5 +1,5 @@
-import { Controller, Get, Header, NotFoundException, Param, ParseIntPipe, Query, StreamableFile } from "@nestjs/common";
-import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, Header, Headers, NotFoundException, Param, ParseIntPipe, Post, Query, StreamableFile, UnauthorizedException } from "@nestjs/common";
+import { ApiHeader, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import { PrismaService } from "src/db/prisma.service";
 import {
     HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA,
@@ -12,6 +12,8 @@ import {
 } from "src/lsp/haloreach/population.service";
 import { HaloReachSpartanRenderService } from "src/lsp/haloreach/spartan-render.service";
 import { HaloReachHoppersService } from "../services/haloreach-hoppers.service";
+import { ReachNameplatesService } from "../services/reach-nameplates.service";
+import { parseXuid } from "src/xbox/xuid";
 
 function mapReachServiceRecord(sr: {
     player_xuid: { toString(): string };
@@ -108,6 +110,7 @@ export class HaloReachController {
         private readonly populationService: HaloReachPopulationService,
         private readonly spartanRenderService: HaloReachSpartanRenderService,
         private readonly hoppersService: HaloReachHoppersService,
+        private readonly nameplatesService: ReachNameplatesService,
     ) { }
 
     @Get('/online-players')
@@ -246,6 +249,56 @@ export class HaloReachController {
             return {};
         }
         return mapReachServiceRecord(sr);
+    }
+
+    @Get('/players/nameplates')
+    @ApiOperation({ summary: 'Get Reach nameplate unlock state for the authenticated player' })
+    @ApiHeader({ name: 'x-xuid' })
+    @ApiHeader({ name: 'x-uhs' })
+    @ApiHeader({ name: 'Authorization' })
+    async getPlayerNameplates(
+        @Headers('x-xuid') xuid: string,
+        @Headers('x-uhs') uhs: string,
+        @Headers('Authorization') xsts: string,
+    ) {
+        const playerXuid = parseXuid(xuid);
+        const authorization = `XBL3.0 x=${uhs};${xsts}`;
+        return this.nameplatesService.getNameplateState(playerXuid.valueOf(), {
+            authorization,
+        });
+    }
+
+    @Post('/players/nameplates')
+    @ApiOperation({ summary: 'Equip an unlocked Reach nameplate' })
+    @ApiHeader({ name: 'x-xuid' })
+    @ApiHeader({ name: 'x-uhs' })
+    @ApiHeader({ name: 'Authorization' })
+    async setPlayerNameplate(
+        @Headers('x-xuid') xuid: string,
+        @Headers('x-uhs') uhs: string,
+        @Headers('Authorization') xsts: string,
+        @Body() body: { nameplateId: string },
+    ) {
+        const nameplateId = this.nameplatesService.parseNameplateId(body.nameplateId);
+        if (!nameplateId) {
+            throw new UnauthorizedException('Invalid nameplate');
+        }
+
+        const playerXuid = parseXuid(xuid);
+        const authorization = `XBL3.0 x=${uhs};${xsts}`;
+        const result = await this.nameplatesService.setEquippedNameplate(
+            playerXuid.valueOf(),
+            nameplateId,
+            {
+                authorization,
+            },
+        );
+
+        if (!result.ok) {
+            throw new UnauthorizedException(result.error);
+        }
+
+        return result;
     }
 
     @Get('/players/:xuid/screenshots')

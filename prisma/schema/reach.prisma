@@ -9,6 +9,18 @@ model reach_player_data {
   extras_portal_debug       Boolean                     @default(false)
   nameplate                 reach_player_data_nameplate @default(none)
 
+  nameplate_dmr_unlocked            Boolean @default(false)
+  nameplate_bungie_unlocked         Boolean @default(false)
+  nameplate_marathon_unlocked       Boolean @default(false)
+  nameplate_halo1_unlocked          Boolean @default(false)
+  nameplate_halo2_unlocked          Boolean @default(false)
+  nameplate_halo3_unlocked          Boolean @default(false)
+  nameplate_odst_unlocked           Boolean @default(false)
+  nameplate_assault_rifle_unlocked  Boolean @default(false)
+  nameplate_mk4_helmet_unlocked     Boolean @default(false)
+  nameplate_halo_unlocked           Boolean @default(false)
+  nameplate_allstar_unlocked        Boolean @default(false)
+
   used_sunrise_pre_reset    Boolean                     @default(false)
 
   nag_message               Int?

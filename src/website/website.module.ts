@@ -26,6 +26,7 @@ import { UploadService } from 'src/lsp/services/upload.service';
 import { HaloReachPopulationService } from 'src/lsp/haloreach/population.service';
 import { HaloReachSpartanRenderService } from 'src/lsp/haloreach/spartan-render.service';
 import { HaloReachHoppersService } from './services/haloreach-hoppers.service';
+import { ReachNameplatesService } from './services/reach-nameplates.service';
 
 @Module({
     imports: [
@@ -55,6 +56,7 @@ import { HaloReachHoppersService } from './services/haloreach-hoppers.service';
         HaloReachPopulationService,
         HaloReachSpartanRenderService,
         HaloReachHoppersService,
+        ReachNameplatesService,
         AresPopulationService,
         AresFileShareService,
         BnetUserService,

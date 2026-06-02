@@ -22,7 +22,12 @@ import { ApiConsumes, ApiHeader, ApiOperation, ApiParam, ApiTags } from "@nestjs
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/db/prisma.service";
-import { EXAMPLE_XUID, HALOREACH_MAX_ACTIVE_TRANSFERS, isReachAdminFileshareXuid } from "src/constants";
+import {
+    EXAMPLE_XUID,
+    HALOREACH_MAX_ACTIVE_TRANSFERS,
+    isBlamNetworkXuid,
+    isReachAdminFileshareXuid,
+} from "src/constants";
 import { HaloReachFileShareService } from "../services/haloreachfileshare.service";
 import { FileShareUploadService } from "../services/haloreach/fileshare.service";
 import { JwtService } from "../services/jwt.service";
@@ -334,8 +339,13 @@ export class HaloReachFileshareController {
             const user = await this.prisma.bnet_user.findUnique({
                 where: { player_xuid: authXuid.toString() },
             });
-            if (!user?.is_admin) {
-                throw new ForbiddenException('Admin access is required to upload to the system file share.');
+            const canUpload =
+                user?.is_admin === true ||
+                (user?.is_uploader === true && isBlamNetworkXuid(shareXuid));
+            if (!canUpload) {
+                throw new ForbiddenException(
+                    'You do not have permission to upload to this system file share.',
+                );
             }
         } else if (shareXuid !== authXuid) {
             throw new UnauthorizedException("Can't upload to someone else's file share.");

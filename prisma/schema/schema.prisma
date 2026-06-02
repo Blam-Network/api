@@ -72,6 +72,7 @@ model bnet_user {
   is_registered   Boolean @default(false)
   datamine_access Boolean @default(false)
   is_admin        Boolean @default(false)
+  is_uploader     Boolean @default(false)
 
   @@schema("public")
 }

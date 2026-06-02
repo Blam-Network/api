@@ -1,6 +1,11 @@
 import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
-import ILogger, { ILoggerSymbol } from "src/ILogger";
+import { find_chunk } from "@blamnetwork/blf";
+import {
+    s_blf_chunk_compressed_data,
+    s_blf_chunk_screenshot_data,
+} from "@blamnetwork/blf/halo3odst/v13895_09_04_27_2201_atlas_release";
 import * as BLF from '@blam-network/blf_lsp'
+import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
 import { join } from "path";
 import { createReadStream, existsSync, readFileSync, readSync } from "fs";
@@ -95,7 +100,6 @@ export class Halo3FileShareService {
         return screenshot_12070?.scnd.jpeg_data;
     }
 
-    /** ODST fileshare slot screenshots use the blind-screenshot BLF reader (no separate fileshare reader in blf_lsp). */
     public viewOdstFileshareScreenshot = async (shareId: string, slot: number): Promise<number[]> => {
         const shareIdDecimal = parseXuid(shareId);
         const shareIdHex = xuidToHexString(shareIdDecimal);
@@ -110,13 +114,12 @@ export class Halo3FileShareService {
 
         if (!existsSync(screenshotPath)) throw new NotFoundException('fileshare screenshot file not found');
 
-        const blfFile = BLF.halo3odst_13895_09_04_27_2201_atlas_release.read_blind_screenshot(
-            readFileSync(screenshotPath),
-        );
+        const cmp = new s_blf_chunk_compressed_data(s_blf_chunk_screenshot_data);
+        if (!find_chunk(readFileSync(screenshotPath), cmp, "big")) {
+            throw new InternalServerErrorException("Bad Screenshot File");
+        }
 
-        if (!blfFile) throw new InternalServerErrorException('Bad Screenshot File');
-
-        return blfFile.scnd.jpeg_data;
+        return Array.from(cmp.chunk.jpeg_data);
     }
 }
 

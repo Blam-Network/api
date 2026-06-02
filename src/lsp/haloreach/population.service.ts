@@ -50,8 +50,8 @@ export class HaloReachPopulationService {
 
   /**
    * Host heartbeats replace the full session roster: drop roster XUIDs anywhere,
-   * drop remaining rows for this session_id, then insert the new roster.
-   * Client heartbeats delete-then-insert local XUIDs (clears prior session rows).
+   * drop remaining rows for this session_id, then upsert the new roster.
+   * Client heartbeats upsert local XUIDs (overwrites prior session fields).
    */
   public async recordPresenceHeartbeat(
     chunk: s_blf_chunk_network_lsp_heartbeat_data,
@@ -79,33 +79,21 @@ export class HaloReachPopulationService {
           where: { session_id: sessionId },
         });
 
-        if (players.length > 0) {
-          await tx.reach_active_player.createMany({
-            data: players.map((player) =>
-              this.buildActivePlayerRow(player, sessionFields, now),
-            ),
-          });
+        for (const player of players) {
+          await this.upsertActivePlayer(
+            tx,
+            this.buildActivePlayerRow(player, sessionFields, now),
+          );
         }
       } else {
         const players = extractReachPresencePlayers(chunk);
-        const playerXuids = this.playerXuidsAsDecimal(players);
-
-        if (playerXuids.length > 0) {
-          await tx.reach_active_player.deleteMany({
-            where: { player_xuid: { in: playerXuids } },
-          });
-        }
+        const sessionFields = this.sessionFieldsFromHeartbeat(chunk);
 
         for (const player of players) {
-          const data = this.buildActivePlayerRow(
-            player,
-            this.sessionFieldsFromHeartbeat(chunk),
-            now,
+          await this.upsertActivePlayer(
+            tx,
+            this.buildActivePlayerRow(player, sessionFields, now),
           );
-
-          await tx.reach_active_player.create({
-            data,
-          });
         }
       }
     });
@@ -273,6 +261,18 @@ export class HaloReachPopulationService {
     return players.map(
       (player) => new Prisma.Decimal(player.playerXuid.toString()),
     );
+  }
+
+  private async upsertActivePlayer(
+    tx: Prisma.TransactionClient,
+    data: ActivePlayerRow,
+  ): Promise<void> {
+    const { player_xuid, ...updateFields } = data;
+    await tx.reach_active_player.upsert({
+      where: { player_xuid },
+      create: data,
+      update: updateFields,
+    });
   }
 
   private buildActivePlayerRow(

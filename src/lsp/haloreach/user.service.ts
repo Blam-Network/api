@@ -160,7 +160,7 @@ export class HaloReachUserService {
 
         if (!fupd) {
             fupd = {
-                bungie_user_role: BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_seventh_column,
+                bungie_user_role: BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.registered,
                 extras_portal_debug: false,
                 hopper_access: 0,
                 hopper_directory: 'default_hoppers',

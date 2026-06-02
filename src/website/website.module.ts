@@ -19,6 +19,7 @@ import { BnetUserService } from './services/bnetuser.service';
 import { JwtService } from './services/jwt.service';
 import { loggerWithPrefix } from 'src/utils/logger'
 import { AresController } from './controllers/ares.controller';
+import { NetworkController } from './controllers/network.controller';
 import { AresPopulationService } from './services/arespopulation.service';
 import { AresFileShareService } from './services/aresfileshare.service';
 import { CompressionService } from 'src/lsp/services/compression.service';
@@ -43,6 +44,7 @@ import { ReachNameplatesService } from './services/reach-nameplates.service';
         HaloReachFileshareController,
         DatamineController,
         UserController,
+        NetworkController,
     ],
     providers: [
         AchievementsService,

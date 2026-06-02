@@ -4,6 +4,7 @@ import { reach_player_data, reach_player_data_nameplate } from '@prisma/client';
 export const REACH_NAMEPLATE_XBOX_TITLE_IDS = {
     marathon: parseInt('5841085E', 16),
     halo1: parseInt('4D5309B1', 16),
+    halo2: parseInt('4D53080F', 16),
     halo3: parseInt('4D5307E6', 16),
     odst: parseInt('4D530877', 16),
 } as const;
@@ -99,6 +100,7 @@ export function getReachNameplateDbUnlocks(
 export type ReachNameplateAchievementUnlocks = {
     marathon: boolean;
     halo1: boolean;
+    halo2: boolean;
     halo3: boolean;
     odst: boolean;
 };
@@ -112,7 +114,8 @@ export function computeReachNameplateUnlocks(input: {
 
     const halo1 =
         dbUnlocks.halo1 || achievementUnlocks.halo1;
-    const halo2 = dbUnlocks.halo2;
+    const halo2 =
+        dbUnlocks.halo2 || achievementUnlocks.halo2;
     const halo3 =
         dbUnlocks.halo3 || achievementUnlocks.halo3;
     const odst =

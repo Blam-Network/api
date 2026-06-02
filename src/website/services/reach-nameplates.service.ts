@@ -61,6 +61,7 @@ export class ReachNameplatesService {
         let achievementUnlocks: ReachNameplateAchievementUnlocks = {
             marathon: false,
             halo1: false,
+            halo2: false,
             halo3: false,
             odst: false,
         };

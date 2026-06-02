@@ -1,14 +1,14 @@
 import { Inject } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import * as BLF from '@blam-network/blf_lsp';
 import { CompressionService } from "../services/compression.service";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { isGuestXuid } from "src/xbox/xuid";
-import { interval, intervalToDuration } from "date-fns";
-import { blf } from "src/blf";
-import { HaloReach } from "../blf";
-import { find_chunk_in_file } from "src/blf/helpers";
+import { find_chunk } from "@blamnetwork/blf";
+import {
+  s_blf_chunk_author,
+  s_blf_chunk_multiplayer_players,
+} from "@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual";
 
 // We turn this on for debugging but turn it off for security in prod.
 const ALLOW_UNCOMPRESSED_CARNAGE_REPORTS = false;
@@ -24,8 +24,8 @@ export class HaloReachCarnageReportService {
     ) {}
 
     private isValidCarnageReport = (
-        athr: blf.infer<typeof HaloReach.v12065.s_blf_chunk_author, true>,
-        mppl: blf.infer<typeof HaloReach.v12065.s_blf_chunk_multiplayer_players, true>,
+        athr: s_blf_chunk_author,
+        mppl: s_blf_chunk_multiplayer_players,
     ) => {
         if (athr.build_string !== '12065.11.08.24.1738.tu1actu') {
             this.logger.warn(`[UPLOAD] Received carnage report from unsupported build '${athr.build_string}', skipping.`)
@@ -49,10 +49,13 @@ export class HaloReachCarnageReportService {
             ? this.compressionService.inflateIfCompressed(upload)
             : this.compressionService.inflate(upload);
 
-        const athr = find_chunk_in_file(buffer, HaloReach.v12065.s_blf_chunk_author);
-        const mppl = find_chunk_in_file(buffer, HaloReach.v12065.s_blf_chunk_multiplayer_players);
+        const athr = new s_blf_chunk_author();
+        const mppl = new s_blf_chunk_multiplayer_players();
 
-        if (!athr || !mppl) {
+        const found_athr = find_chunk(buffer, athr, "big");
+        const found_mppl = find_chunk(buffer, mppl, "big");
+
+        if (!found_athr || !found_mppl) {
             return;
         }
 

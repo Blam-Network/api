@@ -20,6 +20,8 @@ import { JwtService } from './services/jwt.service';
 import { loggerWithPrefix } from 'src/utils/logger'
 import { AresController } from './controllers/ares.controller';
 import { NetworkController } from './controllers/network.controller';
+import { HealthController } from './health/health.controller';
+import { HealthService } from './health/health.service';
 import { AresPopulationService } from './services/arespopulation.service';
 import { AresFileShareService } from './services/aresfileshare.service';
 import { CompressionService } from 'src/lsp/services/compression.service';
@@ -37,6 +39,7 @@ import { ReachNameplatesService } from './services/reach-nameplates.service';
         },
     ],
     controllers: [
+        HealthController,
         AresController,
         Halo3Controller,
         Halo3ODSTController,
@@ -47,6 +50,7 @@ import { ReachNameplatesService } from './services/reach-nameplates.service';
         NetworkController,
     ],
     providers: [
+        HealthService,
         AchievementsService,
         Halo3EmblemsService,
         Halo3FileShareService,

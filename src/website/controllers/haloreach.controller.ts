@@ -222,6 +222,49 @@ export class HaloReachController {
         };
     }
 
+    @Get('/players')
+    @ApiOperation({
+        summary: 'List Players',
+        description: 'Returns a paginated list of Reach players with optional search by name.',
+    })
+    async listPlayers(
+        @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 20,
+        @Query('search') search?: string,
+    ) {
+        const skip = (page - 1) * pageSize;
+        const take = pageSize;
+
+        const where = search
+            ? {
+                  player_name: {
+                      contains: search,
+                      mode: 'insensitive' as const,
+                  },
+              }
+            : {};
+
+        const [players, total] = await Promise.all([
+            this.prisma.reach_service_record.findMany({
+                where,
+                skip,
+                take,
+                orderBy: {
+                    player_name: 'asc',
+                },
+            }),
+            this.prisma.reach_service_record.count({ where }),
+        ]);
+
+        return {
+            players: players.map((sr) => mapReachServiceRecord(sr)),
+            total,
+            page,
+            pageSize,
+            totalPages: Math.ceil(total / pageSize),
+        };
+    }
+
     @Get('/players/:xuid/servicerecord')
     @ApiParam({ name: 'xuid' })
     async getServiceRecordByXuid(

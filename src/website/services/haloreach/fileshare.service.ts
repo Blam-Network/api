@@ -37,8 +37,7 @@ import { UploadService } from "src/lsp/services/upload.service";
 import { xuidToHexString } from "src/xbox/xuid";
 
 const IS_FILESHARE_ENABLED = true;
-const FILESHARE_WELCOME_MESSAGE =
-    "Pardon our dust! File Share support is currently in Beta, some features may be unavailable.";
+const FILESHARE_WELCOME_MESSAGE = null;
 const HALOREACH_FILESHARE_FOLDER = join(FILESHARE_FOLDER, "haloreach");
 const SHAREDFILE_MIME = "application/x-reach-sharedfile";
 const ENABLE_DEBUG_MIME = true;

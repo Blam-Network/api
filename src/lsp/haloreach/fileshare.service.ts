@@ -31,7 +31,7 @@ import {
 } from "@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual";
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
-const FILESHARE_WELCOME_MESSAGE = 'Pardon our dust! File Share support is currently in Beta, some features may be unavailable.';
+const FILESHARE_WELCOME_MESSAGE = null;
 
 const HALOREACH_FILESHARE_FOLDER = join(FILESHARE_FOLDER, 'haloreach');
 

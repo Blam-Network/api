@@ -30,6 +30,7 @@ import { HaloReachPopulationService } from 'src/lsp/haloreach/population.service
 import { HaloReachSpartanRenderService } from 'src/lsp/haloreach/spartan-render.service';
 import { HaloReachHoppersService } from './services/haloreach-hoppers.service';
 import { ReachNameplatesService } from './services/reach-nameplates.service';
+import { ReachArmourUnlocksService } from './services/reach-armour-unlocks.service';
 
 @Module({
     imports: [
@@ -63,6 +64,7 @@ import { ReachNameplatesService } from './services/reach-nameplates.service';
         HaloReachSpartanRenderService,
         HaloReachHoppersService,
         ReachNameplatesService,
+        ReachArmourUnlocksService,
         AresPopulationService,
         AresFileShareService,
         BnetUserService,

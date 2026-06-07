@@ -120,19 +120,23 @@ export function computeReachNameplateUnlocks(input: {
         dbUnlocks.halo3 || achievementUnlocks.halo3;
     const odst =
         dbUnlocks.odst || achievementUnlocks.odst;
+    const marathon =
+        dbUnlocks.marathon || achievementUnlocks.marathon;
+    const halo =
+        dbUnlocks.halo || (halo1 && halo2 && halo3 && odst);
 
     return {
         ar: dbUnlocks.ar,
         bungie: isBungie || dbUnlocks.bungie,
         column: true,
         dmr: dbUnlocks.dmr,
-        marathon: dbUnlocks.marathon || achievementUnlocks.marathon,
+        marathon,
         halo1,
         halo2,
         halo3,
         odst,
-        helmet: dbUnlocks.helmet,
-        halo: dbUnlocks.halo || (halo1 && halo2 && halo3 && odst),
+        helmet: dbUnlocks.helmet || (marathon && halo),
+        halo,
         star: dbUnlocks.star,
     };
 }

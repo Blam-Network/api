@@ -13,6 +13,7 @@ import {
 import { HaloReachSpartanRenderService } from "src/lsp/haloreach/spartan-render.service";
 import { HaloReachHoppersService } from "../services/haloreach-hoppers.service";
 import { ReachNameplatesService } from "../services/reach-nameplates.service";
+import { ReachArmourUnlocksService } from "../services/reach-armour-unlocks.service";
 import { parseXuid } from "src/xbox/xuid";
 
 function mapReachServiceRecord(sr: {
@@ -111,6 +112,7 @@ export class HaloReachController {
         private readonly spartanRenderService: HaloReachSpartanRenderService,
         private readonly hoppersService: HaloReachHoppersService,
         private readonly nameplatesService: ReachNameplatesService,
+        private readonly armourUnlocksService: ReachArmourUnlocksService,
     ) { }
 
     @Get('/online-players')
@@ -342,6 +344,46 @@ export class HaloReachController {
         }
 
         return result;
+    }
+
+    @Get('/players/armour-unlocks')
+    @ApiOperation({ summary: 'Get Reach waypoint helmet unlock state for the authenticated player' })
+    @ApiHeader({ name: 'x-xuid' })
+    @ApiHeader({ name: 'x-uhs' })
+    @ApiHeader({ name: 'Authorization' })
+    async getPlayerArmourUnlocks(
+        @Headers('x-xuid') xuid: string,
+        @Headers('x-uhs') uhs: string,
+        @Headers('Authorization') xsts: string,
+    ) {
+        const playerXuid = parseXuid(xuid);
+        const authorization = `XBL3.0 x=${uhs};${xsts}`;
+        return this.armourUnlocksService.getArmourUnlockState(playerXuid.valueOf(), {
+            authorization,
+        });
+    }
+
+    @Post('/players/armour-unlocks')
+    @ApiOperation({ summary: 'Unlock a Reach waypoint helmet for the authenticated player' })
+    @ApiHeader({ name: 'x-xuid' })
+    @ApiHeader({ name: 'x-uhs' })
+    @ApiHeader({ name: 'Authorization' })
+    async unlockPlayerArmour(
+        @Headers('x-xuid') xuid: string,
+        @Headers('x-uhs') uhs: string,
+        @Headers('Authorization') xsts: string,
+        @Body() body: { helmetId: string },
+    ) {
+        const helmetId = this.armourUnlocksService.parseHelmetId(body.helmetId);
+        if (!helmetId) {
+            throw new UnauthorizedException('Invalid helmet');
+        }
+
+        const playerXuid = parseXuid(xuid);
+        const authorization = `XBL3.0 x=${uhs};${xsts}`;
+        return this.armourUnlocksService.unlockHelmet(playerXuid.valueOf(), helmetId, {
+            authorization,
+        });
     }
 
     @Get('/players/:xuid/screenshots')

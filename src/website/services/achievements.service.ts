@@ -1,14 +1,86 @@
 import { Injectable } from "@nestjs/common";
-import { DecimalJsLike } from "@prisma/client/runtime/library";
 import axios from "axios";
 import { z } from "zod";
 
-const XboxLiveAchievementsSchema = z.object({
-    achievements: z.object({
-        id: z.coerce.number(),
-        unlockedOnline: z.coerce.boolean(),
-    }).array()
-})
+const Xbox360AchievementSchema = z.object({
+    id: z.coerce.number(),
+    name: z.string().optional(),
+    unlockedOnline: z.coerce.boolean().optional(),
+    unlocked: z.coerce.boolean().optional(),
+});
+
+const XboxV2AchievementSchema = z.object({
+    id: z.coerce.number(),
+    name: z.string().optional(),
+    progressState: z.string().optional(),
+});
+
+const XboxLiveAchievementsResponseSchema = z.object({
+    achievements: z.array(z.unknown()),
+    pagingInfo: z
+        .object({
+            continuationToken: z.string().nullable().optional(),
+        })
+        .optional(),
+});
+
+export type ParsedXboxAchievement = {
+    id: number;
+    name?: string;
+    unlocked: boolean;
+    unlockedOnline?: boolean;
+};
+
+function parseAchievementEntry(entry: unknown): ParsedXboxAchievement | null {
+    const x360 = Xbox360AchievementSchema.safeParse(entry);
+    if (x360.success) {
+        const { id, name, unlockedOnline, unlocked } = x360.data;
+        return {
+            id,
+            name,
+            unlocked: unlocked ?? unlockedOnline ?? false,
+            unlockedOnline,
+        };
+    }
+
+    const v2 = XboxV2AchievementSchema.safeParse(entry);
+    if (v2.success) {
+        return {
+            id: v2.data.id,
+            name: v2.data.name,
+            unlocked: v2.data.progressState === "Achieved",
+        };
+    }
+
+    console.warn("[AchievementsService] skipped unparseable achievement entry", entry);
+    return null;
+}
+
+function parseAchievementsResponse(data: unknown): {
+    achievements: ParsedXboxAchievement[];
+    continuationToken?: string;
+} {
+    const parsed = XboxLiveAchievementsResponseSchema.safeParse(data);
+    if (!parsed.success) {
+        console.error(
+            "[AchievementsService] failed to parse achievements response",
+            parsed.error.message,
+            JSON.stringify(data).slice(0, 1000),
+        );
+        throw new Error(`Failed to parse achievements: ${parsed.error.message}`);
+    }
+
+    const achievements = parsed.data.achievements
+        .map(parseAchievementEntry)
+        .filter((achievement): achievement is ParsedXboxAchievement => achievement !== null);
+
+    const continuationToken = parsed.data.pagingInfo?.continuationToken ?? undefined;
+
+    return {
+        achievements,
+        continuationToken: continuationToken || undefined,
+    };
+}
 
 @Injectable()
 export class AchievementsService {
@@ -19,25 +91,77 @@ export class AchievementsService {
         unlockedOnly: boolean | undefined,
         maxItems: number | undefined,
     ) {
-        const data = (await axios.get(
-            `https://achievements.xboxlive.com/users/xuid(${xuid})/achievements`,
-            {
-                params: {
+        const achievements: ParsedXboxAchievement[] = [];
+        let continuationToken: string | undefined;
+        const xuidDecimal = xuid.toString();
+
+        do {
+            const url = `https://achievements.xboxlive.com/users/xuid(${xuidDecimal})/achievements`;
+            const params = {
+                titleId,
+                unlockedOnly,
+                maxItems,
+                continuationToken,
+            };
+
+            console.log("[AchievementsService] GET", url, params);
+
+            let data: unknown;
+            try {
+                const response = await axios.get(url, {
+                    params,
+                    headers: {
+                        Authorization: authorization,
+                        "x-xbl-contract-version": "1",
+                        "Accept-Language": "en-US, en",
+                    },
+                });
+                data = response.data;
+                console.log(
+                    "[AchievementsService] response",
+                    {
+                        titleId,
+                        status: response.status,
+                        rawCount: Array.isArray((response.data as { achievements?: unknown[] })?.achievements)
+                            ? (response.data as { achievements: unknown[] }).achievements.length
+                            : "unknown",
+                    },
+                );
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+                const body = axios.isAxiosError(error)
+                    ? JSON.stringify(error.response?.data).slice(0, 1000)
+                    : undefined;
+                console.error("[AchievementsService] request failed", {
                     titleId,
-                    unlockedOnly,
-                    maxItems
-                },
-                headers: {
-                    'Authorization': authorization,
-                }
+                    status,
+                    message,
+                    body,
+                });
+                throw error;
             }
-        )).data;
-        const parsed = XboxLiveAchievementsSchema.safeParse(data);
 
-        if (!parsed.success) {
-            throw new Error(`Failed to parse achievements: ${parsed.error.message}`);
-        }
+            const page = parseAchievementsResponse(data);
+            console.log(
+                "[AchievementsService] parsed achievements",
+                {
+                    titleId,
+                    count: page.achievements.length,
+                    achievements: page.achievements.map((achievement) => ({
+                        id: achievement.id,
+                        name: achievement.name,
+                        unlocked: achievement.unlocked,
+                        unlockedOnline: achievement.unlockedOnline,
+                    })),
+                    continuationToken: page.continuationToken ?? null,
+                },
+            );
 
-        return parsed.data;
+            achievements.push(...page.achievements);
+            continuationToken = page.continuationToken;
+        } while (continuationToken);
+
+        return { achievements };
     }
 }

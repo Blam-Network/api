@@ -5,30 +5,18 @@ import type { ParsedXboxAchievement } from 'src/website/services/achievements.se
 /** Xbox Live achievement IDs for waypoint helmet unlocks (360 contract v1). */
 export const REACH_ARMOUR_ACHIEVEMENT_IDS = {
     reach: {
-        soldierWeNeedYouToBe: 30,
-        folksNeedHeroes: 31,
+        soldierWeNeedYouToBe: 94,
+        folksNeedHeroes: 93,
+        yesSensei: 98,
     },
     odst: {
-        campaignCompleteHeroic: 17,
-        pinkAndDeadly: 37,
+        campaignCompleteHeroic: 82,
+        pinkAndDeadly: 70,
     },
     halo3: {
         fearThePinkMist: 46,
         campaignCompleteLegendary: 18,
     },
-} as const;
-
-/** Fallback name matching when achievement IDs differ between API surfaces. */
-export const REACH_ARMOUR_ACHIEVEMENT_NAMES = {
-    soldierWeNeedYouToBe: [
-        'The Soldier We Needed You To Be',
-        'The Soldier We Need You To Be',
-    ],
-    folksNeedHeroes: ['Folks Need Heroes...', 'Folks Need Heroes…'],
-    odstCampaignCompleteHeroic: ['Campaign Complete: Heroic'],
-    odstPinkAndDeadly: ['Pink and Deadly'],
-    halo3FearThePinkMist: ['Fear the Pink Mist'],
-    halo3CampaignCompleteLegendary: ['Campaign Complete: Legendary'],
 } as const;
 
 export type ReachUnlockableHelmetId =
@@ -37,7 +25,8 @@ export type ReachUnlockableHelmetId =
     | 'militarypolice_hurscnm'
     | 'cqb_base'
     | 'cqb_hurscnm'
-    | 'cqb_uahul';
+    | 'cqb_uahul'
+    | 'chest_uabasesecurity';
 
 export const REACH_UNLOCKABLE_HELMET_IDS: ReachUnlockableHelmetId[] = [
     'militarypolice_base',
@@ -46,6 +35,7 @@ export const REACH_UNLOCKABLE_HELMET_IDS: ReachUnlockableHelmetId[] = [
     'cqb_base',
     'cqb_hurscnm',
     'cqb_uahul',
+    'chest_uabasesecurity',
 ];
 
 export const REACH_UNLOCKABLE_HELMET_ID_TO_ARMOUR: Record<
@@ -58,6 +48,7 @@ export const REACH_UNLOCKABLE_HELMET_ID_TO_ARMOUR: Record<
     cqb_base: reach_armour.helmet_cqb_base,
     cqb_hurscnm: reach_armour.helmet_cqb_hurscnm,
     cqb_uahul: reach_armour.helmet_cqb_uahul,
+    chest_uabasesecurity: reach_armour.chest_uabasesecurity,
 };
 
 export const REACH_UNLOCKABLE_ARMOUR_TO_HELMET_ID = Object.fromEntries(
@@ -74,6 +65,7 @@ export type ReachArmourAchievementUnlocks = {
     odstPinkAndDeadly: boolean;
     halo3FearThePinkMist: boolean;
     halo3CampaignCompleteLegendary: boolean;
+    yesSensei: boolean;
 };
 
 export function isReachArmourRowUnlocked(
@@ -128,6 +120,9 @@ export function computeReachArmourUnlocks(input: {
         dbUnlocks.cqb_uahul ||
         (cqb_hurscnm && achievementUnlocks.halo3CampaignCompleteLegendary);
 
+    const chest_uabasesecurity =
+        dbUnlocks.chest_uabasesecurity || achievementUnlocks.yesSensei;
+
     return {
         militarypolice_base,
         militarypolice_cbrnhurs,
@@ -135,48 +130,23 @@ export function computeReachArmourUnlocks(input: {
         cqb_base,
         cqb_hurscnm,
         cqb_uahul,
+        chest_uabasesecurity,
     };
 }
 
-function normalizeAchievementName(name: string): string {
-    return name.trim().replace(/\.+$/, '').toLowerCase();
-}
-
-export function hasXboxAchievement(
+function hasXboxAchievement(
     achievements: ParsedXboxAchievement[],
-    options: {
-        id?: number;
-        names?: readonly string[];
-    },
+    id: number,
 ): boolean {
-    return achievements.some((achievement) => {
-        if (!achievement.unlocked) {
-            return false;
-        }
-
-        if (options.id !== undefined && achievement.id === options.id) {
-            return true;
-        }
-
-        if (!options.names?.length || !achievement.name) {
-            return false;
-        }
-
-        const normalizedAchievementName = normalizeAchievementName(achievement.name);
-        return options.names.some((candidate) => {
-            const normalizedCandidate = normalizeAchievementName(candidate);
-            return (
-                normalizedAchievementName === normalizedCandidate ||
-                normalizedAchievementName.startsWith(normalizedCandidate)
-            );
-        });
-    });
+    return achievements.some(
+        (achievement) => achievement.unlocked && achievement.id === id,
+    );
 }
 
-export const REACH_ARMOUR_ACHIEVEMENT_TITLE_FETCH = [
-    { titleId: TitleID.HALOREACH, maxItems: 100 },
-    { titleId: TitleID.HALO3ODST, maxItems: 100 },
-    { titleId: TitleID.HALO3, maxItems: 100 },
+export const REACH_ARMOUR_ACHIEVEMENT_TITLE_IDS = [
+    TitleID.HALOREACH,
+    TitleID.HALO3ODST,
+    TitleID.HALO3,
 ] as const;
 
 export function buildReachArmourAchievementUnlocks(
@@ -187,29 +157,33 @@ export function buildReachArmourAchievementUnlocks(
     const halo3Achievements = achievementsByTitle[TitleID.HALO3] ?? [];
 
     return {
-        soldierWeNeedYouToBe: hasXboxAchievement(reachAchievements, {
-            id: REACH_ARMOUR_ACHIEVEMENT_IDS.reach.soldierWeNeedYouToBe,
-            names: REACH_ARMOUR_ACHIEVEMENT_NAMES.soldierWeNeedYouToBe,
-        }),
-        folksNeedHeroes: hasXboxAchievement(reachAchievements, {
-            id: REACH_ARMOUR_ACHIEVEMENT_IDS.reach.folksNeedHeroes,
-            names: REACH_ARMOUR_ACHIEVEMENT_NAMES.folksNeedHeroes,
-        }),
-        odstCampaignCompleteHeroic: hasXboxAchievement(odstAchievements, {
-            id: REACH_ARMOUR_ACHIEVEMENT_IDS.odst.campaignCompleteHeroic,
-            names: REACH_ARMOUR_ACHIEVEMENT_NAMES.odstCampaignCompleteHeroic,
-        }),
-        odstPinkAndDeadly: hasXboxAchievement(odstAchievements, {
-            id: REACH_ARMOUR_ACHIEVEMENT_IDS.odst.pinkAndDeadly,
-            names: REACH_ARMOUR_ACHIEVEMENT_NAMES.odstPinkAndDeadly,
-        }),
-        halo3FearThePinkMist: hasXboxAchievement(halo3Achievements, {
-            id: REACH_ARMOUR_ACHIEVEMENT_IDS.halo3.fearThePinkMist,
-            names: REACH_ARMOUR_ACHIEVEMENT_NAMES.halo3FearThePinkMist,
-        }),
-        halo3CampaignCompleteLegendary: hasXboxAchievement(halo3Achievements, {
-            id: REACH_ARMOUR_ACHIEVEMENT_IDS.halo3.campaignCompleteLegendary,
-            names: REACH_ARMOUR_ACHIEVEMENT_NAMES.halo3CampaignCompleteLegendary,
-        }),
+        soldierWeNeedYouToBe: hasXboxAchievement(
+            reachAchievements,
+            REACH_ARMOUR_ACHIEVEMENT_IDS.reach.soldierWeNeedYouToBe,
+        ),
+        folksNeedHeroes: hasXboxAchievement(
+            reachAchievements,
+            REACH_ARMOUR_ACHIEVEMENT_IDS.reach.folksNeedHeroes,
+        ),
+        odstCampaignCompleteHeroic: hasXboxAchievement(
+            odstAchievements,
+            REACH_ARMOUR_ACHIEVEMENT_IDS.odst.campaignCompleteHeroic,
+        ),
+        odstPinkAndDeadly: hasXboxAchievement(
+            odstAchievements,
+            REACH_ARMOUR_ACHIEVEMENT_IDS.odst.pinkAndDeadly,
+        ),
+        halo3FearThePinkMist: hasXboxAchievement(
+            halo3Achievements,
+            REACH_ARMOUR_ACHIEVEMENT_IDS.halo3.fearThePinkMist,
+        ),
+        halo3CampaignCompleteLegendary: hasXboxAchievement(
+            halo3Achievements,
+            REACH_ARMOUR_ACHIEVEMENT_IDS.halo3.campaignCompleteLegendary,
+        ),
+        yesSensei: hasXboxAchievement(
+            reachAchievements,
+            REACH_ARMOUR_ACHIEVEMENT_IDS.reach.yesSensei,
+        ),
     };
 }

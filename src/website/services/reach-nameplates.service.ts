@@ -34,7 +34,7 @@ export class ReachNameplatesService {
         const results = await Promise.all(
             entries.map(([, titleId]) =>
                 this.achievementsService
-                    .getAchievements(authorization, playerXuid, titleId, true, 1)
+                    .getAchievements(authorization, playerXuid, titleId, true, undefined)
                     .then((data) => data.achievements.length > 0)
                     .catch(() => false),
             ),

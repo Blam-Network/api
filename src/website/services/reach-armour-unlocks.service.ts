@@ -6,7 +6,7 @@ import {
     computeReachArmourUnlocks,
     getReachArmourDbUnlocks,
     isReachArmourRowUnlocked,
-    REACH_ARMOUR_ACHIEVEMENT_TITLE_FETCH,
+    REACH_ARMOUR_ACHIEVEMENT_TITLE_IDS,
     REACH_UNLOCKABLE_HELMET_ID_TO_ARMOUR,
     REACH_UNLOCKABLE_HELMET_IDS,
     type ReachUnlockableHelmetId,
@@ -31,14 +31,14 @@ export class ReachArmourUnlocksService {
         playerXuid: bigint,
     ) {
         const results = await Promise.all(
-            REACH_ARMOUR_ACHIEVEMENT_TITLE_FETCH.map(async ({ titleId, maxItems }) => {
+            REACH_ARMOUR_ACHIEVEMENT_TITLE_IDS.map(async (titleId) => {
                 try {
                     const data = await this.achievementsService.getAchievements(
                         authorization,
                         playerXuid,
                         titleId,
                         true,
-                        maxItems,
+                        undefined,
                     );
                     return [titleId, data.achievements] as const;
                 } catch (error) {
@@ -53,11 +53,7 @@ export class ReachArmourUnlocksService {
             }),
         );
 
-        const achievementsByTitle = Object.fromEntries(results) as Partial<
-            Record<number, import('src/website/services/achievements.service').ParsedXboxAchievement[]>
-        >;
-
-        return buildReachArmourAchievementUnlocks(achievementsByTitle);
+        return buildReachArmourAchievementUnlocks(Object.fromEntries(results));
     }
 
     private buildUnlockState(input: {
@@ -93,6 +89,7 @@ export class ReachArmourUnlocksService {
         });
 
         const dbUnlocks = getReachArmourDbUnlocks(existingRows);
+        const allPersistedUnlocked = REACH_UNLOCKABLE_HELMET_IDS.every((id) => dbUnlocks[id]);
 
         let achievementUnlocks = {
             soldierWeNeedYouToBe: false,
@@ -101,9 +98,10 @@ export class ReachArmourUnlocksService {
             odstPinkAndDeadly: false,
             halo3FearThePinkMist: false,
             halo3CampaignCompleteLegendary: false,
+            yesSensei: false,
         };
 
-        if (options.authorization) {
+        if (options.authorization && !allPersistedUnlocked) {
             achievementUnlocks = await this.getAchievementUnlocks(
                 options.authorization,
                 playerXuid,

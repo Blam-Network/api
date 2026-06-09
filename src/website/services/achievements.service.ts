@@ -104,8 +104,6 @@ export class AchievementsService {
                 continuationToken,
             };
 
-            console.log("[AchievementsService] GET", url, params);
-
             let data: unknown;
             try {
                 const response = await axios.get(url, {
@@ -117,16 +115,6 @@ export class AchievementsService {
                     },
                 });
                 data = response.data;
-                console.log(
-                    "[AchievementsService] response",
-                    {
-                        titleId,
-                        status: response.status,
-                        rawCount: Array.isArray((response.data as { achievements?: unknown[] })?.achievements)
-                            ? (response.data as { achievements: unknown[] }).achievements.length
-                            : "unknown",
-                    },
-                );
             } catch (error) {
                 const message = error instanceof Error ? error.message : String(error);
                 const status = axios.isAxiosError(error) ? error.response?.status : undefined;
@@ -143,20 +131,6 @@ export class AchievementsService {
             }
 
             const page = parseAchievementsResponse(data);
-            console.log(
-                "[AchievementsService] parsed achievements",
-                {
-                    titleId,
-                    count: page.achievements.length,
-                    achievements: page.achievements.map((achievement) => ({
-                        id: achievement.id,
-                        name: achievement.name,
-                        unlocked: achievement.unlocked,
-                        unlockedOnline: achievement.unlockedOnline,
-                    })),
-                    continuationToken: page.continuationToken ?? null,
-                },
-            );
 
             achievements.push(...page.achievements);
             continuationToken = page.continuationToken;

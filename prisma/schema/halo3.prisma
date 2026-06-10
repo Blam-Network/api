@@ -838,7 +838,7 @@ model halo3_campaign_carnage_report {
 
   players halo3_campaign_carnage_report_player[]
 
-  @@unique([start_time, game_id, map_id, total_elapsed_tick_count])
+  @@unique([game_id, map_id, total_elapsed_tick_count])
   @@index([start_time], map: "idx_campaign_carnage_report_start_time")
   @@map("campaign_carnage_report")
   @@schema("halo3")

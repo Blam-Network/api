@@ -714,18 +714,19 @@ export class Halo3CarnageReportService {
                     total_elapsed_tick_count: elapsedTickCount,
                 },
                 select: {
-                    id: true
+                    id: true,
                 }
             })
 
-            let existingCarnageReportId = existingReport
-                ? existingReport.id
-                : undefined;
+            if (existingReport && !ALWAYS_REINSERT_REPORTS) {
+                this.logger.debug(`[UPLOAD] Campaign carnage report already exists (${existingReport.id}), skipping.`)
+                return;
+            }
 
-            if (existingCarnageReportId) {
+            if (existingReport?.id) {
                 await tx.halo3_campaign_carnage_report.delete({
                     where: {
-                        id: existingCarnageReportId
+                        id: existingReport.id
                     }
                 })
             }
@@ -734,7 +735,7 @@ export class Halo3CarnageReportService {
 
             const {id: carnageReportId} = await tx.halo3_campaign_carnage_report.create({
                 data: {
-                    id: existingCarnageReportId,
+                    id: existingReport?.id,
                     finish_time: endTime,
                     game_id: campaign.gmop.options.game_instance.toString(),
                     map_id: campaign.gmop.options.map_id,
@@ -984,7 +985,7 @@ export class Halo3CarnageReportService {
             });
 
             const duration = intervalToDuration(interval(startTime, endTime));
-            if (!existingCarnageReportId && duration.minutes && duration.minutes > 0) {
+            if (!existingReport && duration.minutes && duration.minutes > 0) {
                 this.discordWebhookService.sendHalo3CampaignCarnageReport({
                     carnageReportId,
                     startTime,

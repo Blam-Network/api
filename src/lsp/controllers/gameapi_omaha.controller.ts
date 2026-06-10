@@ -483,12 +483,12 @@ export class GameApiOmahaController {
     @Query('shareId', ParseXUIDPipe) shareId: BigInt,
     @Query('gamertaghex') gamertaghex: string | undefined,
     @Query('fileType', new ParseIntPipe({optional: true})) fileType: number | undefined,
-    @Query('authortaghex', new ParseIntPipe({optional: true})) authortaghex: number | undefined,
+    @Query('authortaghex') authortaghex: string | undefined,
     @Query('gameEngine', new ParseIntPipe({optional: true})) gameEngine: number | undefined,
     @Query('megaloCategoryIndex', new ParseIntPipe({optional: true})) megaloCategoryIndex: number | undefined,
     @Query('fileAge', new ParseIntPipe({optional: true})) fileAge: number | undefined,
     @Query('sortBy', new ParseIntPipe({optional: true})) sortBy: number | undefined,
-    @Query('taghex0', new ParseIntPipe({optional: true})) taghex0: number | undefined,
+    @Query('taghex0') taghex0: number | undefined,
     @Query('mapId', new ParseIntPipe({optional: true})) mapId: number | undefined,
   ) {
     const hexStringSchema = z.string().regex(/^[0-9a-fA-F]+$/);
@@ -534,7 +534,7 @@ export class GameApiOmahaController {
 
     if (gamertaghex != null && gamertaghex !== '') {
       const { gamertag } = searchByGamertag.parse({ gamertaghex });
-      return this.fileshareService.getfileShareSummary(userId, gamertag);
+      return this.fileshareService.getFileShareSummary(userId, gamertag);
     }
 
     const searchParams = customSearch.safeParse({
@@ -590,12 +590,12 @@ export class GameApiOmahaController {
     @Query('userId', ParseXUIDPipe) userId: BigInt,
     @Query('shareId', ParseXUIDPipe) shareId: BigInt,
     @Query('fileType', new ParseIntPipe({optional: true})) fileType: number | undefined,
-    @Query('authortaghex', new ParseIntPipe({optional: true})) authortaghex: number | undefined,
+    @Query('authortaghex') authortaghex: number | undefined,
     @Query('gameEngine', new ParseIntPipe({optional: true})) gameEngine: number | undefined,
     @Query('megaloCategoryIndex', new ParseIntPipe({optional: true})) megaloCategoryIndex: number | undefined,
     @Query('fileAge', new ParseIntPipe({optional: true})) fileAge: number | undefined,
     @Query('sortBy', new ParseIntPipe({optional: true})) sortBy: number | undefined,
-    @Query('taghex0', new ParseIntPipe({optional: true})) taghex0: number | undefined,
+    @Query('taghex0') taghex0: number | undefined,
     @Query('mapId', new ParseIntPipe({optional: true})) mapId: number | undefined,
     @Query('page', new ParseIntPipe({optional: true})) page: number | undefined,
   ) {

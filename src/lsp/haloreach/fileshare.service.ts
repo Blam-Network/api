@@ -41,6 +41,7 @@ const SCREENSHOT_PREVIEW_WIDTH = 320;
 const SCREENSHOT_PREVIEW_HEIGHT = 180;
 const MAX_TAGS_PER_FILE = 7;
 const MAX_FILES_PER_PAGE = 50;
+const MAX_FILES_PER_SHARE = 24;
 
 const SHAREDFILE_MIME = 'application/x-reach-sharedfile'
 
@@ -161,7 +162,7 @@ export class HaloReachFileShareService {
         ) {
             const hasher = h32().init(0);
             hasher.update(JSON.stringify({
-                quotaSlots: fileShare?.quota_slots || HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA,
+                quotaSlots: Math.min(fileShare?.quota_slots || HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA, MAX_FILES_PER_SHARE),
                 quotaBytes: fileShare?.quota_bytes || HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
                 message: fileShare?.message
             }))
@@ -416,7 +417,7 @@ export class HaloReachFileShareService {
                 fileShare = await this.prisma.reach_file_share.create({
                     data: {
                         share_id: ownerXuid.toString(),
-                        quota_slots: 0xff,
+                        quota_slots: 24,
                         quota_bytes: 0x7fffffff,
                         message: null,
                         lastHash: 0,
@@ -475,7 +476,7 @@ export class HaloReachFileShareService {
                 }
             })
 
-            const quotaSlots = fileshare?.quota_slots ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA;
+            const quotaSlots = Math.min(fileshare?.quota_slots ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA, MAX_FILES_PER_SHARE);
             if (currentFileCount >= quotaSlots && !isBlamNetworkXuid(shareXuid)) {
                 this.logger.warn(`[FileShare] ${uploaderXuid} tried to upload beyond their slot quota.`);
                 throw new BadRequestException("Your file share is full.")
@@ -791,7 +792,7 @@ export class HaloReachFileShareService {
                     unknown18: 0,
                     unknown19: 0,
                     quota_byte_count: fileShare?.quota_bytes ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
-                    quota_slot_count: fileShare?.quota_slots ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA,
+                    quota_slot_count: Math.min(fileShare?.quota_slots ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA, MAX_FILES_PER_SHARE),
                     slot_count: 1,
                     message_length: 0,
                     entries: {
@@ -965,11 +966,12 @@ export class HaloReachFileShareService {
 
         let listing_entries: c.infer<typeof HaloReach.v12065.s_online_file_metadata>[] = [];
 
-        const fileShareFiles = await this.prisma.reach_file_share_file.findMany({
+        let fileShareFiles = await this.prisma.reach_file_share_file.findMany({
             where: {
                 share_id: shareXuid.toString(),
                 is_uploaded: true,
-            }
+            },
+            take: MAX_FILES_PER_SHARE,
         });
 
         if (fileShareFiles) {
@@ -1317,60 +1319,6 @@ export class HaloReachFileShareService {
         await rm(filePath);
     }
 
-    public getfileShareSummary = async (viewerXuid: BigInt, gamertag: string) => {
-        const trimmed = gamertag.trim();
-        if (!trimmed) {
-            throw new BadRequestException('Gamertag is required');
-        }
-
-        const serviceRecord = await this.prisma.reach_service_record.findFirst({
-            where: {
-                player_name: { equals: trimmed, mode: 'insensitive' },
-            },
-            select: { player_xuid: true },
-        });
-        if (!serviceRecord) {
-            throw new NotFoundException('Player not found');
-        }
-
-        const shareXuid = BigInt(serviceRecord.player_xuid.toString());
-        const entry = await this.getFileShareSummary(viewerXuid, shareXuid);
-
-        const blfFileSchema = blf.createFileSchema([
-            HaloReach.v12065.s_blf_chunk_start_of_file,
-            blf.createChunkSchema({
-                name: 'finf',
-                majorVersion: 1,
-                minorVersion: 0,
-                endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'entry_count', type: 'u16' },
-                    { name: 'pad', type: 'padding', count: 2 },
-                    { name: 'entries', count: 1, type: HaloReach.v12065.s_online_file_summary_listing_entry },
-                ],
-            }),
-            HaloReach.v12065.s_blf_chunk_end_of_file,
-        ]);
-
-        return new StreamableFile(
-            blfFileSchema.write({
-                _blf: {
-                    name: 'test',
-                    byte_order_mark: 0xfffe,
-                },
-                finf: {
-                    entry_count: 1,
-                    entries: entry,
-                },
-                _eof: {
-                    file_size: 0,
-                    authentication_type: 0,
-                },
-            }),
-        );
-    };
-
     public getFileShareSummaries = async (userXuid: BigInt, shareXuid: BigInt[]) => {
         if (!IS_FILESHARE_ENABLED) {
             throw new ServiceUnavailableException();
@@ -1412,39 +1360,24 @@ export class HaloReachFileShareService {
         }));
     }
 
-    public getFileShareSummary = async (userXuid: BigInt, shareXuid: BigInt): Promise<c.infer<typeof HaloReach.v12065.s_online_file_summary_listing_entry>> => {
+    public async getFileShareSummary(userXuid: BigInt, gamertag: string): Promise<c.infer<typeof HaloReach.v12065.s_online_file_summary_listing_entry>>;
+    public async getFileShareSummary(userXuid: BigInt, shareXuid: BigInt): Promise<c.infer<typeof HaloReach.v12065.s_online_file_summary_listing_entry>>;
+    public async getFileShareSummary(userXuid: BigInt, share: string | BigInt): Promise<c.infer<typeof HaloReach.v12065.s_online_file_summary_listing_entry>> {
         if (!IS_FILESHARE_ENABLED) {
             throw new ServiceUnavailableException();
         }
 
-        /// TEMPORARY
-        // During the File Share Alpha, we will show a star next to new file shares
-        // to highlight them to the user.
-        const ownsFileShare = userXuid === shareXuid;
-        const fileShare = await this.prisma.reach_file_share.findUnique({
-            where: {
-                share_id: shareXuid.toString(),
+        let shareXuid = 0n;
+        if (typeof share === "bigint") {
+            shareXuid = share;
+        }
+        else if (typeof share === "string") {
+            const player = await this.prisma.reach_service_record.findFirst({ where: { player_name: share }, select: { player_xuid: true } });
+            if (!player) {
+                throw new NotFoundException();
             }
-        });
-        const isNewFileShare = fileShare == null && ownsFileShare;
-
-        // group by file type
-        const fileCatalogSchema = blf.createFileSchema([
-            HaloReach.v12065.s_blf_chunk_start_of_file,
-            blf.createChunkSchema({
-                name: 'finf',
-                majorVersion: 1,
-                minorVersion: 0,
-                endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'entry_count', type: 'u16' },
-                    { name: 'pad', type: 'padding', count: 2 },
-                    { name: 'entries', count: 1, type: HaloReach.v12065.s_online_file_summary_listing_entry },
-                ],
-            }),
-            HaloReach.v12065.s_blf_chunk_end_of_file,
-        ])
+            shareXuid = BigInt(player?.player_xuid.toString());
+        }
           
         const fileShareFileTypes = await this.prisma.reach_file_share_file.groupBy({
             by: ['file_type'],
@@ -1468,7 +1401,7 @@ export class HaloReachFileShareService {
             films_count: filmsCount,
             map_variants_count: mapVariantsCount,
             game_variants_count: gameVariantsCount,
-            new_items_count: isNewFileShare ? 1 : 0, // TODO: Update this when we're out of alpha.
+            new_items_count: 0,
             unknown1C: 0,
             unknown20: 1,
         }
@@ -2281,6 +2214,8 @@ export class HaloReachFileShareService {
                 break;
             case HaloReach.v12065.FileAgeFilter.Month:
                 fileAgeFilter = new Date(Date.now() - 30 * DAY_IN_MS);
+                break;
+            default:
                 break;
         }
 

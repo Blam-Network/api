@@ -975,7 +975,7 @@ model halo3_campaign_carnage_report_player_kills {
   heavy_vehicle                        Int
   giant_vehicle                        Int
   standard_vehicle                     Int
-  halo3_campaign_carnage_report_player halo3_campaign_carnage_report_player? @relation(fields: [carnage_report_id, player_xuid], references: [carnage_report_id, player_xuid])
+  halo3_campaign_carnage_report_player halo3_campaign_carnage_report_player? @relation(fields: [carnage_report_id, player_xuid], references: [carnage_report_id, player_xuid], onDelete: Cascade)
 
   @@unique([player_xuid, carnage_report_id, enemy_type], map: "unique_player_carnage_report_enemy_type")
   @@map("campaign_carnage_report_player_kills")

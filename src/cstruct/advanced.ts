@@ -1,7 +1,7 @@
 import { FieldOptions } from "./field";
 import { CDataField, Endian } from "./data-field";
 import { getPrimitiveTypeSize, CPrimitive, readPrimitiveValue, writePrimitiveValue } from "./primitive";
-import type { c as CTypes } from ".";
+import type { cImpl as CTypes } from "./impl";
 
 export type { Endian };
 export { CDataField, isCDataField } from "./data-field";
@@ -32,15 +32,8 @@ export class CPadding<const O extends FieldOptions = {}> extends CDataField<unde
     }
 }
 
-const PADDING_CACHE = new Map<number, CPadding>();
-
 export function createPadding(bytes: number): CPadding {
-    let cached = PADDING_CACHE.get(bytes);
-    if (!cached) {
-        cached = new CPadding(bytes);
-        PADDING_CACHE.set(bytes, cached);
-    }
-    return cached;
+    return new CPadding(bytes);
 }
 
 export function pad<const O extends FieldOptions = {}>(bytes: number, options?: O): CPadding<O> {

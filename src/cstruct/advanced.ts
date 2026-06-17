@@ -1,22 +1,66 @@
-import { c } from ".";
-import { getPrimitiveTypeSize, PrimitiveType, readPrimitiveValue, writePrimitiveValue } from "./primitive";
+import { FieldOptions } from "./field";
+import { CDataField, Endian } from "./data-field";
+import { getPrimitiveTypeSize, CPrimitive, readPrimitiveValue, writePrimitiveValue } from "./primitive";
+import type { c as CTypes } from ".";
 
-export abstract class AdvancedType<T> {
-    abstract getSize(): number;
-    abstract read(buffer: Buffer, offset: number, endian: c.Endian): T;
-    abstract write(buffer: Buffer, offset: number, value: T, endian: c.Endian): void;
+export type { Endian };
+export { CDataField, isCDataField } from "./data-field";
+/** @deprecated Use CDataField */
+export { CDataField as AdvancedType };
+
+/**
+ * Explicit padding bytes in a struct layout. Omitted from inferred TypeScript types.
+ */
+export class CPadding<const O extends FieldOptions = {}> extends CDataField<undefined, O> {
+    readonly bytes: number;
+
+    constructor(bytes: number, options?: O) {
+        super(options);
+        this.bytes = bytes;
+    }
+
+    getSize(): number {
+        return this.bytes;
+    }
+
+    read(_buffer: Buffer, _offset: number, _endian: Endian): undefined {
+        return undefined;
+    }
+
+    write(buffer: Buffer, offset: number, _value: undefined, _endian: Endian): void {
+        buffer.fill(0, offset, offset + this.bytes);
+    }
+}
+
+const PADDING_CACHE = new Map<number, CPadding>();
+
+export function createPadding(bytes: number): CPadding {
+    let cached = PADDING_CACHE.get(bytes);
+    if (!cached) {
+        cached = new CPadding(bytes);
+        PADDING_CACHE.set(bytes, cached);
+    }
+    return cached;
+}
+
+export function pad<const O extends FieldOptions = {}>(bytes: number, options?: O): CPadding<O> {
+    return new CPadding(bytes, options);
+}
+
+export function isCPadding(value: unknown): value is CPadding {
+    return value instanceof CPadding;
 }
 
 /**
  * String type for fixed-length character arrays
  * Takes length as a generic parameter
  */
-export class CString<L extends number> extends AdvancedType<string> {
+export class CString<L extends number, const O extends FieldOptions = {}> extends CDataField<string, O> {
     public readonly length!: L;
     private readonly encoding: BufferEncoding;
 
-    constructor(length: L, encoding: BufferEncoding = 'utf8') {
-        super();
+    constructor(length: L, encoding: BufferEncoding = 'utf8', options?: O) {
+        super(options);
         this.length = length;
         this.encoding = encoding;
     }
@@ -24,7 +68,7 @@ export class CString<L extends number> extends AdvancedType<string> {
     /**
      * Read a string from buffer
      */
-    read(buffer: Buffer, offset: number, endian: c.Endian): string {
+    read(buffer: Buffer, offset: number, endian: Endian): string {
         const bytes = buffer.subarray(offset, offset + this.length);
         // Find null terminator if present
         let nullIndex = bytes.indexOf(0);
@@ -38,7 +82,7 @@ export class CString<L extends number> extends AdvancedType<string> {
     /**
      * Write a string to buffer
      */
-    write(buffer: Buffer, offset: number, value: string, endian: c.Endian): void {
+    write(buffer: Buffer, offset: number, value: string, endian: Endian): void {
         // Convert string to bytes
         const stringBytes = Buffer.from(value, this.encoding);
         
@@ -63,11 +107,11 @@ export class CString<L extends number> extends AdvancedType<string> {
  * Wide string type for fixed-length wchar_t arrays (UTF-16, 2 bytes per character)
  * Takes character count as a generic parameter (not byte count)
  */
-export class CWString<L extends number> extends AdvancedType<string> {
+export class CWString<L extends number, const O extends FieldOptions = {}> extends CDataField<string, O> {
     public readonly length!: L;
 
-    constructor(length: L) {
-        super();
+    constructor(length: L, options?: O) {
+        super(options);
         this.length = length;
     }
 
@@ -84,7 +128,7 @@ export class CWString<L extends number> extends AdvancedType<string> {
     /**
      * Read a wide string from buffer (UTF-16LE/UTF-16BE based on endian)
      */
-    read(buffer: Buffer, offset: number, endian: c.Endian): string {
+    read(buffer: Buffer, offset: number, endian: Endian): string {
         const byteLength = this.length * 2;
         const bytes = buffer.subarray(offset, offset + byteLength);
         
@@ -108,7 +152,7 @@ export class CWString<L extends number> extends AdvancedType<string> {
     /**
      * Write a wide string to buffer (UTF-16LE/UTF-16BE based on endian)
      */
-    write(buffer: Buffer, offset: number, value: string, endian: c.Endian): void {
+    write(buffer: Buffer, offset: number, value: string, endian: Endian): void {
         const byteLength = this.length * 2;
         // Convert string to UTF-16LE bytes
         const stringBytes = Buffer.from(value, 'utf16le');
@@ -132,12 +176,12 @@ export class CWString<L extends number> extends AdvancedType<string> {
     }
 }
 
-export class CMagicNumber<N extends number, PT extends PrimitiveType> extends AdvancedType<N> {
+export class CMagicNumber<N extends number, PT extends CPrimitive, const O extends FieldOptions = {}> extends CDataField<N, O> {
     private magic: N;
     private type: PT;
 
-    constructor(magic: N, type: PT) {
-        super();
+    constructor(magic: N, type: PT, options?: O) {
+        super(options);
         this.magic = magic;
         this.type = type;
     }
@@ -146,7 +190,7 @@ export class CMagicNumber<N extends number, PT extends PrimitiveType> extends Ad
         return getPrimitiveTypeSize(this.type);
     }
 
-    read(buffer: Buffer, offset: number, endian: c.Endian): N {
+    read(buffer: Buffer, offset: number, endian: Endian): N {
         const value = readPrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength), offset, this.type, endian == 'little');
 
         if (value !== this.magic) {
@@ -156,16 +200,16 @@ export class CMagicNumber<N extends number, PT extends PrimitiveType> extends Ad
         return this.magic;
     }
     
-    write(buffer: Buffer, offset: number, value: N, endian: c.Endian): void {
+    write(buffer: Buffer, offset: number, value: N, endian: Endian): void {
         writePrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength), offset, this.type, value, endian == 'little');
     }
 }
 
-export class CMagicString<S extends string> extends AdvancedType<S> {
+export class CMagicString<S extends string, const O extends FieldOptions = {}> extends CDataField<S, O> {
     private magic: S;
 
-    constructor(magic: S) {
-        super();
+    constructor(magic: S, options?: O) {
+        super(options);
         this.magic = magic;
     }
 
@@ -173,7 +217,7 @@ export class CMagicString<S extends string> extends AdvancedType<S> {
         return this.magic.length;
     }
 
-    read(buffer: Buffer, offset: number, endian: c.Endian): S {
+    read(buffer: Buffer, offset: number, endian: Endian): S {
         const magic = buffer.subarray(offset, offset + this.magic.length);
         if (magic.toString('utf8') !== this.magic) {
             throw new Error(`Magic string mismatch: expected ${this.magic}, got ${magic.toString('utf8')}`);
@@ -181,19 +225,19 @@ export class CMagicString<S extends string> extends AdvancedType<S> {
         return this.magic;
     }
 
-    write(buffer: Buffer, offset: number, value: S, endian: c.Endian): void {
+    write(buffer: Buffer, offset: number, value: S, endian: Endian): void {
         buffer.write(this.magic, offset);
     }
 }
 
-export class CBitfield<const K extends readonly string[], T extends PrimitiveType> extends AdvancedType<{
+export class CBitfield<const K extends readonly string[], T extends CPrimitive, const O extends FieldOptions = {}> extends CDataField<{
     [Key in K[number]]: boolean;
-}> {
+}, O> {
     private keys: readonly string[];
     private type: T;
 
-    constructor(keys: K, type: T) {
-        super();
+    constructor(keys: K, type: T, options?: O) {
+        super(options);
         this.keys = keys;
         this.type = type;
     }
@@ -202,7 +246,7 @@ export class CBitfield<const K extends readonly string[], T extends PrimitiveTyp
         return getPrimitiveTypeSize(this.type);
     }
 
-    read(buffer: Buffer, offset: number, endian: c.Endian): {
+    read(buffer: Buffer, offset: number, endian: Endian): {
         [Key in K[number]]: boolean;
     } {
         const value = readPrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength), offset, this.type, endian === 'little');
@@ -218,7 +262,7 @@ export class CBitfield<const K extends readonly string[], T extends PrimitiveTyp
     
     write(buffer: Buffer, offset: number, value: {
         [Key in K[number]]: boolean;
-    }, endian: c.Endian): void {
+    }, endian: Endian): void {
         let result = 0;
         for (let i = 0; i < this.keys.length; i++) {
             const key = this.keys[i];
@@ -243,14 +287,14 @@ type EnumKeys<T> = T extends readonly string[]
  * - An object mapping enum key names to their numeric values (for non-sequential enums)
  * Reads/writes as the numeric value of the enum
  */
-export class CEnum<const T extends readonly string[] | Record<string, number>, PT extends PrimitiveType> extends AdvancedType<EnumKeys<T>> {
+export class CEnum<const T extends readonly string[] | Record<string, number>, PT extends CPrimitive, const O extends FieldOptions = {}> extends CDataField<EnumKeys<T>, O> {
     private keys: readonly string[];
     private valueMap: Map<string, number>;
     private keyMap: Map<number, string>;
     private type: PT;
 
-    constructor(keysOrMap: T, type: PT) {
-        super();
+    constructor(keysOrMap: T, type: PT, options?: O) {
+        super(options);
         this.type = type;
         
         if (Array.isArray(keysOrMap)) {
@@ -279,7 +323,7 @@ export class CEnum<const T extends readonly string[] | Record<string, number>, P
         return getPrimitiveTypeSize(this.type);
     }
 
-    read(buffer: Buffer, offset: number, endian: c.Endian): EnumKeys<T> {
+    read(buffer: Buffer, offset: number, endian: Endian): EnumKeys<T> {
         const value = readPrimitiveValue(new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength), offset, this.type, endian === 'little');
         const numericValue = Number(value);
         const key = this.keyMap.get(numericValue);
@@ -289,7 +333,7 @@ export class CEnum<const T extends readonly string[] | Record<string, number>, P
         throw new Error(`Enum value ${numericValue} is not a valid enum value`);
     }
     
-    write(buffer: Buffer, offset: number, value: EnumKeys<T>, endian: c.Endian): void {
+    write(buffer: Buffer, offset: number, value: EnumKeys<T>, endian: Endian): void {
         const mappedValue = this.valueMap.get(value);
         if (mappedValue === undefined) {
             throw new Error(`Invalid enum key: ${value}`);
@@ -306,16 +350,16 @@ export class CEnum<const T extends readonly string[] | Record<string, number>, P
  * All structs start at the same offset and share the same memory.
  * You can read/write any struct by its member name.
  */
-export class CUnion<S extends Record<string, c.Struct<c.StructSchema>>> extends AdvancedType<{
-    [K in keyof S]?: c.infer<S[K]>
-}> {
+export class CUnion<S extends Record<string, CTypes.Struct<CTypes.StructSchema>>, const O extends FieldOptions = {}> extends CDataField<{
+    [K in keyof S]?: CTypes.infer<S[K]>
+}, O> {
     private members: S;
     private memberNames: string[];
-    private structs: c.Struct<c.StructSchema>[];
+    private structs: CTypes.Struct<CTypes.StructSchema>[];
     private maxSize: number;
 
-    constructor(members: S) {
-        super();
+    constructor(members: S, options?: O) {
+        super(options);
         this.members = members;
         this.memberNames = Object.keys(members);
         this.structs = Object.values(members);
@@ -337,17 +381,17 @@ export class CUnion<S extends Record<string, c.Struct<c.StructSchema>>> extends 
      * All members are read from the same offset (they share memory).
      * If any member fails to read, it will be undefined.
      */
-    read(buffer: Buffer, offset: number, endian: c.Endian): {
-        [K in keyof S]?: c.infer<S[K]>
+    read(buffer: Buffer, offset: number, endian: Endian): {
+        [K in keyof S]?: CTypes.infer<S[K]>
     } {
         const result: {
-            [K in keyof S]?: c.infer<S[K]>
+            [K in keyof S]?: CTypes.infer<S[K]>
         } = {};
         for (let i = 0; i < this.memberNames.length; i++) {
             const name = this.memberNames[i];
             const struct = this.structs[i];
             try {
-                result[name as keyof S] = struct.read(buffer, offset) as c.infer<S[keyof S]>;
+                result[name as keyof S] = struct.read(buffer, offset, endian) as CTypes.infer<S[keyof S]>;
             } catch {
                 // If member fails to read, keep it undefined
                 result[name as keyof S] = undefined;
@@ -362,13 +406,13 @@ export class CUnion<S extends Record<string, c.Struct<c.StructSchema>>> extends 
      * If multiple members are provided, the last one wins (they overwrite each other).
      */
     write(buffer: Buffer, offset: number, value: {
-        [K in keyof S]?: c.infer<S[K]>
-    }, endian: c.Endian): void {
+        [K in keyof S]?: CTypes.infer<S[K]>
+    }, endian: Endian): void {
         // Write the first provided member
         for (const name of this.memberNames) {
             if (value[name] !== undefined) {
                 const struct = this.members[name];
-                const structBuffer = struct.write(value[name]);
+                const structBuffer = struct.write(value[name] as Record<string, any>, endian);
                 structBuffer.copy(buffer, offset);
                 return; // Only write one member since they all share memory
             }
@@ -380,23 +424,23 @@ export class CUnion<S extends Record<string, c.Struct<c.StructSchema>>> extends 
     /**
      * Read a specific union member by name
      */
-    readMember<K extends keyof S>(buffer: Buffer, offset: number, memberName: K): c.infer<S[K]> {
+    readMember<K extends keyof S>(buffer: Buffer, offset: number, memberName: K, endian: Endian): CTypes.infer<S[K]> {
         const struct = this.members[memberName];
         if (!struct) {
             throw new Error(`Union member '${String(memberName)}' not found`);
         }
-        return struct.read(buffer, offset) as c.infer<S[K]>;
+        return struct.read(buffer, offset, endian) as CTypes.infer<S[K]>;
     }
 
     /**
      * Write a specific union member by name
      */
-    writeMember<K extends keyof S>(buffer: Buffer, offset: number, memberName: K, value: c.infer<S[K]>): void {
+    writeMember<K extends keyof S>(buffer: Buffer, offset: number, memberName: K, value: CTypes.infer<S[K]>, endian: Endian): void {
         const struct = this.members[memberName];
         if (!struct) {
             throw new Error(`Union member '${String(memberName)}' not found`);
         }
-        const structBuffer = struct.write(value);
+        const structBuffer = struct.write(value as Record<string, any>, endian);
         structBuffer.copy(buffer, offset);
     }
 }

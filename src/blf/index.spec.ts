@@ -6,11 +6,10 @@ const SBlfChunkStartOfFileSchema = blf.createChunkSchema({
     majorVersion: 1,
     minorVersion: 2,
     endian: 'big',
-    fields: [
-        { name: 'bom', type: new c.MagicNumber(0xFFFE, 'u16') },
-        { name: 'fileName', type: new c.String(32) },
-        { name: 'padding', type: 'padding', count: 2 },
-    ]
+    fields: {
+        bom: c.MagicNumber(0xFFFE, c.u16()),
+        fileName: c.String(32, 'utf8', { padAfter: 2 }),
+    }
 });
 
 const SBlfChunkAuthorSchema = blf.createChunkSchema({
@@ -18,13 +17,13 @@ const SBlfChunkAuthorSchema = blf.createChunkSchema({
     majorVersion: 3,
     minorVersion: 1,
     endian: 'big',
-    fields: [
-        { name: 'programName', type: new c.String(16) },
-        { name: 'buildNumberSequence', type: 'u32' },
-        { name: 'buildNumber', type: 'u32' },
-        { name: 'buildString', type: new c.String(28) },
-        { name: 'authorName', type: new c.String(16) },
-    ]
+    fields: {
+        programName: c.String(16),
+        buildNumberSequence: c.u32(),
+        buildNumber: c.u32(),
+        buildString: c.String(28),
+        authorName: c.String(16),
+    }
 });
 
 const BlfFileSchema = blf.createFileSchema([SBlfChunkStartOfFileSchema, SBlfChunkAuthorSchema]);

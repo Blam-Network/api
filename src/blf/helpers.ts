@@ -1,14 +1,12 @@
-import { CString } from "../cstruct/advanced";
 import { blf } from ".";
 import { c } from "../cstruct";
 
-// Layout matches blf.createChunkSchema header: chunkType, chunkSize, versionMajor, versionMinor (all big-endian)
-const s_blf_chunk_header = c.createCStruct({pack: 1, endian: 'big', fields: [
-    { name: 'signature', type: new CString(4) },
-    { name: 'chunkSize', type: 'u32' },
-    { name: 'majorVersion', type: 'u16' },
-    { name: 'minorVersion', type: 'u16' },
-]});
+const s_blf_chunk_header = c.struct({
+    signature: c.String(4),
+    chunkSize: c.u32(),
+    majorVersion: c.u16(),
+    minorVersion: c.u16(),
+});
 
 if (s_blf_chunk_header.getSize() !== 12) {
     throw new Error(`Invalid chunk header size: ${s_blf_chunk_header.getSize()}`);
@@ -24,7 +22,7 @@ export const find_chunk_in_file = <
 
     let offset = 0;
     while (true) {
-        const header = s_blf_chunk_header.read(fileBuffer.slice(offset, offset + s_blf_chunk_header.getSize()));
+        const header = s_blf_chunk_header.read(fileBuffer.slice(offset, offset + s_blf_chunk_header.getSize()), 0, 'big');
 
         if (header.signature === chunk.signature && header.majorVersion === chunk.majorVersion && header.minorVersion === chunk.minorVersion) {
             return chunk.read(fileBuffer.subarray(offset));

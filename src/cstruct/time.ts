@@ -1,11 +1,16 @@
 import { c } from ".";
-import { AdvancedType } from "./advanced";
+import { CDataField } from "./data-field";
+import type { FieldOptions } from "./field";
 
 /**
  * 64-bit C time_t equivalent (seconds since Unix epoch).
  * Encodes/decodes as signed i64 and maps to JavaScript Date.
  */
-export class time64_t extends AdvancedType<Date> {
+export class time64_t<const O extends FieldOptions = {}> extends CDataField<Date, O> {
+    constructor(options?: O) {
+        super(options);
+    }
+
     getSize(): number {
         return 8;
     }

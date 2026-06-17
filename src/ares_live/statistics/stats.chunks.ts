@@ -2,88 +2,54 @@ import { c } from "../../cstruct";
 import { blf, SBlfChunkEndOfFileSchema } from "../../blf";
 import { SBlfChunkAuthorSchema, SBlfChunkStartOfFileSchema, OnlineDataSchema } from "../chunks";
 
-/**
- * BLF Chunk Schemas for Ares Statistics API
- * These schemas define the binary structure of BLF chunks used for statistics operations
- */
-
-// Stats Query Spec Schema
-const StatsQuerySpecSchema = c.createCStruct({
-    endian: 'little',
-    pack: 1,
-    fields: [
-        { name: 'viewId', type: 'u32' },
-        { name: 'numColumnIds', type: 'u32' },
-        { name: 'columnIds', type: 'u16', count: 64 }, // Max 64 column IDs
-    ],
+const StatsQuerySpecSchema = c.struct({
+    viewId: c.u32(),
+    numColumnIds: c.u32(),
+    columnIds: c.array(c.u16(), 64),
 });
 
-// Stats Query Chunk Schema
 export const SBlfChunkStatsQuerySchema = blf.createChunkSchema({
     name: 'xsqq',
     majorVersion: 1,
     minorVersion: 0,
     endian: 'little',
-    pack: 1,
-    fields: [
-        { name: 'xuidCount', type: 'u32' },
-        { name: 'xuids', type: 'u64', count: 16 }, // Max 16 xuids
-        { name: 'specCount', type: 'u32' },
-        { name: 'specs', type: StatsQuerySpecSchema, count: 4 }, // Max 4 specs
-    ],
+    fields: {
+        xuidCount: c.u32(),
+        xuids: c.array(c.u64(), 16),
+        specCount: c.u32(),
+        specs: c.array(StatsQuerySpecSchema.field(), 4),
+    },
 });
 
-// Stats Query Response Column Schema
-const StatsQueryResponseColumnSchema = c.createCStruct({
-    endian: 'little',
-    pack: 1,
-    fields: [
-        { name: 'id', type: 'u32' },
-        { name: 'padding', type: 'padding', count: 4 }, // Padding to align data to 8-byte boundary
-        { name: 'data', type: OnlineDataSchema },
-    ],
+const StatsQueryResponseColumnSchema = c.struct({
+    id: c.u32({ padAfter: 4 }),
+    data: OnlineDataSchema.field(),
 });
 
-// Stats Query Response Row Schema
-const StatsQueryResponseRowSchema = c.createCStruct({
-    endian: 'little',
-    pack: 1,
-    fields: [
-        { name: 'xuid', type: 'u64' },
-        { name: 'gamertag', type: new c.String(16) },
-        { name: 'statCount', type: 'u32' },
-        { name: 'padding', type: 'padding', count: 4 }, // Padding to align stats array to 8-byte boundary
-        { name: 'stats', type: StatsQueryResponseColumnSchema, count: 32 }, // Max 32 stats (matches resym: stats[32])
-    ],
+const StatsQueryResponseRowSchema = c.struct({
+    xuid: c.u64(),
+    gamertag: c.String(16),
+    statCount: c.u32({ padAfter: 4 }),
+    stats: c.array(StatsQueryResponseColumnSchema.field(), 32),
 });
 
-// Stats Query Response Leaderboard Schema
-const StatsQueryResponseLeaderboardSchema = c.createCStruct({
-    endian: 'little',
-    pack: 1,
-    fields: [
-        { name: 'leaderboardId', type: 'u32' },
-        { name: 'rowCount', type: 'u32' },
-        { name: 'rows', type: StatsQueryResponseRowSchema, count: 16 }, // Max 16 rows
-    ],
+const StatsQueryResponseLeaderboardSchema = c.struct({
+    leaderboardId: c.u32(),
+    rowCount: c.u32(),
+    rows: c.array(StatsQueryResponseRowSchema.field(), 16),
 });
 
-// Stats Query Response Chunk Schema
 export const SBlfChunkStatsQueryResponseSchema = blf.createChunkSchema({
     name: 'xsqr',
     majorVersion: 1,
     minorVersion: 0,
     endian: 'little',
-    pack: 1,
-    fields: [
-        { name: 'leaderboardCount', type: 'u32' },
-        { name: 'padding', type: 'padding', count: 4 }, // Padding to align leaderboard_results array to 8-byte boundary
-        { name: 'leaderboards', type: StatsQueryResponseLeaderboardSchema, count: 4 }, // Max 4 leaderboards
-    ],
+    fields: {
+        leaderboardCount: c.u32({ padAfter: 4 }),
+        leaderboards: c.array(StatsQueryResponseLeaderboardSchema.field(), 4),
+    },
 });
 
-// File schema for reading stats query requests (full BLF file with _eof)
-// Matches s_blffile_stats_query structure from game code
 export const SBlfFileStatsQuerySchema = blf.createFileSchema([
     SBlfChunkStartOfFileSchema,
     SBlfChunkAuthorSchema,
@@ -98,13 +64,10 @@ export const SBlfFileStatsQueryResponseSchema = blf.createFileSchema([
     SBlfChunkEndOfFileSchema,
 ]);
 
-// Type exports
 export type s_blf_chunk_stats_query = blf.infer<typeof SBlfChunkStatsQuerySchema>;
 export type s_blf_chunk_stats_query_response = blf.infer<typeof SBlfChunkStatsQueryResponseSchema, false>;
 
-// Helper type exports for nested structures
 export type s_stats_query_spec = c.infer<typeof StatsQuerySpecSchema>;
 export type s_stats_query_response_column = c.infer<typeof StatsQueryResponseColumnSchema>;
 export type s_stats_query_response_row = c.infer<typeof StatsQueryResponseRowSchema>;
 export type s_stats_query_response_leaderboard = c.infer<typeof StatsQueryResponseLeaderboardSchema>;
-

@@ -1,350 +1,222 @@
-import { AdvancedType, CString, CWString, CMagicNumber, CMagicString, CBitfield, CEnum, CUnion } from "./advanced";
-import { getPrimitiveTypeSize, PrimitiveType, PrimitiveTypeToTS, readPrimitiveValue, writePrimitiveValue } from "./primitive";
+import { CArray, isCArray } from "./array";
+import {
+    CDataField,
+    CString,
+    CWString,
+    CMagicNumber,
+    CMagicString,
+    CBitfield,
+    CEnum,
+    CUnion,
+    CPadding,
+    isCPadding,
+    createPadding,
+    pad as padField,
+    isCDataField,
+} from "./advanced";
+import type { Endian as EndianType } from "./data-field";
+import {
+    CPrimitive,
+    PrimitiveKind,
+    PrimitiveTypeToTS,
+    u8 as primitiveU8,
+    u16 as primitiveU16,
+    u32 as primitiveU32,
+    u64 as primitiveU64,
+    i8 as primitiveI8,
+    i16 as primitiveI16,
+    i32 as primitiveI32,
+    i64 as primitiveI64,
+    f32 as primitiveF32,
+    f64 as primitiveF64,
+} from "./primitive";
+import {
+    FieldOptions as IFieldOptions,
+    FieldType,
+    StructFieldValue,
+    CStructField,
+    getFieldOptions,
+    unwrapFieldType,
+} from "./field";
+import { unwrapArrayElement } from "./array";
 import { FlattenIntersection, Tuple, UnionToIntersection } from "./utils";
 
+export { CDataField, isCDataField } from "./advanced";
+export { CStructField, isCStructField } from "./field";
+
 export namespace c {
-    type Padding = 'padding';
+    export type FieldOptions = IFieldOptions;
+    export type Endian = EndianType;
 
-    /**
-     * Process a single field to get its name and value type
-     * Uses distributive conditional to process each field individually
-     * 
-     * Handles two cases:
-     * 1. Fields with a `count` property (arrays)
-     * 2. Fields without a `count` property (single values)
-     * 
-     * For each case, checks the field type in order:
-     * - PrimitiveType (u8, u16, u32, etc.) -> maps to number/bigint
-     * - Struct (nested structs) -> recursively processes the nested schema
-     * - AdvancedType (CString, MagicString, MagicNumber) -> uses the generic type parameter
-     */
-    type ProcessField<F> = F extends { type: any; name: any }
-        // Case 1: Field with count property (array)
-        ? F extends { type: infer T; count: infer C; name: infer N }
-            ? N extends string
-                // Primitive type with count
-                ? T extends PrimitiveType
-                    ? C extends number
-                        ? C extends 1
-                            // count: 1 is same as no count, return single value
-                            ? { [K in N]: PrimitiveTypeToTS<T> }
-                            // count > 1, return tuple type
-                            : { [K in N]: Tuple<PrimitiveTypeToTS<T>, C> }
-                        // count is not a literal number, return single value
-                        : { [K in N]: PrimitiveTypeToTS<T> }
-                    // Nested struct with count
-                    : T extends Struct<infer S>
-                            ? S extends c.StructSchema
-                                ? C extends number
-                                    ? C extends 1
-                                        // count: 1, return single nested struct type
-                                        ? { [K in N]: StructSchemaToTS<S> }
-                                        // count > 1, return tuple of nested struct types
-                                        : { [K in N]: Tuple<StructSchemaToTS<S>, C> }
-                                    // count is not a literal number, return single nested struct type
-                                    : { [K in N]: StructSchemaToTS<S> }
-                                : never
-                            // AdvancedType (CString, MagicString, MagicNumber) with count
-                            : T extends AdvancedType<infer AT>
-                                ? C extends number
-                                    ? C extends 1
-                                        // count: 1, return single value
-                                        ? { [K in N]: AT }
-                                        // count > 1, return tuple type
-                                        : { [K in N]: Tuple<AT, C> }
-                                    // count is not a literal number, return single value
-                                    : { [K in N]: AT }
-                                : never
-                : never
-            // Case 2: Field without count property (single value)
-            : F extends { type: infer T; name: infer N }
-            ? N extends string
-                // Primitive type without count
-                ? T extends PrimitiveType
-                    ? { [K in N]: PrimitiveTypeToTS<T> }
-                    // Nested struct without count
-                    : T extends Struct<infer S>
-                            ? S extends c.StructSchema
-                                ? { [K in N]: StructSchemaToTS<S> }
-                                : never
-                            // AdvancedType without count
-                            : T extends AdvancedType<infer AT>
-                                ? { [K in N]: AT }
-                                : never
-                : never
-            : never
-        : never;
+    export type StructFields = Record<string, StructFieldValue>;
 
-    /**
-     * Map StructSchema to TypeScript type
-     * Uses distributive conditional to process each field individually, avoiding unions
-     * Flattens the intersection into a single object type for better readability
-     * Recursively flattens nested struct types as well
-     */
-    export type StructSchemaToTS<S extends c.StructSchema> = FlattenIntersection<
-        UnionToIntersection<ProcessField<S['fields'][number]>>
+    type IsAny<T> = 0 extends 1 & T ? true : false;
+
+    type FieldValueType<T extends FieldType> =
+        IsAny<T> extends true
+            ? any
+            : T extends CPadding
+                ? never
+                : T extends CPrimitive<infer P>
+                    ? PrimitiveTypeToTS<P>
+                    : T extends Struct<infer F>
+                        ? StructSchemaToTS<F>
+                        : T extends CDataField<infer AT, any>
+                            ? AT
+                            : never;
+
+    type ProcessArrayField<K extends string, T, N extends number> =
+        N extends 1
+            ? { [Key in K]: T }
+            : number extends N
+                ? { [Key in K]: T[] }
+                : { [Key in K]: Tuple<T, N> };
+
+    type ElementFieldType<T> =
+        T extends CStructField<infer S, any>
+            ? S extends Struct<infer F>
+                ? StructSchemaToTS<F>
+                : never
+            : T extends FieldType
+                ? FieldValueType<T>
+                : never;
+
+    type ProcessSchemaField<K extends string, F extends StructFieldValue> =
+        IsAny<F> extends true
+            ? { [Key in K]: any }
+            : F extends { readonly __carray: true; readonly element: infer ET; readonly count: infer N extends number }
+                ? ProcessArrayField<K, ElementFieldType<ET>, N>
+                : F extends CStructField<infer S, infer _O>
+                    ? S extends Struct<infer SF>
+                        ? { [Key in K]: StructSchemaToTS<SF> }
+                        : never
+                : F extends CPadding
+                    ? {}
+                    : F extends FieldType
+                    ? { [Key in K]: FieldValueType<F> }
+                    : never;
+
+    export type StructSchemaToTS<F extends StructFields> = FlattenIntersection<
+        UnionToIntersection<{
+            [K in keyof F]: ProcessSchemaField<K & string, F[K]>
+        }[keyof F]>
     >;
 
-    export class Struct<S extends c.StructSchema = c.StructSchema> {
-        private endian: c.Endian;
-        private pack: number;
-        private fields: readonly c.StructField[];
+    /** @deprecated Use StructFields directly */
+    export type StructSchema<F extends StructFields = StructFields> = F;
+
+    function normalizeFields(fields: StructFields): StructField[] {
+        const result: StructField[] = [];
+        for (const [name, value] of Object.entries(fields)) {
+            const fieldOptions = getFieldOptions(value);
+            if (fieldOptions.padBefore) {
+                result.push({ name: `__pad_before_${name}`, type: createPadding(fieldOptions.padBefore) });
+            }
+            if (isCArray(value)) {
+                result.push({ name, type: unwrapArrayElement(value.element), count: value.count });
+            } else {
+                result.push({ name, type: unwrapFieldType(value) });
+            }
+            if (fieldOptions.padAfter) {
+                result.push({ name: `__pad_after_${name}`, type: createPadding(fieldOptions.padAfter) });
+            }
+        }
+        return result;
+    }
+
+    export class Struct<F extends StructFields = StructFields> {
+        private fields: readonly StructField[];
         private size: number;
 
-        private constructor(schema: S) {
-            this.endian = schema.endian || 'little';
-            this.pack = schema.pack || 1;
-            this.fields = schema.fields;
-            this.size = this.calculateSize(schema);
-        }
-        
-        /**
-         * Internal factory method that can access the private constructor
-         * Uses a more permissive type to accept schemas with literal types preserved
-         */
-        static createCStruct<const S extends c.StructSchema>(schema: S): Struct<S> {
-            return new Struct(schema);
+        private constructor(fields: F) {
+            this.fields = normalizeFields(fields);
+            this.size = this.calculateSize();
         }
 
-        /**
-         * Align offset to pack boundary
-         */
-        private alignOffset(offset: number, pack?: number): number {
-            if (!pack) return offset;
-            return Math.ceil(offset / pack) * pack;
+        static struct<const F extends StructFields>(fields: F): Struct<F> {
+            return new Struct(fields);
         }
 
+        field<const O extends IFieldOptions = {}>(options?: O): CStructField<this, O> {
+            return new CStructField(this, options);
+        }
 
-        /**
-         * Get the size of a field
-         */
-        private getFieldSize(field: c.StructField): number {
+        private getFieldSize(field: StructField): number {
             if (field.type instanceof Struct) {
                 return field.type.size;
-            } else if (field.type instanceof AdvancedType) {
+            } else if (isCDataField(field.type)) {
                 return field.type.getSize();
-            } else if (field.type === 'padding') {
-                return 1;
             } else {
-                return getPrimitiveTypeSize(field.type as PrimitiveType);
+                throw new Error(`Unsupported field type for '${field.name}'`);
             }
         }
 
-        /**
-         * Get the natural alignment of a struct (max alignment of its fields, capped by its pack value)
-         */
-        private getStructNaturalAlignment(struct: Struct): number {
-            const structPack = (struct as any).pack || 1;
-            
-            // Calculate natural alignment from fields first
-            let maxAlignment = 1;
-            let hasNestedStructWithPack = false;
-            for (const field of struct.fields) {
-                let fieldAlignment = 1;
-                if (field.type instanceof Struct) {
-                    // For nested structs, use their natural alignment (which may be their pack value)
-                    fieldAlignment = this.getStructNaturalAlignment(field.type);
-                    const nestedPack = (field.type as any).pack || 1;
-                    // If nested struct has pack >= our pack, we need to use our pack value
-                    if (nestedPack >= structPack && structPack > 1) {
-                        hasNestedStructWithPack = true;
-                    }
-                } else if (field.type instanceof AdvancedType) {
-                    // AdvancedType fields (String, WString) have alignment 1 (byte arrays)
-                    fieldAlignment = 1;
-                } else if (field.type !== 'padding') {
-                    const fieldSize = getPrimitiveTypeSize(field.type as PrimitiveType);
-                    fieldAlignment = Math.min(fieldSize, 8);
-                }
-                maxAlignment = Math.max(maxAlignment, fieldAlignment);
-            }
-            
-            // If struct has pack > 1 and contains a nested struct with pack >= that value,
-            // use pack as alignment requirement (the nested struct needs that alignment)
-            // Otherwise, use natural alignment capped by pack
-            // Example: OnlinePropertySchema (pack: 8, contains OnlineDataSchema with pack: 8) -> returns 8
-            // Example: OnlineContextSchema (pack: 8, only u32 fields) -> returns min(4, 8) = 4
-            if (structPack > 1 && hasNestedStructWithPack) {
-                return structPack;
-            }
-            return Math.min(maxAlignment, structPack);
-        }
-
-        /**
-         * Get the alignment requirement for a field type
-         */
-        private getFieldAlignment(field: c.StructField, parentPack: number): number {
-            if (field.type instanceof Struct) {
-                // For structs, use natural alignment (max field alignment capped by struct pack)
-                // This matches C++ behavior where structs without explicit pack use natural alignment
-                return this.getStructNaturalAlignment(field.type);
-            } else if (field.type instanceof AdvancedType) {
-                // For advanced types (String, WString, etc.), alignment is 1 (byte arrays)
-                // They don't need alignment beyond what pack provides
-                return 1;
-            } else if (field.type === 'padding') {
-                return 1;
-            } else {
-                // For primitives, use size as alignment, capped at 8
-                const size = getPrimitiveTypeSize(field.type as PrimitiveType);
-                return Math.min(size, 8);
-            }
-        }
-
-        /**
-         * Calculate the total size of the struct
-         */
-        private calculateSize(schema: c.StructSchema): number {
+        private calculateSize(): number {
             let totalSize = 0;
-            const pack = schema.pack || 1;
-
-            for (const field of schema.fields) {
-                // For arrays, align based on element type's natural alignment
-                // For single fields, align based on field's natural alignment capped by parent pack
-                let alignment = pack;
-                if (field.count && field.count != 1) {
-                    // Array: use element type's natural alignment
-                    alignment = this.getFieldAlignment(field, pack);
-                } else {
-                    // Single field: use field's natural alignment, capped by parent pack
-                    alignment = this.getFieldAlignment(field, pack);
-                }
-                // Cap alignment at pack value (with pack: 1, this ensures no padding)
-                alignment = Math.min(alignment, pack);
-                const offsetBeforeAlign = totalSize;
-                totalSize = this.alignOffset(totalSize, alignment);
-
+            for (const field of this.fields) {
                 const fieldSize = this.getFieldSize(field);
                 const count = field.count ?? 1;
-                const sizeToAdd = fieldSize * count;
-                totalSize += sizeToAdd;
+                totalSize += fieldSize * count;
             }
-            
-            // Align final size
-            totalSize = this.alignOffset(totalSize, pack);
-            
             return totalSize;
         }
 
-        /**
-         * Parse a buffer into an object based on the schema
-         */
-        public read(buffer: Buffer, offset: number = 0): c.infer<this> {
-            const view = new DataView(buffer.buffer, buffer.byteOffset + offset, buffer.byteLength - offset);
+        public read(buffer: Buffer, offset: number = 0, endian: EndianType = 'little'): StructSchemaToTS<F> {
             const result: any = {};
             let currentOffset = 0;
-            const littleEndian = this.endian === 'little';
 
             for (const field of this.fields) {
-                // For arrays, align based on element type's natural alignment
-                // For single fields, align based on parent pack (standard C struct behavior)
-                let alignment = this.pack;
-                if (field.count && field.count != 1) {
-                    // Array: use element type's natural alignment
-                    alignment = this.getFieldAlignment(field, this.pack);
-                } else {
-                    // Single field: use field's natural alignment, capped by parent pack
-                    alignment = this.getFieldAlignment(field, this.pack);
-                }
-                // Cap alignment at pack value (with pack: 1, this ensures no padding)
-                alignment = Math.min(alignment, this.pack);
-                currentOffset = this.alignOffset(currentOffset, alignment);
-
                 if (field.type instanceof Struct) {
                     const nestedStruct = field.type;
                     const count = field.count ?? 1;
 
                     if (count === 1) {
-                        result[field.name] = nestedStruct.read(buffer, offset + currentOffset);
+                        result[field.name] = nestedStruct.read(buffer, offset + currentOffset, endian);
                         currentOffset += nestedStruct.size;
                     } else {
-                        // For arrays, elements are placed contiguously (no alignment between elements)
                         result[field.name] = [];
                         for (let i = 0; i < count; i++) {
-                            result[field.name].push(nestedStruct.read(buffer, offset + currentOffset));
+                            result[field.name].push(nestedStruct.read(buffer, offset + currentOffset, endian));
                             currentOffset += nestedStruct.size;
                         }
                     }
                     continue;
                 }
 
-                if (field.type instanceof AdvancedType) {
-                    const advancedType = field.type;
+                if (isCDataField(field.type)) {
+                    const dataField = field.type;
                     const count = field.count ?? 1;
 
+                    if (isCPadding(dataField)) {
+                        currentOffset += dataField.getSize() * count;
+                        continue;
+                    }
+
                     if (count === 1) {
-                        result[field.name] = advancedType.read(buffer, offset + currentOffset, this.endian);
-                        currentOffset += advancedType.getSize();
+                        result[field.name] = dataField.read(buffer, offset + currentOffset, endian);
+                        currentOffset += dataField.getSize();
                     } else {
                         result[field.name] = [];
                         for (let i = 0; i < count; i++) {
-                            result[field.name].push(advancedType.read(buffer, offset + currentOffset, this.endian));
-                            currentOffset += advancedType.getSize();
+                            result[field.name].push(dataField.read(buffer, offset + currentOffset, endian));
+                            currentOffset += dataField.getSize();
                         }
                     }
                     continue;
                 }
 
-                const type = field.type satisfies PrimitiveType | Padding;
-                const count = field.count ?? 1;
-
-
-                if (type === 'padding') {
-                    currentOffset += count;
-                    continue;
-                }
-
-                const fieldSize = getPrimitiveTypeSize(type);
-
-                if (count === 1) {
-                    // Check bounds before reading
-                    if (currentOffset + fieldSize > view.byteLength) {
-                        throw new Error(`Cannot read ${type} at offset ${currentOffset}: only ${view.byteLength - currentOffset} bytes remaining in DataView (need ${fieldSize})`);
-                    }
-                    result[field.name] = readPrimitiveValue(view, currentOffset, type, littleEndian);
-                    currentOffset += fieldSize;
-                } else {
-                    // Check bounds before reading array
-                    const totalSize = fieldSize * count;
-                    if (currentOffset + totalSize > view.byteLength) {
-                        throw new Error(`Cannot read ${count} ${type} values at offset ${currentOffset}: only ${view.byteLength - currentOffset} bytes remaining in DataView (need ${totalSize})`);
-                    }
-                    result[field.name] = [];
-                    for (let i = 0; i < count; i++) {
-                        result[field.name].push(readPrimitiveValue(view, currentOffset, type, littleEndian));
-                        currentOffset += fieldSize;
-                    }
-                }
+                throw new Error(`Unsupported field type for '${field.name}'`);
             }
 
             return result;
         }
 
-        /**
-         * Pack an object into a buffer based on the schema
-         */
-        public write(data: Record<string, any>): Buffer {
+        public write(data: Record<string, any>, endian: EndianType = 'little'): Buffer {
             const buffer = Buffer.alloc(this.size);
-            const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
             let currentOffset = 0;
-            const littleEndian = this.endian === 'little';
 
             for (const field of this.fields) {
                 try {
-                    // For arrays, align based on element type's natural alignment
-                    // For single fields, align based on parent pack (standard C struct behavior)
-                    let alignment = this.pack;
-                    if (field.count && field.count != 1) {
-                        // Array: use element type's natural alignment
-                        alignment = this.getFieldAlignment(field, this.pack);
-                    } else {
-                        // Single field: use field's natural alignment, capped by parent pack
-                        alignment = this.getFieldAlignment(field, this.pack);
-                    }
-                    // Cap alignment at pack value (with pack: 1, this ensures no padding)
-                    alignment = Math.min(alignment, this.pack);
-                    currentOffset = this.alignOffset(currentOffset, alignment);
-
                     if (field.type instanceof Struct) {
                         const nestedStruct = field.type;
                         const count = field.count ?? 1;
@@ -354,7 +226,7 @@ export namespace c {
                             if (value === undefined || value === null) {
                                 throw new Error(`Field '${field.name}' is ${value}`);
                             }
-                            const nestedBuffer = nestedStruct.write(value);
+                            const nestedBuffer = nestedStruct.write(value, endian);
                             nestedBuffer.copy(buffer, currentOffset);
                             currentOffset += nestedStruct.size;
                         } else {
@@ -364,13 +236,11 @@ export namespace c {
                             if (value.length < count) {
                                 throw new Error(`Field '${field.name}' expected ${count} elements but got ${value.length}`);
                             }
-                            // For arrays, elements are placed contiguously (no alignment between elements)
-                            const array = value;
                             for (let i = 0; i < count; i++) {
-                                if (array[i] === undefined) {
+                                if (value[i] === undefined) {
                                     throw new Error(`Field '${field.name}[${i}]' is undefined`);
                                 }
-                                const nestedBuffer = nestedStruct.write(array[i]);
+                                const nestedBuffer = nestedStruct.write(value[i], endian);
                                 nestedBuffer.copy(buffer, currentOffset);
                                 currentOffset += nestedStruct.size;
                             }
@@ -378,45 +248,33 @@ export namespace c {
                         continue;
                     }
 
-                    if (field.type instanceof AdvancedType) {
-                        const advancedType = field.type;
+                    if (isCDataField(field.type)) {
+                        const dataField = field.type;
                         const count = field.count ?? 1;
+
+                        if (isCPadding(dataField)) {
+                            for (let i = 0; i < count; i++) {
+                                dataField.write(buffer, currentOffset, undefined, endian);
+                                currentOffset += dataField.getSize();
+                            }
+                            continue;
+                        }
+
                         const value = data[field.name];
 
                         if (Array.isArray(value)) {
                             for (let i = 0; i < count; i++) {
-                                advancedType.write(buffer, currentOffset, value[i], this.endian);
-                                currentOffset += advancedType.getSize();
+                                dataField.write(buffer, currentOffset, value[i], endian);
+                                currentOffset += dataField.getSize();
                             }
                         } else {
-                            advancedType.write(buffer, currentOffset, value, this.endian);
-                            currentOffset += advancedType.getSize();
+                            dataField.write(buffer, currentOffset, value, endian);
+                            currentOffset += dataField.getSize();
                         }
                         continue;
                     }
 
-                    const type = field.type satisfies PrimitiveType | Padding;
-                    const count = field.count ?? 1;
-                    const value = data[field.name];
-
-                    if (type === 'padding') {
-                        buffer.fill(0, currentOffset, currentOffset + count);
-                        currentOffset += count;
-                        continue;
-                    }
-
-                    const fieldSize = getPrimitiveTypeSize(type);
-
-                    if (count === 1) {
-                        writePrimitiveValue(view, currentOffset, type, value, littleEndian);
-                        currentOffset += fieldSize;
-                    } else {
-                        const array = value ?? [];
-                        for (let i = 0; i < count; i++) {
-                            writePrimitiveValue(view, currentOffset, type, array[i] ?? 0, littleEndian);
-                            currentOffset += fieldSize;
-                        }
-                    }
+                    throw new Error(`Unsupported field type for '${field.name}'`);
                 } catch (error) {
                     throw new Error(`${field.name}: ${error}`);
                 }
@@ -425,17 +283,10 @@ export namespace c {
             return buffer;
         }
 
-        /**
-         * Get the size of this struct in bytes
-         */
         public getSize(): number {
             return this.size;
         }
 
-        /**
-         * Prints each direct field via console.table: offset (dec + hex) and total byte size in layout.
-         * Arrays list one row at the array start only. Nested structs are one row (start offset); inner layout is not expanded.
-         */
         public audit(): void {
             const rows: { field: string; offset: number; hex: string; size: number }[] = [];
             let currentOffset = 0;
@@ -450,86 +301,116 @@ export namespace c {
             };
 
             for (const field of this.fields) {
-                let alignment = this.getFieldAlignment(field, this.pack);
-                alignment = Math.min(alignment, this.pack);
-                currentOffset = this.alignOffset(currentOffset, alignment);
-
                 const offset = currentOffset;
                 const name = field.name;
 
                 if (field.type instanceof Struct) {
                     const nested = field.type;
                     const count = field.count ?? 1;
-                    const elSize = nested.size;
-                    const total = elSize * count;
+                    const total = nested.size * count;
                     pushRow(name, offset, total);
                     currentOffset += total;
                     continue;
                 }
 
-                if (field.type instanceof AdvancedType) {
-                    const advancedType = field.type;
+                if (isCDataField(field.type)) {
+                    const dataField = field.type;
                     const count = field.count ?? 1;
-                    const sz = advancedType.getSize();
-                    const total = sz * count;
-                    pushRow(name, offset, total);
+                    const total = dataField.getSize() * count;
+                    if (isCPadding(dataField)) {
+                        pushRow(`${name} (${total} bytes padding)`, offset, total);
+                    } else {
+                        pushRow(name, offset, total);
+                    }
                     currentOffset += total;
                     continue;
                 }
 
-                const type = field.type satisfies PrimitiveType | Padding;
-                const count = field.count ?? 1;
-
-                if (type === 'padding') {
-                    pushRow(`${name} (${count} bytes padding)`, offset, count);
-                    currentOffset += count;
-                    continue;
-                }
-
-                const fieldSize = getPrimitiveTypeSize(type);
-                const total = fieldSize * count;
-                pushRow(name, offset, total);
-                currentOffset += total;
+                throw new Error(`Unsupported field type for '${name}'`);
             }
 
             console.table(rows);
         }
     }
 
-    export type Endian = 'little' | 'big';
-
     export const endian = {
-        little: 'little' satisfies c.Endian,
-        big: 'big' satisfies c.Endian,
+        little: 'little' satisfies Endian,
+        big: 'big' satisfies Endian,
     } as const;
 
-    /**
-     * Type inference utility for Struct, similar to Zod's z.infer
-     * Usage: type MyType = c.infer<typeof myStruct>;
-     */
-    export type infer<T> = T extends Struct<infer S>
-        ? StructSchemaToTS<S>
+    export type infer<T> = T extends Struct<infer F>
+        ? StructSchemaToTS<F>
         : never;
-
 
     export interface StructField {
         name: string;
-        type: PrimitiveType | 'padding' | Struct<any> | AdvancedType<any>;
-        count?: number; // For arrays
+        type: FieldType;
+        count?: number;
     }
-    
-    export interface StructSchema {
-        pack?: number; // Packing/alignment in bytes
-        endian?: 'little' | 'big'; // Byte order, defaults to 'little'
-        fields: readonly c.StructField[];
+
+    export function struct<const F extends StructFields>(fields: F): Struct<F> {
+        return Struct.struct(fields);
     }
-    
-    export const createCStruct = Struct.createCStruct;
-    export const String = CString;
-    export const WString = CWString;
-    export const MagicString = CMagicString;
-    export const MagicNumber = CMagicNumber;
-    export const Bitfield = CBitfield;
-    export const Enum = CEnum;
-    export const Union = CUnion;
+
+    export function array<
+        T extends StructFieldValue,
+        const N extends number,
+        const O extends IFieldOptions = {},
+    >(element: T, count: N, options?: O): CArray<T, N, O> {
+        return new CArray(element, count, options);
+    }
+
+    export function String<L extends number, const O extends IFieldOptions = {}>(length: L, encoding: BufferEncoding = 'utf8', options?: O) {
+        return new CString(length, encoding, options);
+    }
+
+    export function WString<L extends number, const O extends IFieldOptions = {}>(length: L, options?: O) {
+        return new CWString(length, options);
+    }
+
+    export function MagicNumber<N extends number, PT extends CPrimitive, const O extends IFieldOptions = {}>(
+        magic: N,
+        type: PT,
+        options?: O,
+    ) {
+        return new CMagicNumber(magic, type, options);
+    }
+
+    export function MagicString<S extends string, const O extends IFieldOptions = {}>(magic: S, options?: O) {
+        return new CMagicString(magic, options);
+    }
+
+    export function Bitfield<const K extends readonly string[], PT extends CPrimitive, const O extends IFieldOptions = {}>(
+        keys: K,
+        type: PT,
+        options?: O,
+    ) {
+        return new CBitfield(keys, type, options);
+    }
+
+    export function Enum<const T extends readonly string[] | Record<string, number>, PT extends CPrimitive, const O extends IFieldOptions = {}>(
+        keysOrMap: T,
+        type: PT,
+        options?: O,
+    ) {
+        return new CEnum(keysOrMap, type, options);
+    }
+
+    export function Union<S extends Record<string, Struct<any>>, const O extends IFieldOptions = {}>(members: S, options?: O) {
+        return new CUnion(members, options);
+    }
+
+    export const u8 = primitiveU8;
+    export const u16 = primitiveU16;
+    export const u32 = primitiveU32;
+    export const u64 = primitiveU64;
+    export const i8 = primitiveI8;
+    export const i16 = primitiveI16;
+    export const i32 = primitiveI32;
+    export const i64 = primitiveI64;
+    export const f32 = primitiveF32;
+    export const f64 = primitiveF64;
+    export type Array<T extends FieldType = FieldType, N extends number = number> = CArray<T, N>;
+    export const pad = padField;
+    export const Pad = CPadding;
 }

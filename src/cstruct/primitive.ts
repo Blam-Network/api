@@ -1,8 +1,11 @@
-export type PrimitiveType = 'u8' | 'u16' | 'u32' | 'u64' | 'i8' | 'i16' | 'i32' | 'i64' | 'f32' | 'f64';
+import { FieldOptions } from "./field";
+import { CDataField, Endian } from "./data-field";
 
-export type PrimitiveTypeToTS<T extends PrimitiveType> = T extends 'u64' | 'i64' ? bigint : number;
+export type PrimitiveKind = 'u8' | 'u16' | 'u32' | 'u64' | 'i8' | 'i16' | 'i32' | 'i64' | 'f32' | 'f64';
 
-const PRIMITIVE_TYPE_SIZES: Record<PrimitiveType, number> = {
+export type PrimitiveTypeToTS<K extends PrimitiveKind> = K extends 'u64' | 'i64' ? bigint : number;
+
+const PRIMITIVE_TYPE_SIZES: Record<PrimitiveKind, number> = {
     u8: 1,
     u16: 2,
     u32: 4,
@@ -15,15 +18,57 @@ const PRIMITIVE_TYPE_SIZES: Record<PrimitiveType, number> = {
     f64: 8,
 };
 
-export function getPrimitiveTypeSize(type: PrimitiveType): number {
-    return PRIMITIVE_TYPE_SIZES[type];
+export class CPrimitive<K extends PrimitiveKind = PrimitiveKind, const O extends FieldOptions = {}>
+    extends CDataField<PrimitiveTypeToTS<K>, O>
+{
+    readonly kind: K;
+
+    constructor(kind: K, options?: O) {
+        super(options);
+        this.kind = kind;
+    }
+
+    getSize(): number {
+        return PRIMITIVE_TYPE_SIZES[this.kind];
+    }
+
+    read(buffer: Buffer, offset: number, endian: Endian): PrimitiveTypeToTS<K> {
+        const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+        return readPrimitiveValue(view, offset, this, endian === 'little') as PrimitiveTypeToTS<K>;
+    }
+
+    write(buffer: Buffer, offset: number, value: PrimitiveTypeToTS<K>, endian: Endian): void {
+        const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+        writePrimitiveValue(view, offset, this, value as number | bigint, endian === 'little');
+    }
 }
 
-/**
- * Read a value from DataView based on type
- */
-export function readPrimitiveValue(view: DataView, offset: number, type: PrimitiveType, littleEndian: boolean = true): number | bigint {
-    switch (type) {
+export const u8 = <const O extends FieldOptions = {}>(options?: O) => new CPrimitive('u8', options);
+export const u16 = <const O extends FieldOptions = {}>(options?: O) => new CPrimitive('u16', options);
+export const u32 = <const O extends FieldOptions = {}>(options?: O) => new CPrimitive('u32', options);
+export const u64 = <const O extends FieldOptions = {}>(options?: O) => new CPrimitive('u64', options);
+export const i8 = <const O extends FieldOptions = {}>(options?: O) => new CPrimitive('i8', options);
+export const i16 = <const O extends FieldOptions = {}>(options?: O) => new CPrimitive('i16', options);
+export const i32 = <const O extends FieldOptions = {}>(options?: O) => new CPrimitive('i32', options);
+export const i64 = <const O extends FieldOptions = {}>(options?: O) => new CPrimitive('i64', options);
+export const f32 = <const O extends FieldOptions = {}>(options?: O) => new CPrimitive('f32', options);
+export const f64 = <const O extends FieldOptions = {}>(options?: O) => new CPrimitive('f64', options);
+
+export function isCPrimitive(value: unknown): value is CPrimitive {
+    return value instanceof CPrimitive;
+}
+
+export function getPrimitiveTypeSize(type: CPrimitive): number {
+    return type.getSize();
+}
+
+export function readPrimitiveValue(
+    view: DataView,
+    offset: number,
+    type: CPrimitive,
+    littleEndian: boolean = true,
+): number | bigint {
+    switch (type.kind) {
         case 'u8':
             return view.getUint8(offset);
         case 'u16':
@@ -45,21 +90,18 @@ export function readPrimitiveValue(view: DataView, offset: number, type: Primiti
         case 'f64':
             return view.getFloat64(offset, littleEndian);
         default:
-            throw new Error(`Unsupported type: ${type}`);
+            throw new Error(`Unsupported primitive: ${type.kind}`);
     }
 }
 
-/**
- * Write a value to DataView based on type
- */
 export function writePrimitiveValue(
     view: DataView,
     offset: number,
-    type: PrimitiveType,
+    type: CPrimitive,
     value: number | bigint,
     littleEndian: boolean = true,
 ): void {
-    switch (type) {
+    switch (type.kind) {
         case 'u8':
             view.setUint8(offset, value as number);
             break;
@@ -91,6 +133,6 @@ export function writePrimitiveValue(
             view.setFloat64(offset, value as number, littleEndian);
             break;
         default:
-            throw new Error(`Unsupported type: ${type}`);
+            throw new Error(`Unsupported primitive: ${type.kind}`);
     }
 }

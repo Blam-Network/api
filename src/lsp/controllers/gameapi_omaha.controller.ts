@@ -34,6 +34,7 @@ import { HaloReachUserService } from '../haloreach/user.service';
 import { HaloReachChallengeService } from '../haloreach/challenge.service';
 import { HaloReachSpartanRenderService } from '../haloreach/spartan-render.service';
 import { blf } from 'src/blf';
+import { c } from 'src/cstruct';
 import { ParseBigIntPipe } from 'src/utils/parse-big-int.pipe';
 import { HaloReach } from '../blf';
 import { Response } from 'express';
@@ -437,8 +438,7 @@ export class GameApiOmahaController {
       majorVersion: 1,
       minorVersion: 1,
       endian: 'big',
-      pack: 1,
-      fields: [ { name: 'friend_count', type: 'u32' } ],
+      fields: { friend_count: c.u32() },
     }))?.friend_count ?? 0;
 
     const idls = blf.createChunkSchema({
@@ -446,11 +446,10 @@ export class GameApiOmahaController {
       majorVersion: 1,
       minorVersion: 1,
       endian: 'big',
-      pack: 1,
-      fields: [
-        { name: 'friend_count', type: 'u32' },
-        { name: 'friend_xuid', type: 'u64', count: friends_count },
-      ],
+      fields: {
+        friend_count: c.u32(),
+        friend_xuid: c.array(c.u64(), friends_count),
+      },
     });
 
     const friends = find_chunk_in_file(upload.buffer, idls)?.friend_xuid ?? [];

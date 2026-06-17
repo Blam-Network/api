@@ -1,10 +1,12 @@
 import { blf } from "src/blf";
 import { c } from "src/cstruct";
-import { PAD1 } from "src/cstruct/macros";
 import { time64_t } from "src/cstruct/time";
 
 export namespace HaloReach {
     export namespace v12065 {
+        export const unionPad16 = c.struct({
+            pad: c.pad(16),
+        });
         export enum FileType {
           Screenshot = 2,
           Film = 3,
@@ -29,185 +31,161 @@ export namespace HaloReach {
           MostRelated = 3, // ???
         }
 
-        export const s_online_file_summary_listing_entry = c.createCStruct({pack: 1, endian: 'big', fields: [
-          {name: 'share_id', type: 'u64'},
-          {name: 'screenshots_count', type: 'u32'},
-          {name: 'films_count', type: 'u32'},
-          {name: 'game_variants_count', type: 'u32'},
-          {name: 'map_variants_count', type: 'u32'},
-          {name: 'new_items_count', type: 'u32'},
-          {name: 'unknown1C', type: 'u32'},
-          {name: 'unknown20', type: 'u32'},
-        ]});
+        export const s_online_file_summary_listing_entry = c.struct({
+          share_id: c.u64(),
+          screenshots_count: c.u32(),
+          films_count: c.u32(),
+          game_variants_count: c.u32(),
+          map_variants_count: c.u32(),
+          new_items_count: c.u32(),
+          unknown1C: c.u32(),
+          unknown20: c.u32(),
+        });
 
-        export const s_content_item_history = c.createCStruct({pack: 1, endian: 'big', fields: [
-          { name: 'timestamp', type: new time64_t() },
-          { name: 'xuid', type: 'u64' },
-          { name: 'name', type: new c.String(16, 'latin1') },
-          { name: 'is_online', type: 'u8' },
-          PAD1, PAD1, PAD1,
-        ]})
+        export const s_content_item_history = c.struct({
+          timestamp: new time64_t(),
+          xuid: c.u64(),
+          name: c.String(16, 'latin1'),
+          is_online: c.u8({ padAfter: 3 }),
+        });
         
-        export const s_content_item_game_variant_metadata = c.createCStruct({pack: 1, endian: 'big', fields: [
-          { name: 'icon_index', type: 'i8' },
-        ]});
+        export const s_content_item_game_variant_metadata = c.struct({
+          icon_index: c.i8(),
+        });
         
-        export const s_content_item_film_metadata = c.createCStruct({pack: 1, endian: 'big', fields: [
-          { name: 'seconds', type: 'i32' },
-        ]});
+        export const s_content_item_film_metadata = c.struct({
+          seconds: c.i32(),
+        });
         // i think theres one for forge too but idk where
         
-        export const s_content_item_matchmaking_metadata = c.createCStruct({pack: 1, endian: 'big', fields: [
-          { name: 'hopper_identifier', type: 'u16' },
-        ]});
+        export const s_content_item_matchmaking_metadata = c.struct({
+          hopper_identifier: c.u16(),
+        });
         
-        export const s_content_item_metadata_campaign_data = c.createCStruct({pack: 1, endian: 'big', fields: [
-          { name: 'campaign_id', type: 'i32' },
-          { name: 'campaign_difficulty', type: 'i16' },
-          { name: 'campaign_metagame_scoring', type: 'i16' },
-          { name: 'campaign_insertion_point', type: 'i32' },
-          { name: 'campaign_primary_skulls', type: 'i16' },
-          { name: 'campaign_secondary_skulls', type: 'i16' },
-        ]});
+        export const s_content_item_metadata_campaign_data = c.struct({
+          campaign_id: c.i32(),
+          campaign_difficulty: c.i16(),
+          campaign_metagame_scoring: c.i16(),
+          campaign_insertion_point: c.i32(),
+          campaign_primary_skulls: c.i16(),
+          campaign_secondary_skulls: c.i16(),
+        });
         
-        export const s_content_item_metadata_firefight_data = c.createCStruct({pack: 1, endian: 'big', fields: [
-          { name: 'firefight_difficulty', type: 'i16' },
-          { name: 'firefight_primary_skulls', type: 'i16' },
-          { name: 'firefight_secondary_skulls', type: 'i16' },
-          { name: 'pad', type: 'padding', count: 10 },
-        ]});
+        export const s_content_item_metadata_firefight_data = c.struct({
+          firefight_difficulty: c.i16(),
+          firefight_primary_skulls: c.i16(),
+          firefight_secondary_skulls: c.i16({ padAfter: 10 }),
+        });
         
-        export const s_online_file_general_metadata = c.createCStruct({pack: 1, endian: 'big', fields: [
-          { name: 'id', type: 'u64' }, // probs unique id
-          { name: 'file_type', type: 'u8' },
-          { name: 'tag_count', type: 'u8' }, // tag count?
-          { name: 'megalo_category_index', type: 'u8' },
-          PAD1,
-          { name: 'size_in_bytes', type: 'u32' },
-          { name: 'activity', type: 'u8' },
-          { name: 'game_mode', type: 'u8' },
-          { name: 'game_engine_type', type: 'u8' },
-          PAD1,
-          { name: 'unknown3', type: 'u8', count: 8 }, // game ID?
-          { name: 'map_id', type: 'i32' },
-        ]});
+        export const s_online_file_general_metadata = c.struct({
+          id: c.u64(), // probs unique id
+          file_type: c.u8(),
+          tag_count: c.u8(), // tag count?
+          megalo_category_index: c.u8({ padAfter: 1 }),
+          size_in_bytes: c.u32(),
+          activity: c.u8(),
+          game_mode: c.u8(),
+          game_engine_type: c.u8({ padAfter: 1 }),
+          unknown3: c.array(c.u8(), 8), // game ID?
+          map_id: c.i32(),
+        });
         
-          export const s_online_file_metadata = c.createCStruct({pack: 1, endian: 'big', fields: [
-          { name: 'general', type: s_online_file_general_metadata },
-          { name: 'created', type: s_content_item_history },
-          { name: 'modified', type: s_content_item_history },
-          { name: 'name', type: new c.WString(128) },
-          { name: 'description', type: new c.WString(128) },
-          { name: 'game_variant_or_film', type: new c.Union({
+          export const s_online_file_metadata = c.struct({
+          general: s_online_file_general_metadata.field(),
+          created: s_content_item_history.field(),
+          modified: s_content_item_history.field(),
+          name: c.WString(128),
+          description: c.WString(128),
+          game_variant_or_film: c.Union({
             game_variant: s_content_item_game_variant_metadata,
             film: s_content_item_film_metadata,
-            pad: c.createCStruct({pack: 1, endian: 'big', fields: [
-              { name: 'pad', type: 'padding', count: 16 },
-            ]}),
-          }) },
-          { name: 'matchmaking', type: new c.Union({
+            pad: unionPad16,
+          }),
+          matchmaking: c.Union({
             metadata: s_content_item_matchmaking_metadata,
-            pad: c.createCStruct({pack: 1, endian: 'big', fields: [
-              { name: 'pad', type: 'padding', count: 16 },
-            ]}),
-          }) },
-          { name: 'campaign_or_firefight', type: new c.Union({
+            pad: unionPad16,
+          }),
+          campaign_or_firefight: c.Union({
             campaign: s_content_item_metadata_campaign_data,
             firefight: s_content_item_metadata_firefight_data,
-            pad: c.createCStruct({pack: 1, endian: 'big', fields: [
-              { name: 'pad', type: 'padding', count: 16 },
-            ]})
-          }) },
-          { name: 'screenshot_length', type: 'u32' },
-        ]});
+            pad: unionPad16,
+          }),
+          screenshot_length: c.u32(),
+        });
         
-        export const s_content_item_general_metadata = c.createCStruct({pack: 1, endian: 'big', fields: [
-          { name: 'file_type', type: 'u8' },
-          PAD1, PAD1, PAD1,
-          { name: 'size_in_bytes', type: 'u32' },
-          { name: 'unique_id', type: 'u64' },
-          { name: 'parent_unique_id', type: 'u64' },
-          { name: 'root_unique_id', type: 'u64' },
-          { name: 'game_id', type: 'u64' },
-          { name: 'activity', type: 'u8' },
-          { name: 'game_mode', type: 'u8' },
-          { name: 'game_engine_type', type: 'u8' },
-          PAD1,
-          { name: 'map_id', type: 'i32' },
-        ]});
+        export const s_content_item_general_metadata = c.struct({
+          file_type: c.u8({ padAfter: 3 }),
+          size_in_bytes: c.u32(),
+          unique_id: c.u64(),
+          parent_unique_id: c.u64(),
+          root_unique_id: c.u64(),
+          game_id: c.u64(),
+          activity: c.u8(),
+          game_mode: c.u8(),
+          game_engine_type: c.u8({ padAfter: 1 }),
+          map_id: c.i32(),
+        });
         
-        export const c_content_item_metadata = c.createCStruct({pack: 1, endian: 'big', fields: [
-          { name: 'general', type: s_online_file_general_metadata },
-          { name: 'megalo_category_index', type: 'u8' }, // s_content_item_display_metadata ?
-          PAD1, PAD1, PAD1, PAD1, 
-          PAD1, PAD1, PAD1,
-          { name: 'created', type: s_content_item_history },
-          { name: 'modified', type: s_content_item_history },
-          { name: 'name', type: new c.WString(128) },
-          { name: 'description', type: new c.WString(128) },
-          { name: 'game_variant_or_film', type: new c.Union({
+        export const c_content_item_metadata = c.struct({
+          general: s_online_file_general_metadata.field(),
+          megalo_category_index: c.u8({ padAfter: 7 }),
+          created: s_content_item_history.field(),
+          modified: s_content_item_history.field(),
+          name: c.WString(128),
+          description: c.WString(128),
+          game_variant_or_film: c.Union({
             game_variant: s_content_item_game_variant_metadata,
             film: s_content_item_film_metadata,
-            pad: c.createCStruct({pack: 1, endian: 'big', fields: [
-              { name: 'pad', type: 'padding', count: 16 },
-            ]}),
-          }) },
-          { name: 'matchmaking', type: new c.Union({
+            pad: unionPad16,
+          }),
+          matchmaking: c.Union({
             metadata: s_content_item_matchmaking_metadata,
-            pad: c.createCStruct({pack: 1, endian: 'big', fields: [
-              { name: 'pad', type: 'padding', count: 16 },
-            ]}),
-          }) },
-          { name: 'campaign_or_firefight', type: new c.Union({
+            pad: unionPad16,
+          }),
+          campaign_or_firefight: c.Union({
             campaign: s_content_item_metadata_campaign_data,
             firefight: s_content_item_metadata_firefight_data,
-            pad: c.createCStruct({pack: 1, endian: 'big', fields: [
-              { name: 'pad', type: 'padding', count: 16 },
-            ]})
-          }) },
-        ]});
+            pad: unionPad16,
+          }),
+        });
         
         export const s_blf_chunk_content_header = blf.createChunkSchema({
           name: 'chdr',
           majorVersion: 10,
           minorVersion: 2,
           endian: 'big',
-          pack: 1,
-          fields: [
-            { name: 'build_number', type: 'u16' },
-            { name: 'build_sequence_number', type: 'u16' },
-            { name: 'metadata', type: c_content_item_metadata },
-          ],
+          fields: {
+            build_number: c.u16(),
+            build_sequence_number: c.u16(),
+            metadata: c_content_item_metadata.field(),
+          },
         });
         
         
-        export const s_online_file_listing = (fileCount: number, messageLength: number) => c.createCStruct({pack: 1, endian: 'big', fields: [
-          { name: 'xuid', type: 'u64' }, // this is a guess
-          { name: 'gamertag', type: new c.String(16) },
-          { name: 'unknown16', type: 'u8' },
-          { name: 'unknown17', type: 'u8' },
-          { name: 'unknown18', type: 'u8' },
-          { name: 'unknown19', type: 'u8' },
-          { name: 'quota_byte_count', type: 'u32' },
-          { name: 'quota_slot_count', type: 'u8' },
-          { name: 'pad', type: 'padding', count: 1 },
-          { name: 'slot_count', type: 'u16' },
-          { name: 'message_length', type: new c.MagicNumber(messageLength, 'u8') },
-          { name: 'pad', type: 'padding', count: 3 },
-          { name: 'entries', count: fileCount, type: s_online_file_metadata },
-          { name: 'message', type: new c.WString(messageLength + 1) },
-        ]});
+        export const s_online_file_listing = (fileCount: number, messageLength: number) => c.struct({
+          xuid: c.u64(), // this is a guess
+          gamertag: c.String(16),
+          unknown16: c.u8(),
+          unknown17: c.u8(),
+          unknown18: c.u8(),
+          unknown19: c.u8(),
+          quota_byte_count: c.u32(),
+          quota_slot_count: c.u8({ padAfter: 1 }),
+          slot_count: c.u16(),
+          message_length: c.MagicNumber(messageLength, c.u8(), { padAfter: 3 }),
+          entries: c.array(s_online_file_metadata.field(), fileCount),
+          message: c.WString(messageLength + 1),
+        });
         
         export const s_blf_chunk_start_of_file = blf.createChunkSchema({
           name: '_blf',
           majorVersion: 1,
           minorVersion: 2,
           endian: 'big',
-          pack: 1,
-          fields: [
-            { name: 'byte_order_mark', type: 'u16' },
-            { name: 'name', type: new c.String(0x22) },
-          ],
+          fields: {
+            byte_order_mark: c.u16(),
+            name: c.String(0x22),
+          },
         });
         
         export const s_blf_chunk_end_of_file = blf.createChunkSchema({
@@ -215,30 +193,29 @@ export namespace HaloReach {
           majorVersion: 1,
           minorVersion: 1,
           endian: 'big',
-          pack: 1,
-          fields: [
-            { name: 'file_size', type: 'u32' },
-            { name: 'authentication_type', type: new c.MagicNumber(0, 'u8') },
-          ],
+          fields: {
+            file_size: c.u32(),
+            authentication_type: c.MagicNumber(0, c.u8()),
+          },
         });
 
-        export const s_online_file_tag = c.createCStruct({pack: 1, endian: 'big', fields: [
-          { name: 'tag', type: new c.String(23) },
-          { name: 'unknown', type: 'u32' },
-        ]});
+        export const s_online_file_tag = c.struct({
+          tag: c.String(23),
+          unknown: c.u32(),
+        });
 
         export const s_blf_chunk_author = blf.createChunkSchema({
           majorVersion: 3,
           minorVersion: 1,
           name: 'athr',
           endian: 'big',
-          fields: [
-            { name: 'program_name', type: new c.String(16) },
-            { name: 'build_number_sequence', type: 'i32' },
-            { name: 'build_number', type: 'i32' },
-            { name: 'build_string', type: new c.String(28) },
-            { name: 'author_name', type: new c.WString(16) },
-          ],
+          fields: {
+            program_name: c.String(16),
+            build_number_sequence: c.i32(),
+            build_number: c.i32(),
+            build_string: c.String(28),
+            author_name: c.WString(16),
+          },
         });
     }
 }

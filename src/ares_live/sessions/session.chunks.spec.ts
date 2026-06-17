@@ -163,7 +163,7 @@ describe('Struct Alignment and Layout', () => {
         expect(buffer.length).toBe(32);
         
         // id should be at offset 0 (4 bytes)
-        // padding (4 bytes, automatic from pack: 8)
+        // padding (4 bytes, explicit via padAfter on id)
         // value should be at offset 8 (24 bytes) - aligned to 8 bytes
         const view = new DataView(buffer.buffer, buffer.byteOffset);
         expect(view.getUint32(0, true)).toBe(0x12345678); // id

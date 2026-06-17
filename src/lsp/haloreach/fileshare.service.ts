@@ -665,68 +665,59 @@ export class HaloReachFileShareService {
 
         const fileShare = await this.getFileShare(viewerXuid, BigInt(file?.share_id.toString()));
 
-        const s_online_file_general_metadata = (tagCount: number) => c.createCStruct({pack: 1, endian: 'big', fields: [
-            { name: 'id', type: 'u64' }, // probs unique id
-            { name: 'file_type', type: 'u8' },
-            { name: 'tag_count', type: new c.MagicNumber(tagCount, 'u8') },
-            { name: 'megalo_category_index', type: 'u8' },
-            { name: 'unknown2', type: 'u8', count: 1 }, // pad?
-            { name: 'size_in_bytes', type: 'u32' },
-            { name: 'activity', type: 'u8' },
-            { name: 'game_mode', type: 'u8' },
-            { name: 'game_engine_type', type: 'u8' },
-            { name: 'unknown3', type: 'padding', count: 1 },
-            { name: 'unknown3', type: 'u8', count: 8 }, // game ID?
-            { name: 'map_id', type: 'i32' },
-          ]});
+        const s_online_file_general_metadata = (tagCount: number) => c.struct({
+            id: c.u64(), // probs unique id
+            file_type: c.u8(),
+            tag_count: c.MagicNumber(tagCount, c.u8()),
+            megalo_category_index: c.u8(),
+            unknown2: c.array(c.u8(), 1), // pad?
+            size_in_bytes: c.u32(),
+            activity: c.u8(),
+            game_mode: c.u8(),
+            game_engine_type: c.u8({ padAfter: 1 }),
+            unknown3: c.array(c.u8(), 8), // game ID?
+            map_id: c.i32(),
+          });
           
            
-          const s_online_file_metadata = (screenshotLength: number, tagCount: number) => c.createCStruct({pack: 1, endian: 'big', fields: [
-            { name: 'general', type: s_online_file_general_metadata(tagCount) },
-            { name: 'created', type: HaloReach.v12065.s_content_item_history },
-            { name: 'modified', type: HaloReach.v12065.s_content_item_history },
-            { name: 'name', type: new c.WString(128) },
-            { name: 'description', type: new c.WString(128) },
-            { name: 'game_variant_or_film', type: new c.Union({
+          const s_online_file_metadata = (screenshotLength: number, tagCount: number) => c.struct({
+            general: s_online_file_general_metadata(tagCount).field(),
+            created: HaloReach.v12065.s_content_item_history.field(),
+            modified: HaloReach.v12065.s_content_item_history.field(),
+            name: c.WString(128),
+            description: c.WString(128),
+            game_variant_or_film: c.Union({
               game_variant: HaloReach.v12065.s_content_item_game_variant_metadata,
               film: HaloReach.v12065.s_content_item_film_metadata,
-              pad: c.createCStruct({pack: 1, endian: 'big', fields: [
-                { name: 'pad', type: 'padding', count: 16 },
-              ]}),
-            }) },
-            { name: 'matchmaking', type: new c.Union({
+              pad: HaloReach.v12065.unionPad16,
+            }),
+            matchmaking: c.Union({
               metadata: HaloReach.v12065.s_content_item_matchmaking_metadata,
-              pad: c.createCStruct({pack: 1, endian: 'big', fields: [
-                { name: 'pad', type: 'padding', count: 16 },
-              ]}),
-            }) },
-            { name: 'campaign_or_firefight', type: new c.Union({
+              pad: HaloReach.v12065.unionPad16,
+            }),
+            campaign_or_firefight: c.Union({
               campaign: HaloReach.v12065.s_content_item_metadata_campaign_data,
               firefight: HaloReach.v12065.s_content_item_metadata_firefight_data,
-              pad: c.createCStruct({pack: 1, endian: 'big', fields: [
-                { name: 'pad', type: 'padding', count: 16 },
-              ]})
-            }) },
-            { name: 'screenshot_length', type: new c.MagicNumber(screenshotLength, 'u32') },
-          ]});
+              pad: HaloReach.v12065.unionPad16,
+            }),
+            screenshot_length: c.MagicNumber(screenshotLength, c.u32()),
+          });
 
-        const s_online_file_listing = (screenshotLength: number, tagCount: number) => c.createCStruct({pack: 1, endian: 'big', fields: [
-            { name: 'xuid', type: 'u64' }, // this is a guess
-            { name: 'gamertag', type: new c.String(16) },
-            { name: 'unknown16', type: 'u8' },
-            { name: 'unknown17', type: 'u8' },
-            { name: 'unknown18', type: 'u8' },
-            { name: 'unknown19', type: 'u8' },
-            { name: 'quota_byte_count', type: 'u32' },
-            { name: 'quota_slot_count', type: 'u8' },
-            { name: 'pad', type: 'padding', count: 1 },
-            { name: 'slot_count', type: new c.MagicNumber(1, 'u16') }, // for details, has to be 1
-            { name: 'message_length', type: new c.MagicNumber(0, 'u8') }, // not used for details
-            { name: 'pad', type: 'padding', count: 3 },
-            { name: 'entries', count: 1, type: s_online_file_metadata(screenshotLength, tagCount) },
-            { name: 'screenshot', type: 'u8', count: screenshotLength },
-            { name: 'tags', type: HaloReach.v12065.s_online_file_tag, count: tagCount },
-          ]});
+        const s_online_file_listing = (screenshotLength: number, tagCount: number) => c.struct({
+            xuid: c.u64(), // this is a guess
+            gamertag: c.String(16),
+            unknown16: c.u8(),
+            unknown17: c.u8(),
+            unknown18: c.u8(),
+            unknown19: c.u8(),
+            quota_byte_count: c.u32(),
+            quota_slot_count: c.u8({ padAfter: 1 }),
+            slot_count: c.MagicNumber(1, c.u16()), // for details, has to be 1
+            message_length: c.MagicNumber(0, c.u8(), { padAfter: 3 }), // not used for details
+            entries: c.array(s_online_file_metadata(screenshotLength, tagCount).field(), 1),
+            screenshot: c.array(c.u8(), screenshotLength),
+            tags: c.array(HaloReach.v12065.s_online_file_tag.field(), tagCount),
+          });
 
         // if its a screenshot, build preview
         let screenshot_preview: number[] = [];
@@ -761,10 +752,9 @@ export class HaloReachFileShareService {
                 majorVersion: 4,
                 minorVersion: 0,
                 endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'online_file_listing', type: s_online_file_listing(screenshot_preview.length, tags.length) },
-                ],
+                fields: {
+                    online_file_listing: s_online_file_listing(screenshot_preview.length, tags.length).field(),
+                },
             }),
             HaloReach.v12065.s_blf_chunk_end_of_file,
           ]);
@@ -880,11 +870,9 @@ export class HaloReachFileShareService {
                     name: 'fitm',
                     majorVersion: 4,
                     minorVersion: 0,
-                    endian: 'big',
-                    pack: 1,
-                    fields: [
-                        { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(0, FILESHARE_UNAVAILABLE_MESSAGE.length) },
-                    ],
+                    fields: {
+                        online_file_listing: HaloReach.v12065.s_online_file_listing(0, FILESHARE_UNAVAILABLE_MESSAGE.length).field(),
+                    },
                 }),
                 HaloReach.v12065.s_blf_chunk_end_of_file,
               ]);
@@ -927,11 +915,9 @@ export class HaloReachFileShareService {
                     name: 'fitm',
                     majorVersion: 4,
                     minorVersion: 0,
-                    endian: 'big',
-                    pack: 1,
-                    fields: [
-                        { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(0, 0) },
-                    ],
+                    fields: {
+                        online_file_listing: HaloReach.v12065.s_online_file_listing(0, 0).field(),
+                    },
                 }),
                 HaloReach.v12065.s_blf_chunk_end_of_file,
               ]);
@@ -1122,10 +1108,9 @@ export class HaloReachFileShareService {
                 majorVersion: 4,
                 minorVersion: 0,
                 endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(serializedEntries.length, fileShare.message?.length ?? 0) },
-                ],
+                fields: {
+                    online_file_listing: HaloReach.v12065.s_online_file_listing(serializedEntries.length, fileShare.message?.length ?? 0).field(),
+                },
             }),
             HaloReach.v12065.s_blf_chunk_end_of_file,
           ]);
@@ -1336,12 +1321,10 @@ export class HaloReachFileShareService {
                 majorVersion: 1,
                 minorVersion: 0,
                 endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'entry_count', type: 'u16' },
-                    { name: 'pad', type: 'padding', count: 2 },
-                    { name: 'entries', count: fileShareSummaries.length, type: HaloReach.v12065.s_online_file_summary_listing_entry },
-                ],
+                fields: {
+                    entry_count: c.u16({ padAfter: 2 }),
+                    entries: c.array(HaloReach.v12065.s_online_file_summary_listing_entry.field(), fileShareSummaries.length),
+                },
             }),
             HaloReach.v12065.s_blf_chunk_end_of_file,
         ]).write({
@@ -1622,10 +1605,9 @@ export class HaloReachFileShareService {
                 majorVersion: 4,
                 minorVersion: 0,
                 endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(listing_entries.length, 0) },
-                ],
+                fields: {
+                    online_file_listing: HaloReach.v12065.s_online_file_listing(listing_entries.length, 0).field(),
+                },
             }),
             HaloReach.v12065.s_blf_chunk_end_of_file,
           ]);
@@ -1671,12 +1653,10 @@ export class HaloReachFileShareService {
               majorVersion: 1,
               minorVersion: 0,
               endian: 'big',
-              pack: 1,
-              fields: [
-                { name: 'entry_count', type: 'u16' },
-                { name: 'pad', type: 'padding', count: 2 },
-                { name: 'entries', count: 1, type: HaloReach.v12065.s_online_file_summary_listing_entry },
-              ],
+              fields: {
+                entry_count: c.u16({ padAfter: 2 }),
+                entries: c.array(HaloReach.v12065.s_online_file_summary_listing_entry.field(), 1),
+              },
             }),
             HaloReach.v12065.s_blf_chunk_end_of_file,
           ])
@@ -2056,10 +2036,9 @@ export class HaloReachFileShareService {
                 majorVersion: 4,
                 minorVersion: 0,
                 endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(listing_entries.length, 0) },
-                ],
+                fields: {
+                    online_file_listing: HaloReach.v12065.s_online_file_listing(listing_entries.length, 0).field(),
+                },
             }),
             HaloReach.v12065.s_blf_chunk_end_of_file,
           ]);
@@ -2152,12 +2131,10 @@ export class HaloReachFileShareService {
                 majorVersion: 1,
                 minorVersion: 0,
                 endian: 'big',
-                pack: 1,
-                fields: [
-                  { name: 'entry_count', type: 'u16' },
-                  { name: 'pad', type: 'padding', count: 2 },
-                  { name: 'entries', count: 1, type: HaloReach.v12065.s_online_file_summary_listing_entry },
-                ],
+                fields: {
+                  entry_count: c.u16({ padAfter: 2 }),
+                  entries: c.array(HaloReach.v12065.s_online_file_summary_listing_entry.field(), 1),
+                },
               }),
             HaloReach.v12065.s_blf_chunk_end_of_file,
         ]);
@@ -2253,10 +2230,9 @@ export class HaloReachFileShareService {
                 majorVersion: 4,
                 minorVersion: 0,
                 endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(fileIds.length, 0) },
-                ],
+                fields: {
+                    online_file_listing: HaloReach.v12065.s_online_file_listing(fileIds.length, 0).field(),
+                },
             }),
             HaloReach.v12065.s_blf_chunk_end_of_file,
         ]);

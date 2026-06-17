@@ -14,14 +14,3 @@ export { CMagicNumber } from "./magic-number";
 export { CMagicString } from "./magic-string";
 export { CBitfield } from "./bitfield";
 export { CEnum } from "./enum";
-export { CUnion } from "./union";
-export {
-    CDiscriminatedUnion,
-    discriminatedUnion,
-    arm,
-    when,
-    isCDiscriminatedUnion,
-    type UnionArmInput,
-    type UnionOfArms,
-    type UnionArmSchema,
-} from "./discriminated-union";

@@ -1,6 +1,6 @@
 import type { CFieldType, Endian } from "./field-type";
 import type { CArray } from "./array";
-import type { CDiscriminatedUnion, UnionArmInput, UnionOfArms } from "./types/discriminated-union";
+import type { CDiscriminatedUnion, UnionArmInput, UnionOfArms } from "./unions/discriminated-union";
 
 export interface FieldOptions {
     padBefore?: number;
@@ -14,7 +14,7 @@ export type StructFieldType = {
     write(data: Record<string, unknown>, endian?: Endian): Buffer;
 };
 
-export type { UnionArmInput, UnionOfArms } from "./types/discriminated-union";
+export type { UnionArmInput, UnionOfArms } from "./unions/discriminated-union";
 
 export type FieldType = CFieldType<any, any> | StructFieldType | CDiscriminatedUnion;
 

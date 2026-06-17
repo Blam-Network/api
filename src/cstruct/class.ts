@@ -1,5 +1,5 @@
 import { CArray, isCArray } from "./array";
-import { isCPadding } from "./types";
+import { isCPadding } from "./field-types";
 import {
     CAnnotatedField,
     CClassField,

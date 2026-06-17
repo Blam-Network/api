@@ -19,5 +19,5 @@ export namespace c {
     export type Array<T extends FieldType = FieldType, N extends number = number> = cImpl.Array<T, N>;
     export type Struct<F extends StructFields = StructFields> = cImpl.Struct<F>;
     export type StructField = cImpl.StructField;
-    export type UnionOf<Arms extends readonly import("./types/discriminated-union").UnionArmInput[]> = cImpl.UnionOf<Arms>;
+    export type UnionOf<Arms extends readonly import("./unions/discriminated-union").UnionArmInput[]> = cImpl.UnionOf<Arms>;
 }

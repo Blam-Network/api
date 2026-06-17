@@ -1,4 +1,4 @@
-import { FieldOptions, StructFieldValue, isCClassField, isCStructField, unwrapFieldType } from "./field";
+import { FieldOptions, StructFieldValue, unwrapFieldType } from "./field";
 
 export class CArray<
     T extends StructFieldValue = StructFieldValue,
@@ -22,8 +22,5 @@ export function isCArray(value: unknown): value is CArray {
 }
 
 export function unwrapArrayElement<T extends StructFieldValue>(element: T): ReturnType<typeof unwrapFieldType> {
-    if (isCStructField(element) || isCClassField(element)) {
-        return element.struct as ReturnType<typeof unwrapFieldType>;
-    }
     return unwrapFieldType(element);
 }

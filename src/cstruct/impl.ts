@@ -1,6 +1,6 @@
 import { CArray, isCArray } from "./array";
 import {
-    CDataField,
+    CFieldType,
     CString,
     CWString,
     CMagicNumber,
@@ -8,46 +8,50 @@ import {
     CBitfield,
     CEnum,
     CUnion,
+    CDiscriminatedUnion,
+    discriminatedUnion as discriminatedUnionField,
+    arm as unionArm,
+    when as unionWhen,
+    isCDiscriminatedUnion,
+    UnionOfArms,
     CPadding,
+    CBool,
+    bool as boolField,
+    Time64 as time64Field,
     isCPadding,
     createPadding,
     pad as padField,
-    isCDataField,
-} from "./advanced";
-import type { Endian as EndianType } from "./data-field";
+    isCFieldType,
+} from "./types";
+import type { Endian as EndianType } from "./field-type";
 import {
-    CPrimitive,
-    PrimitiveKind,
-    PrimitiveTypeToTS,
-    u8 as primitiveU8,
-    u16 as primitiveU16,
-    u32 as primitiveU32,
-    u64 as primitiveU64,
-    i8 as primitiveI8,
-    i16 as primitiveI16,
-    i32 as primitiveI32,
-    i64 as primitiveI64,
-    f32 as primitiveF32,
-    f64 as primitiveF64,
-} from "./primitive";
+    CNumber,
+    NumberTypeToTS,
+    CBigint,
+    BigintTypeToTS,
+    u8 as numberU8,
+    u16 as numberU16,
+    u32 as numberU32,
+    i8 as numberI8,
+    i16 as numberI16,
+    i32 as numberI32,
+    f32 as numberF32,
+    f64 as numberF64,
+    u64 as bigintU64,
+    i64 as bigintI64,
+    CNumeric,
+} from "./types";
 import {
     FieldOptions as IFieldOptions,
     FieldType,
     StructFieldValue,
     CStructField,
-    CClassField,
     getFieldOptions,
     unwrapFieldType,
 } from "./field";
 import { unwrapArrayElement } from "./array";
 import { FlattenIntersection, Tuple, UnionToIntersection } from "./utils";
-import {
-    classImpl,
-    fieldImpl,
-    readClass as readClassImpl,
-    writeClass as writeClassImpl,
-    sizeofClass as sizeofClassImpl,
-} from "./class";
+import { setStructFactory } from "./class";
 
 export namespace cImpl {
     export type FieldOptions = IFieldOptions;
@@ -62,11 +66,15 @@ export namespace cImpl {
             ? any
             : T extends CPadding
                 ? never
-                : T extends CPrimitive<infer P>
-                    ? PrimitiveTypeToTS<P>
-                    : T extends Struct<infer F>
+                : T extends CNumber<infer P>
+                    ? NumberTypeToTS<P>
+                    : T extends CBigint<infer P>
+                        ? BigintTypeToTS<P>
+                        : T extends Struct<infer F>
                         ? StructSchemaToTS<F>
-                        : T extends CDataField<infer AT, any>
+                        : T extends CDiscriminatedUnion<infer Arms, any>
+                            ? UnionOfArms<Arms> | null
+                        : T extends CFieldType<infer AT, any>
                             ? AT
                             : never;
 
@@ -77,46 +85,38 @@ export namespace cImpl {
                 ? { [Key in K]: T[] }
                 : { [Key in K]: Tuple<T, N> };
 
-    type ElementFieldType<T> =
-        T extends CStructField<infer S, any>
+    type NestedStructSchema<T> =
+        T extends { readonly struct: infer S }
             ? S extends Struct<infer F>
                 ? StructSchemaToTS<F>
                 : never
-            : T extends CClassField<infer S, any>
-                ? S extends Struct<infer F>
-                    ? StructSchemaToTS<F>
-                    : never
-            : T extends FieldType
+            : never;
+
+    type ElementFieldType<T> =
+        NestedStructSchema<T> extends never
+            ? T extends FieldType
                 ? FieldValueType<T>
-                : never;
+                : never
+            : NestedStructSchema<T>;
 
     type ProcessSchemaField<K extends string, F extends StructFieldValue> =
         IsAny<F> extends true
             ? { [Key in K]: any }
             : F extends { readonly __carray: true; readonly element: infer ET; readonly count: infer N extends number }
                 ? ProcessArrayField<K, ElementFieldType<ET>, N>
-                : F extends CStructField<infer S, infer _O>
-                    ? S extends Struct<infer SF>
-                        ? { [Key in K]: StructSchemaToTS<SF> }
-                        : never
-                : F extends CClassField<infer S, infer _O>
-                    ? S extends Struct<infer SF>
-                        ? { [Key in K]: StructSchemaToTS<SF> }
-                        : never
-                : F extends CPadding
-                    ? {}
-                    : F extends FieldType
-                    ? { [Key in K]: FieldValueType<F> }
-                    : never;
+                : NestedStructSchema<F> extends never
+                    ? F extends CPadding
+                        ? {}
+                        : F extends FieldType
+                            ? { [Key in K]: FieldValueType<F> }
+                            : never
+                    : { [Key in K]: NestedStructSchema<F> };
 
     export type StructSchemaToTS<F extends StructFields> = FlattenIntersection<
         UnionToIntersection<{
             [K in keyof F]: ProcessSchemaField<K & string, F[K]>
         }[keyof F]>
     >;
-
-    /** @deprecated Use StructFields directly */
-    export type StructSchema<F extends StructFields = StructFields> = F;
 
     function normalizeFields(fields: StructFields): StructField[] {
         const result: StructField[] = [];
@@ -155,9 +155,12 @@ export namespace cImpl {
         }
 
         private getFieldSize(field: StructField): number {
+            if (isCDiscriminatedUnion(field.type)) {
+                return field.type.getSize();
+            }
             if (field.type instanceof Struct) {
                 return field.type.size;
-            } else if (isCDataField(field.type)) {
+            } else if (isCFieldType(field.type)) {
                 return field.type.getSize();
             } else {
                 throw new Error(`Unsupported field type for '${field.name}'`);
@@ -179,6 +182,12 @@ export namespace cImpl {
             let currentOffset = 0;
 
             for (const field of this.fields) {
+                if (isCDiscriminatedUnion(field.type)) {
+                    result[field.name] = field.type.read(buffer, offset + currentOffset, endian, result);
+                    currentOffset += field.type.getSize();
+                    continue;
+                }
+
                 if (field.type instanceof Struct) {
                     const nestedStruct = field.type;
                     const count = field.count ?? 1;
@@ -196,7 +205,7 @@ export namespace cImpl {
                     continue;
                 }
 
-                if (isCDataField(field.type)) {
+                if (isCFieldType(field.type)) {
                     const dataField = field.type;
                     const count = field.count ?? 1;
 
@@ -230,6 +239,12 @@ export namespace cImpl {
 
             for (const field of this.fields) {
                 try {
+                    if (isCDiscriminatedUnion(field.type)) {
+                        field.type.write(buffer, currentOffset, data[field.name], endian, data);
+                        currentOffset += field.type.getSize();
+                        continue;
+                    }
+
                     if (field.type instanceof Struct) {
                         const nestedStruct = field.type;
                         const count = field.count ?? 1;
@@ -261,7 +276,7 @@ export namespace cImpl {
                         continue;
                     }
 
-                    if (isCDataField(field.type)) {
+                    if (isCFieldType(field.type)) {
                         const dataField = field.type;
                         const count = field.count ?? 1;
 
@@ -299,51 +314,6 @@ export namespace cImpl {
         public getSize(): number {
             return this.size;
         }
-
-        public audit(): void {
-            const rows: { field: string; offset: number; hex: string; size: number }[] = [];
-            let currentOffset = 0;
-
-            const pushRow = (label: string, byteOffset: number, byteSize: number) => {
-                rows.push({
-                    field: label,
-                    offset: byteOffset,
-                    hex: `0x${byteOffset.toString(16)}`,
-                    size: byteSize,
-                });
-            };
-
-            for (const field of this.fields) {
-                const offset = currentOffset;
-                const name = field.name;
-
-                if (field.type instanceof Struct) {
-                    const nested = field.type;
-                    const count = field.count ?? 1;
-                    const total = nested.size * count;
-                    pushRow(name, offset, total);
-                    currentOffset += total;
-                    continue;
-                }
-
-                if (isCDataField(field.type)) {
-                    const dataField = field.type;
-                    const count = field.count ?? 1;
-                    const total = dataField.getSize() * count;
-                    if (isCPadding(dataField)) {
-                        pushRow(`${name} (${total} bytes padding)`, offset, total);
-                    } else {
-                        pushRow(name, offset, total);
-                    }
-                    currentOffset += total;
-                    continue;
-                }
-
-                throw new Error(`Unsupported field type for '${name}'`);
-            }
-
-            console.table(rows);
-        }
     }
 
     export const endian = {
@@ -354,23 +324,24 @@ export namespace cImpl {
     type InferType<T> =
         T extends Struct<infer F>
             ? StructSchemaToTS<F>
-            : T extends CStructField<infer S, any>
-                ? S extends Struct<infer F>
-                    ? StructSchemaToTS<F>
-                    : never
-                : T extends CClassField<infer S, any>
-                    ? S extends Struct<infer F>
-                        ? StructSchemaToTS<F>
+            : NestedStructSchema<T> extends never
+                ? T extends { readonly __carray: true; readonly element: infer ET; readonly count: infer N extends number }
+                    ? N extends 1
+                        ? InferType<ET>
+                        : number extends N
+                            ? InferType<ET>[]
+                            : Tuple<InferType<ET>, N>
+                    : T extends { readonly __cdiscriminatedUnion: true; readonly arms: infer Arms }
+                        ? Arms extends readonly import("./types/discriminated-union").UnionArmInput[]
+                            ? UnionOfArms<Arms> | null
+                            : never
+                    : T extends FieldType
+                        ? FieldValueType<T>
                         : never
-                    : T extends { readonly __carray: true; readonly element: infer ET; readonly count: infer N extends number }
-                        ? N extends 1
-                            ? InferType<ET>
-                            : number extends N
-                                ? InferType<ET>[]
-                                : Tuple<InferType<ET>, N>
-                        : T extends FieldType
-                            ? FieldValueType<T>
-                            : never;
+                : NestedStructSchema<T>;
+
+    export type UnionOf<Arms extends readonly import("./types/discriminated-union").UnionArmInput[]> =
+        UnionOfArms<Arms>;
 
     export type infer<T> = InferType<T>;
 
@@ -400,7 +371,13 @@ export namespace cImpl {
         return new CWString(length, options);
     }
 
-    export function MagicNumber<N extends number, PT extends CPrimitive, const O extends IFieldOptions = {}>(
+    export function Time64<const O extends IFieldOptions = {}>(options?: O) {
+        return time64Field(options);
+    }
+
+    export const bool = boolField;
+
+    export function MagicNumber<N extends number, PT extends CNumeric, const O extends IFieldOptions = {}>(
         magic: N,
         type: PT,
         options?: O,
@@ -412,7 +389,7 @@ export namespace cImpl {
         return new CMagicString(magic, options);
     }
 
-    export function Bitfield<const K extends readonly string[], PT extends CPrimitive, const O extends IFieldOptions = {}>(
+    export function Bitfield<const K extends readonly string[], PT extends CNumeric, const O extends IFieldOptions = {}>(
         keys: K,
         type: PT,
         options?: O,
@@ -420,7 +397,7 @@ export namespace cImpl {
         return new CBitfield(keys, type, options);
     }
 
-    export function Enum<const T extends readonly string[] | Record<string, number>, PT extends CPrimitive, const O extends IFieldOptions = {}>(
+    export function Enum<const T extends readonly string[] | Record<string, number>, PT extends CNumeric, const O extends IFieldOptions = {}>(
         keysOrMap: T,
         type: PT,
         options?: O,
@@ -432,21 +409,29 @@ export namespace cImpl {
         return new CUnion(members, options);
     }
 
-    export const u8 = primitiveU8;
-    export const u16 = primitiveU16;
-    export const u32 = primitiveU32;
-    export const u64 = primitiveU64;
-    export const i8 = primitiveI8;
-    export const i16 = primitiveI16;
-    export const i32 = primitiveI32;
-    export const i64 = primitiveI64;
-    export const f32 = primitiveF32;
-    export const f64 = primitiveF64;
+    export function discriminatedUnion<const Arms extends readonly import("./types/discriminated-union").UnionArmInput[]>(
+        options: { size: number },
+        ...arms: Arms
+    ) {
+        return discriminatedUnionField(options, ...arms);
+    }
+
+    export const arm = unionArm;
+    export const when = unionWhen;
+
+    export const u8 = numberU8;
+    export const u16 = numberU16;
+    export const u32 = numberU32;
+    export const u64 = bigintU64;
+    export const i8 = numberI8;
+    export const i16 = numberI16;
+    export const i32 = numberI32;
+    export const i64 = bigintI64;
+    export const f32 = numberF32;
+    export const f64 = numberF64;
     export type Array<T extends FieldType = FieldType, N extends number = number> = CArray<T, N>;
     export const pad = padField;
     export const Pad = CPadding;
-
-    export const readClass = readClassImpl;
-    export const writeClass = writeClassImpl;
-    export const sizeofClass = sizeofClassImpl;
 }
+
+setStructFactory((fields) => cImpl.struct(fields));

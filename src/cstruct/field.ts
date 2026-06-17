@@ -1,5 +1,6 @@
-import type { CDataField } from "./data-field";
+import type { CFieldType, Endian } from "./field-type";
 import type { CArray } from "./array";
+import type { CDiscriminatedUnion, UnionArmInput, UnionOfArms } from "./types/discriminated-union";
 
 export interface FieldOptions {
     padBefore?: number;
@@ -8,13 +9,14 @@ export interface FieldOptions {
 
 /** Runtime shape shared by nested struct field types. */
 export type StructFieldType = {
-    size: number;
     getSize(): number;
-    read(buffer: Buffer, offset?: number): unknown;
-    write(data: Record<string, unknown>): Buffer;
+    read(buffer: Buffer, offset?: number, endian?: Endian): unknown;
+    write(data: Record<string, unknown>, endian?: Endian): Buffer;
 };
 
-export type FieldType = CDataField<any, any> | StructFieldType;
+export type { UnionArmInput, UnionOfArms } from "./types/discriminated-union";
+
+export type FieldType = CFieldType<any, any> | StructFieldType | CDiscriminatedUnion;
 
 export class CStructField<S, const O extends FieldOptions = {}> {
     readonly __cstructField = true as const;
@@ -62,9 +64,10 @@ export function isCAnnotatedField(value: unknown): value is CAnnotatedField<any,
 }
 
 export type StructFieldValue =
-    | CDataField<any, any>
+    | CFieldType<any, any>
     | StructFieldType
     | CArray<any, any, any>
+    | CDiscriminatedUnion<any, any>
     | CStructField<any, any>
     | CClassField<any, any>
     | CAnnotatedField<any, any>;
@@ -85,6 +88,14 @@ export function unwrapFieldType(value: StructFieldValue): FieldType {
     }
     if (isCAnnotatedField(value)) {
         return unwrapFieldType(value.field);
+    }
+    if (
+        typeof value === "object" &&
+        value !== null &&
+        "__cdiscriminatedUnion" in value &&
+        (value as CDiscriminatedUnion).__cdiscriminatedUnion === true
+    ) {
+        return value as FieldType;
     }
     if ('__carray' in value && (value as CArray).element) {
         return unwrapFieldType((value as CArray).element as StructFieldValue);

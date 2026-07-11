@@ -1,5 +1,11 @@
 import { Inject, Injectable } from "@nestjs/common";
-import * as BLF from '@blam-network/blf_lsp';
+import {
+    default_purchase_state,
+    s_blf_chunk_reward_persistence_upload_to_lsp,
+    s_blf_chunk_rewards_persistance,
+    s_persistent_per_commendation_state,
+    type e_purchase_state,
+} from "@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual";
 import { parseXuid } from "src/xbox/xuid";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
@@ -26,7 +32,7 @@ export class HaloReachRewardsService {
         return true;
     }
 
-    private playerHasLegacySunriseUnlocks = (rupl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_reward_persistence_upload_to_lsp) => {
+    private playerHasLegacySunriseUnlocks = (rupl: s_blf_chunk_reward_persistence_upload_to_lsp) => {
         const LEGACY_SUNRISE_CREDITS_1 = 20_000_000;
         const LEGACY_SUNRISE_CREDITS_2 = 200_000_000;
 
@@ -74,7 +80,7 @@ export class HaloReachRewardsService {
         })
     }
 
-    public updatePlayerRewards = async (xuid: BigInt, rupl: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_reward_persistence_upload_to_lsp): Promise<void> => {
+    public updatePlayerRewards = async (xuid: BigInt, rupl: s_blf_chunk_reward_persistence_upload_to_lsp): Promise<void> => {
         if (!await this.useNewRewardsSystem(xuid)) return;
 
         const currentData = (await this.prisma.reach_player_rewards.findUnique({ where: { player_xuid: xuid.toString() }}));
@@ -250,27 +256,14 @@ export class HaloReachRewardsService {
         });
     }
 
-    public getPlayerRewards = async (xuid: BigInt): Promise<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_rewards_persistance> => {
+    public getPlayerRewards = async (xuid: BigInt): Promise<s_blf_chunk_rewards_persistance> => {
         if (!await this.useNewRewardsSystem(xuid)) {
-            return {
-                credits: 200_000_000, // credits?,
-                unknown1: 0,
-                commendations: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_persistent_per_commendation_state>(128).fill({
-                    progress: 0,
-                }),
-                purchased_items: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.e_purchase_state>(200).fill({
-                    purchased: true,
-                    banned: false,
-                    bypassed: false,
-                    granted_by_lsp: false,
-                    forced_visible_and_purchasable: false,
-                }),
-                unknown2: 0,
-                unknown3: 0,
-                unknown4: new Date(0),
-                awarded_credits: 0,
-                unknown6: 0,
-            }
+            const rdpl = new s_blf_chunk_rewards_persistance();
+            rdpl.credits = 200_000_000;
+            rdpl.purchased_items = Array.from({ length: 256 }, () =>
+                default_purchase_state({ purchased: true })
+            );
+            return rdpl;
         }
 
         const playerRewards = await this.prisma.reach_player_rewards.findUnique({ where: { player_xuid: xuid.toString() } });
@@ -290,17 +283,9 @@ export class HaloReachRewardsService {
             })
         }
 
-        const responsePurchasedArmours = Array.from(
-            {
-                length: 256,
-            },
-            () => ({
-                purchased: false,
-                banned: false,
-                bypassed: false,
-                granted_by_lsp: false,
-                forced_visible_and_purchasable: false,
-            } as BLF.haloreach_12065_11_08_24_1738_tu1actual.e_purchase_state)
+        const responsePurchasedArmours: e_purchase_state[] = Array.from(
+            { length: 256 },
+            () => default_purchase_state()
         );
 
         const purchasedArmours = await this.prisma.reach_player_rewards_armour.findMany({
@@ -309,7 +294,10 @@ export class HaloReachRewardsService {
             }
         });
 
-        const responseCommendations = Array.from({ length: 128 }, () => ({progress: 0} as BLF.haloreach_12065_11_08_24_1738_tu1actual.s_persistent_per_commendation_state));
+        const responseCommendations = Array.from(
+            { length: 128 },
+            () => new s_persistent_per_commendation_state()
+        );
         const commendations = await this.prisma.reach_player_rewards_commendations.findMany({
             where: {
                 player_xuid: xuid.toString(),
@@ -342,17 +330,13 @@ export class HaloReachRewardsService {
             responsePurchasedArmours[HaloReachArmour.elitearmour_officer].purchased = true;
         }
 
-        return {
-            credits: (playerRewards?.credits || 0) + (playerRewards?.credits_award || 0),
-            unknown1: 0,
-            commendations: responseCommendations,
-            purchased_items: responsePurchasedArmours,
-            unknown2: 0,
-            unknown3: 0,
-            unknown4: playerRewards?.updatedAt || new Date(0),
-            awarded_credits: playerRewards?.credits_award || 0,
-            unknown6: 0,
-        }
+        const rdpl = new s_blf_chunk_rewards_persistance();
+        rdpl.credits = (playerRewards?.credits || 0) + (playerRewards?.credits_award || 0);
+        rdpl.commendations = responseCommendations;
+        rdpl.purchased_items = responsePurchasedArmours;
+        rdpl.unknown4 = playerRewards?.updatedAt || new Date(0);
+        rdpl.awarded_credits = playerRewards?.credits_award || 0;
+        return rdpl;
     }
 }
 

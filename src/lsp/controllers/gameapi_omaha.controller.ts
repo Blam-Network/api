@@ -18,6 +18,7 @@ import {
 import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import * as BLF from '@blam-network/blf_lsp';
+import { s_blf_chunk_challenge_state } from '@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { EXAMPLE_XUID } from '../../constants';
 import { getExampleResponse, HaloReachWhitelistService } from '../haloreach/whitelist.service';
@@ -29,6 +30,7 @@ import { hexStringXuidSchema, xuidToHexString } from 'src/xbox/xuid';
 import { z } from 'zod';
 import { UploadService } from '../services/upload.service';
 import { e_predefined_query, HaloReachFileShareService } from '../haloreach/fileshare.service';
+import { build_user_rewards_file, read_rewards_upload } from '../haloreach/rewards-blf';
 import { HaloReachRewardsService } from '../haloreach/rewards.service';
 import { HaloReachUserService } from '../haloreach/user.service';
 import { HaloReachChallengeService } from '../haloreach/challenge.service';
@@ -97,7 +99,7 @@ export class GameApiOmahaController {
   ) {
     if (upload) {
       this.uploadService.storeUploadedFile(upload);
-      let [rupl, chpr] = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_rewards_upload(upload.buffer);
+      const { rupl, chpr } = read_rewards_upload(upload.buffer);
       this.logger.debug(`got rewards upload for ${userId} / ${rupl?.player_name || '<unknown>'} with credits ${rupl?.alltime_cookie_count}/${rupl?.cookies_earned_today_online}/${rupl?.cookies_earned_today_offline} modified at ${rupl?.last_modified_at.toString()}`)
       if (rupl) {
         await this.rewardsService.updatePlayerRewards(userId, rupl);
@@ -109,14 +111,12 @@ export class GameApiOmahaController {
 
     let rdpl = await this.rewardsService.getPlayerRewards(userId);
 
-    let dcha: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_state | undefined = undefined;
+    let dcha: s_blf_chunk_challenge_state | undefined = undefined;
     if (getDailyChallenges) {
       dcha = await this.challengeService.getActiveChallenges(userId);
     }
 
-    const blfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_rewards_file(
-      rdpl, dcha
-    )
+    const blfFile = build_user_rewards_file(rdpl, dcha);
 
     return new StreamableFile(blfFile);
   }

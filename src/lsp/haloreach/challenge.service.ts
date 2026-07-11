@@ -1,9 +1,14 @@
 import { Inject, Injectable } from "@nestjs/common";
-import * as BLF from '@blam-network/blf_lsp';
+import {
+    e_challenge_category,
+    s_blf_chunk_challenge_progress,
+    s_blf_chunk_challenge_state,
+    s_challenge_state,
+} from "@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual";
 import { Prisma } from "@prisma/client";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { PrismaService } from "src/db/prisma.service";
-import { AVAILABLE_BOUNTY_CHALLENGES, AVAILABLE_CAMPAIGN_CHALLENGES, AVAILABLE_FIREFIGHT_CHALLENGES, AVAILABLE_MATCHMAKING_CHALLENGES, AVAILABLE_WEEKLY_CHALLENGES, HaloReachFirefightChallenge, HaloReachWeeklyChallenge } from "./challenges";
+import { AVAILABLE_BOUNTY_CHALLENGES, AVAILABLE_CAMPAIGN_CHALLENGES, AVAILABLE_FIREFIGHT_CHALLENGES, AVAILABLE_MATCHMAKING_CHALLENGES, AVAILABLE_WEEKLY_CHALLENGES } from "./challenges";
 import { DeterministicRandomizer } from "src/utils/random";
 import { differenceInDays, differenceInWeeks } from "date-fns";
 
@@ -15,6 +20,10 @@ const MAXIMUM_CHALLENGES_PER_SET = 10;
 const JAN_1_2000 = new Date(2000, 1, 1);
 const DAILY_CHALLENGE_CREDITS_MULTIPLIER = 1.5;
 const WEEKLY_CHALLENGE_CREDITS_MULTIPLIER = 1.5;
+
+function emptyChallengeSlots(): s_challenge_state[] {
+    return Array.from({ length: MAXIMUM_CHALLENGES_PER_SET }, () => new s_challenge_state());
+}
 
 @Injectable()
 export class HaloReachChallengeService {
@@ -70,11 +79,8 @@ export class HaloReachChallengeService {
     private getDayIndex = () => differenceInDays(this.getNextDailyResetDate(), JAN_1_2000) - 1;
     private getWeekIndex = () => differenceInWeeks(this.getNextWeeklyResetDate(), JAN_1_2000) - 1;
 
-    public getRandomDailyChallenges = (): BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state[] => {
-        const challenges = Array.from(
-            { length: MAXIMUM_CHALLENGES_PER_SET },
-            () => ({ category: 0, challenge: 0 } as BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state)
-        );
+    public getRandomDailyChallenges = (): s_challenge_state[] => {
+        const challenges = emptyChallengeSlots();
 
         // this should really be based on the challenge difficulty, but for now it's more random.
         const CHALLENGE_CREDITS_RANGE = [
@@ -91,27 +97,27 @@ export class HaloReachChallengeService {
             const randomizer = new DeterministicRandomizer(`${this.getNextDailyResetDate().getDate().toString()}-${challengeNumber}`)
 
             let challengeCategory = randomizer.pick([
-                BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.bounty,
-                BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.campaign,
-                BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.firefight,
-                BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.matchmaking,
+                e_challenge_category.bounty,
+                e_challenge_category.campaign,
+                e_challenge_category.firefight,
+                e_challenge_category.matchmaking,
             ])
 
             let challenge: number = 0;
             switch (challengeCategory) {
-                case BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.bounty: {
+                case e_challenge_category.bounty: {
                     challenge = randomizer.pick_and_remove(REMAINING_BOUNTY_CHALLENGES)
                     break;
                 }
-                case BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.campaign: {
+                case e_challenge_category.campaign: {
                     challenge = randomizer.pick_and_remove(REMAINING_CAMPAIGN_CHALLENGES)
                     break;
                 }
-                case BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.firefight: {
+                case e_challenge_category.firefight: {
                     challenge = randomizer.pick_and_remove(REMAINING_FIREFIGHT_CHALLENGES)
                     break;
                 }
-                case BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.matchmaking: {
+                case e_challenge_category.matchmaking: {
                     challenge = randomizer.pick_and_remove(REMAINING_MATCHMAKING_CHALLENGES)
                     break;
                 }
@@ -119,22 +125,21 @@ export class HaloReachChallengeService {
 
             challenges[challengeNumber].category = challengeCategory;
             challenges[challengeNumber].challenge = challenge;
-            challenges[challengeNumber].cookie_reward = randomizer.pick(CHALLENGE_CREDITS_RANGE) * DAILY_CHALLENGE_CREDITS_MULTIPLIER;
+            challenges[challengeNumber].cookie_reward = Math.round(
+                randomizer.pick(CHALLENGE_CREDITS_RANGE) * DAILY_CHALLENGE_CREDITS_MULTIPLIER
+            );
         }
 
         return challenges;
     }
 
-    public getRandomWeeklyChallenges = (): BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state[] => {
-        const challenges = Array.from(
-            { length: MAXIMUM_CHALLENGES_PER_SET },
-            () => ({ category: 0, challenge: 0 } as BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state)
-        );
+    public getRandomWeeklyChallenges = (): s_challenge_state[] => {
+        const challenges = emptyChallengeSlots();
 
         for (let challengeNumber = 0; challengeNumber < WEEKLY_CHALLENGES_COUNT; challengeNumber++) {
             const randomizer = new DeterministicRandomizer(`${this.getNextWeeklyResetDate().getDate().toString()}-${challengeNumber}`)
 
-            let challengeCategory = BLF.haloreach_12065_11_08_24_1738_tu1actual.e_challenge_category.weekly;
+            let challengeCategory = e_challenge_category.weekly;
             let challenge: number = randomizer.pick(AVAILABLE_WEEKLY_CHALLENGES);
 
             // this should really be based on the challenge difficulty, but for now it's more random.
@@ -144,41 +149,39 @@ export class HaloReachChallengeService {
 
             challenges[challengeNumber].category = challengeCategory
             challenges[challengeNumber].challenge = challenge;
-            challenges[challengeNumber].cookie_reward = randomizer.pick(CHALLENGE_CREDITS_RANGE) * WEEKLY_CHALLENGE_CREDITS_MULTIPLIER;
+            // i16 max is 32767; clamp weekly cookie overrides to the wire type.
+            challenges[challengeNumber].cookie_reward = Math.min(
+                32767,
+                Math.round(randomizer.pick(CHALLENGE_CREDITS_RANGE) * WEEKLY_CHALLENGE_CREDITS_MULTIPLIER)
+            );
         }
 
         return challenges;
     }
 
-    public getActiveChallenges = async (xuid: BigInt): Promise<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_state> => {        
+    public getActiveChallenges = async (xuid: BigInt): Promise<s_blf_chunk_challenge_state> => {
+        const dcha = new s_blf_chunk_challenge_state();
+
         if (!CHALLENGES_ENABLED || (CHALLENGES_WHITELIST && !await this.isWhitelisted(xuid))) {
-            return {
-                active_challenge_set_1: 0,
-                active_challenge_set_2: 0,
-                chalenge_set_1: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(MAXIMUM_CHALLENGES_PER_SET)
-                    .fill({category: 0, challenge: 0,}),
-                chalenge_set_2: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_challenge_state>(MAXIMUM_CHALLENGES_PER_SET)
-                    .fill({category: 0, challenge: 0,}),
-                chalenge_set_1_count: 0,
-                chalenge_set_2_count: 0,
-                chalenge_set_1_timestamp: new Date(),
-                chalenge_set_2_timestamp: new Date(),
-            }
+            dcha.chalenge_set_1 = emptyChallengeSlots();
+            dcha.chalenge_set_2 = emptyChallengeSlots();
+            dcha.chalenge_set_1_timestamp = new Date();
+            dcha.chalenge_set_2_timestamp = new Date();
+            return dcha;
         }
 
-        return {
-            active_challenge_set_1: this.getDayIndex(),
-            active_challenge_set_2: this.getWeekIndex(),
-            chalenge_set_1_count: DAILY_CHALLENGES_COUNT,
-            chalenge_set_2_count: WEEKLY_CHALLENGES_COUNT,
-            chalenge_set_1_timestamp: this.getNextDailyResetDate(),
-            chalenge_set_2_timestamp: this.getNextWeeklyResetDate(),
-            chalenge_set_1: this.getRandomDailyChallenges(),
-            chalenge_set_2: this.getRandomWeeklyChallenges(),
-        }
+        dcha.active_challenge_set_1 = this.getDayIndex();
+        dcha.active_challenge_set_2 = this.getWeekIndex();
+        dcha.chalenge_set_1_count = DAILY_CHALLENGES_COUNT;
+        dcha.chalenge_set_2_count = WEEKLY_CHALLENGES_COUNT;
+        dcha.chalenge_set_1_timestamp = this.getNextDailyResetDate();
+        dcha.chalenge_set_2_timestamp = this.getNextWeeklyResetDate();
+        dcha.chalenge_set_1 = this.getRandomDailyChallenges();
+        dcha.chalenge_set_2 = this.getRandomWeeklyChallenges();
+        return dcha;
     }
 
-    public getChallengeProgress = async (xuid: BigInt): Promise<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_progress> => {
+    public getChallengeProgress = async (xuid: BigInt): Promise<s_blf_chunk_challenge_progress> => {
         return await this.prisma.$transaction(async (tx) => {
             // Delete expired challenge progress...
             await tx.reach_player_challenge_progress.deleteMany({
@@ -195,33 +198,29 @@ export class HaloReachChallengeService {
                 }
             })
 
-            const responseChallengeSet1Progress = Array<number>(10).fill(0, 0, 10);
-            const responseChallengeSet2Progress = Array<number>(10).fill(0, 0, 10);
+            const chpr = new s_blf_chunk_challenge_progress();
+            chpr.active_challenge_set_1 = activeChallenges.active_challenge_set_1;
+            chpr.active_challenge_set_2 = activeChallenges.active_challenge_set_2;
 
             activeChallengeProgress
                 .filter(challengeProgress => challengeProgress.challenge_set === activeChallenges.active_challenge_set_1)
                 .forEach(challengeProgress => {
-                    responseChallengeSet1Progress[challengeProgress.challenge_index] = challengeProgress.progress
+                    chpr.chalenge_set_1_progress[challengeProgress.challenge_index] = challengeProgress.progress
                 })
 
             activeChallengeProgress
                 .filter(challengeProgress => challengeProgress.challenge_set === activeChallenges.active_challenge_set_2)
                 .forEach(challengeProgress => {
-                    responseChallengeSet2Progress[challengeProgress.challenge_index] = challengeProgress.progress
+                    chpr.chalenge_set_2_progress[challengeProgress.challenge_index] = challengeProgress.progress
                 })
 
-            return {
-                active_challenge_set_1: activeChallenges.active_challenge_set_1,
-                active_challenge_set_2: activeChallenges.active_challenge_set_2,
-                chalenge_set_1_progress: responseChallengeSet1Progress,
-                chalenge_set_2_progress: responseChallengeSet2Progress,
-            } satisfies BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_progress
+            return chpr;
         });
     }
 
     public updateChallengeProgress = async (
         xuid: BigInt,
-        chpr: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_challenge_progress
+        chpr: s_blf_chunk_challenge_progress
     ) => {
         const activeChallenges = await this.getActiveChallenges(xuid);
 

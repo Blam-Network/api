@@ -671,6 +671,11 @@ export class StatsService {
                 properties.push({ id: property.id, value });
             }
 
+            this.logger.log(
+                `Stats write for session ${sessionId} xuid=${xuid}: view lb=${leaderboardId} ` +
+                    `propertyCount=${write.propertyCount} usable=${properties.length} props=${JSON.stringify(properties)}`,
+            );
+
             if (properties.length === 0) {
                 continue;
             }
@@ -761,6 +766,10 @@ export class StatsService {
                   }))
                 : [];
 
+            this.logger.log(
+                `Session ${sessionId} finalize: staged row id=${row.id} lb=${leaderboardId} xuid=${xuid} props=${JSON.stringify(props)}`,
+            );
+
             if (leaderboardId === this._online_leaderboard_id_skill) {
                 // The match parameters ride on the xuid=0 view; each player's placement/team on theirs.
                 if (xuid === BigInt(0)) {
@@ -797,6 +806,11 @@ export class StatsService {
             accumGroups.set(key, group);
         }
 
+        this.logger.log(
+            `Session ${sessionId} finalize: ${staged.length} staged row(s) -> ${accumGroups.size} accumulation group(s), ` +
+                `${skillPlayerRows.length} skill player view(s), ${skillParamProps.length} skill param prop(s)`,
+        );
+
         // Compute TrueSkill first, in memory, so a failure here never rolls back the accumulation.
         let skillResults: TrueSkillPlayerResult[] | null = null;
         try {
@@ -806,6 +820,10 @@ export class StatsService {
                 `Session ${sessionId} finalize: TrueSkill computation failed: ${error instanceof Error ? error.message : String(error)}`,
             );
             skillResults = null;
+        }
+
+        if (skillResults) {
+            this.logger.log(`Session ${sessionId} finalize: TrueSkill results ${JSON.stringify(skillResults)}`);
         }
 
         await this.prisma.$transaction(async (tx) => {
@@ -865,6 +883,10 @@ export class StatsService {
         if (target === 'hopper') {
             const existing = await tx.ares_player_stats_hopper.findUnique({ where: key });
             const data = this.buildStatWritePatch(target, existing, stagedProps);
+            this.logger.log(
+                `finalize accum hopper lb=${leaderboardId} xuid=${xuid}: existing=${existing ? 'yes' : 'no'} ` +
+                    `props=${JSON.stringify(stagedProps)} patch=${JSON.stringify(data)}`,
+            );
             if (data === null) {
                 return;
             }
@@ -887,6 +909,10 @@ export class StatsService {
         } else {
             const existing = await tx.ares_player_stats_global.findUnique({ where: key });
             const data = this.buildStatWritePatch(target, existing, stagedProps);
+            this.logger.log(
+                `finalize accum global lb=${leaderboardId} xuid=${xuid}: existing=${existing ? 'yes' : 'no'} ` +
+                    `props=${JSON.stringify(stagedProps)} patch=${JSON.stringify(data)}`,
+            );
             if (data === null) {
                 return;
             }
@@ -975,14 +1001,17 @@ export class StatsService {
             };
         });
 
-        return computeTrueSkillRatings(
-            {
-                drawProbability: drawRaw === undefined ? null : Number(drawRaw),
-                beta: Number(betaRaw),
-                tau: Number(tauRaw),
-            },
-            inputs,
+        const beta = Number(betaRaw);
+        const tau = Number(tauRaw);
+        const drawProbability = drawRaw === undefined ? null : Number(drawRaw);
+
+        this.logger.log(
+            `Session ${sessionId} finalize: TrueSkill params beta=${beta} tau=${tau} draw=${drawProbability} ` +
+                `(raw beta=${betaRaw}, tau=${tauRaw}, draw=${drawRaw}); loaded ${priorRows.length} prior row(s); ` +
+                `inputs=${JSON.stringify(inputs)}`,
         );
+
+        return computeTrueSkillRatings({ drawProbability, beta, tau }, inputs);
     }
 
     /**
@@ -996,10 +1025,12 @@ export class StatsService {
         properties: { id: number; value: string }[],
     ): Record<string, number | string> | null {
         const changes = new Map<string, number | bigint>();
+        const ignoredIds: number[] = [];
 
         for (const property of properties) {
             const mapping = this._stat_write_schema[property.id];
             if (!mapping || mapping.target !== target) {
+                ignoredIds.push(property.id);
                 continue; // _online_property_unused, TrueSkill inputs and unrelated ids are ignored
             }
 
@@ -1020,6 +1051,12 @@ export class StatsService {
                 const current = this.currentNumberValue(changes, existing, mapping.column);
                 changes.set(mapping.column, this.aggregateNumber(mapping.method, current, incoming));
             }
+        }
+
+        if (ignoredIds.length > 0) {
+            this.logger.log(
+                `buildStatWritePatch(${target}): ignored ${ignoredIds.length} unmapped/other-target property id(s) [${ignoredIds.join(', ')}]`,
+            );
         }
 
         if (changes.size === 0) {

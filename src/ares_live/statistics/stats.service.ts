@@ -4,9 +4,11 @@ import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { 
     SBlfFileStatsQuerySchema,
     SBlfFileStatsQueryResponseSchema,
+    SBlfFileStatsWriteSchema,
     s_stats_query_response_leaderboard,
     s_stats_query_response_row,
     s_stats_query_response_column,
+    s_online_property,
 } from './stats.chunks';
 import { ARES_LIVE_AUTHOR, DEFAULT_BLF_CHUNK, DEFAULT_EOF_CHUNK, s_online_data } from '../chunks';
 
@@ -71,6 +73,28 @@ export class StatsService {
     private readonly _online_leaderboard_id_global_unarbitrated = 2;
     private readonly _online_leaderboard_id_hopper_0 = 3;
     private readonly _online_leaderboard_id_hopper_31 = 96;
+
+    // e_online_property_id (see online_constants.h). These are the property ids the game
+    // client emits on stat writes; the value is stored in each property's s_online_data.
+    private readonly _online_property_id_hopper_skill = 10;
+    private readonly _online_property_id_hopper_games_played = 11;
+    private readonly _online_property_id_hopper_games_completed = 12;
+    private readonly _online_property_id_hopper_games_won = 13;
+    private readonly _online_property_id_hopper_experience_base = 14;
+    private readonly _online_property_id_hopper_experience_penalty = 15;
+    private readonly _online_property_id_global_experience_base = 16;
+    private readonly _online_property_id_global_experience_penalty = 17;
+    private readonly _online_property_id_global_highest_skill_level_attained = 18;
+    private readonly _online_property_id_global_matchmade_ranked_games_played = 19;
+    private readonly _online_property_id_global_matchmade_ranked_games_completed = 20;
+    private readonly _online_property_id_global_matchmade_ranked_games_won = 21;
+    private readonly _online_property_id_global_matchmade_unranked_games_played = 22;
+    private readonly _online_property_id_global_matchmade_unranked_games_completed = 23;
+    private readonly _online_property_id_global_matchmade_unranked_games_won = 24;
+    private readonly _online_property_id_global_custom_games_completed = 26;
+    private readonly _online_property_id_global_custom_games_won = 27;
+    private readonly _online_property_id_global_first_game_played_date = 28;
+    private readonly _online_property_id_global_last_game_played_date = 29;
 
     constructor(
         private readonly prisma: PrismaService,
@@ -513,6 +537,321 @@ export class StatsService {
             _eof: DEFAULT_EOF_CHUNK,
         });
         return { buffer, size: buffer.length };
+    }
+
+    /**
+     * Reads a numeric value out of an s_online_data union based on its type tag.
+     * The CUnion reader materializes every variant from the same bytes, so we must
+     * pick the correct one using the discriminating `type`.
+     */
+    private readOnlineDataAsNumber(onlineData: s_online_data): number | null {
+        try {
+            switch (onlineData.type) {
+                case 'integer': {
+                    // s_online_data::data_as_long is a 32-bit signed `long` in game code.
+                    const value = onlineData.data?.data_as_long?.data;
+                    return value === undefined ? null : Number(BigInt.asIntN(32, BigInt(value)));
+                }
+                case 'qword': {
+                    const value = onlineData.data?.data_as_qword?.data;
+                    return value === undefined ? null : Number(value);
+                }
+                case 'double': {
+                    const value = onlineData.data?.data_as_double?.data;
+                    return value === undefined ? null : value;
+                }
+                case 'float': {
+                    const value = onlineData.data?.data_as_float?.data;
+                    return value === undefined ? null : value;
+                }
+                case 'date_time': {
+                    const value = onlineData.data?.data_as_date_time?.data;
+                    return value === undefined ? null : Number(value);
+                }
+                default:
+                    return null;
+            }
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Parses a stats write BLF uploaded by the game client and persists the results.
+     *
+     * The game emits up to four s_online_stat_write "views" per player: a skill view
+     * (leaderboard 0), a hopper view (leaderboard 3..96) and global arbitrated/unarbitrated
+     * views (leaderboard 1/2). Each view is a list of s_online_property values keyed by
+     * e_online_property_id. Counters accumulate; skill level / dates are set.
+     *
+     * The skill leaderboard (0) carries TrueSkill update inputs (draw-probability, beta, tau,
+     * relative score, team) rather than the final mu/sigma distribution, so recomputing
+     * player_stats_hopper_skill would require a full server-side TrueSkill pass with match
+     * correlation. That is intentionally left as a follow-up; those views are skipped here.
+     */
+    async processStatsWriteBlf(file: Express.Multer.File): Promise<void> {
+        let fileData;
+        try {
+            fileData = SBlfFileStatsWriteSchema.read(file.buffer);
+        } catch (error) {
+            this.logger.error(`Failed to parse stats write BLF: ${error instanceof Error ? error.message : String(error)}`);
+            throw new Error(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
+        }
+
+        const request = fileData.xswq;
+        const xuid = request.xuid;
+        const writeCount = Math.min(request.writeCount, request.writes.length);
+        const sessionId = this.formatSessionId(request.sessionId.data);
+
+        this.logger.log(`Processing stats write for session ${sessionId} (xuid=${xuid}, writeCount=${writeCount})`);
+
+        for (let writeIndex = 0; writeIndex < writeCount; writeIndex++) {
+            const write = request.writes[writeIndex];
+            const leaderboardId = write.leaderboardId;
+            const propertyCount = Math.min(write.propertyCount, write.properties.length);
+            const properties = write.properties.slice(0, propertyCount);
+
+            if (leaderboardId === this._online_leaderboard_id_skill) {
+                // TrueSkill mu/sigma recompute not implemented yet (see method doc comment). The
+                // session id is now carried on the write so a future implementation can correlate
+                // all of a match's writes and run the update.
+                this.logger.log(
+                    `Skipping skill-leaderboard stat write for session ${sessionId} xuid=${xuid} (TrueSkill mu/sigma recompute not implemented)`,
+                );
+                continue;
+            }
+
+            if (xuid === BigInt(0)) {
+                this.logger.warn(`Skipping stat write with no xuid for session ${sessionId} leaderboard ${leaderboardId}`);
+                continue;
+            }
+
+            try {
+                if (
+                    leaderboardId >= this._online_leaderboard_id_hopper_0 &&
+                    leaderboardId <= this._online_leaderboard_id_hopper_31
+                ) {
+                    await this.applyHopperStatWrite(leaderboardId, xuid, properties, sessionId);
+                } else if (
+                    leaderboardId === this._online_leaderboard_id_global_arbitrated ||
+                    leaderboardId === this._online_leaderboard_id_global_unarbitrated
+                ) {
+                    await this.applyGlobalStatWrite(leaderboardId, xuid, properties, sessionId);
+                } else {
+                    this.logger.warn(`Unrecognized leaderboard id ${leaderboardId} in stat write for session ${sessionId} xuid=${xuid}`);
+                }
+            } catch (error) {
+                this.logger.error(
+                    `Failed to persist stat write for session ${sessionId} leaderboard ${leaderboardId} xuid=${xuid}: ${error instanceof Error ? error.message : String(error)}`,
+                );
+            }
+        }
+    }
+
+    /**
+     * Formats an 8-byte transport secure identifier as uppercase hex with a colon in the middle
+     * (e.g. E0B4722A:24253947), matching the session service representation. An all-zero id means
+     * the client could not resolve the session handle.
+     */
+    private formatSessionId(sessionIdBytes: number[] | Buffer | Uint8Array): string {
+        const bytes = Array.from(sessionIdBytes);
+        if (bytes.length !== 8) {
+            return 'INVALID';
+        }
+        if (bytes.every((b) => b === 0)) {
+            return 'UNKNOWN';
+        }
+        const firstPart = Buffer.from(bytes.slice(0, 4)).toString('hex').toUpperCase();
+        const secondPart = Buffer.from(bytes.slice(4, 8)).toString('hex').toUpperCase();
+        return `${firstPart}:${secondPart}`;
+    }
+
+    private async applyHopperStatWrite(
+        leaderboardId: number,
+        xuid: bigint,
+        properties: s_online_property[],
+        sessionId: string,
+    ): Promise<void> {
+        const key = {
+            leaderboard_id_player_xuid: {
+                leaderboard_id: leaderboardId,
+                player_xuid: xuid.toString(),
+            },
+        };
+
+        const existing = await this.prisma.ares_player_stats_hopper.findUnique({ where: key });
+
+        let skill = existing?.skill ?? 0;
+        let gamesCompleted = existing?.games_completed ?? 0;
+        let gamesPlayed = existing?.games_played ?? 0;
+        let gamesWon = existing?.games_won ?? 0;
+        let expBase = existing?.exp_base ?? 0;
+        let expPenalty = existing?.exp_penalty ?? 0;
+
+        for (const property of properties) {
+            const value = this.readOnlineDataAsNumber(property.data);
+            if (value === null) {
+                continue;
+            }
+            switch (property.id) {
+                case this._online_property_id_hopper_skill:
+                    skill = value; // current skill level, set rather than accumulated
+                    break;
+                case this._online_property_id_hopper_games_played:
+                    gamesPlayed += value;
+                    break;
+                case this._online_property_id_hopper_games_completed:
+                    gamesCompleted += value;
+                    break;
+                case this._online_property_id_hopper_games_won:
+                    gamesWon += value;
+                    break;
+                case this._online_property_id_hopper_experience_base:
+                    expBase += value;
+                    break;
+                case this._online_property_id_hopper_experience_penalty:
+                    expPenalty += value;
+                    break;
+                default:
+                    break; // _online_property_unused and unrelated ids are ignored
+            }
+        }
+
+        const data = {
+            skill,
+            games_completed: gamesCompleted,
+            games_played: gamesPlayed,
+            games_won: gamesWon,
+            exp_base: expBase,
+            exp_penalty: expPenalty,
+        };
+
+        await this.prisma.ares_player_stats_hopper.upsert({
+            where: key,
+            create: {
+                leaderboard_id: leaderboardId,
+                player_xuid: xuid.toString(),
+                ...data,
+            },
+            update: data,
+        });
+
+        this.logger.log(`Persisted hopper stat write for session ${sessionId} leaderboard ${leaderboardId} xuid=${xuid}`);
+    }
+
+    private async applyGlobalStatWrite(
+        leaderboardId: number,
+        xuid: bigint,
+        properties: s_online_property[],
+        sessionId: string,
+    ): Promise<void> {
+        const key = {
+            leaderboard_id_player_xuid: {
+                leaderboard_id: leaderboardId,
+                player_xuid: xuid.toString(),
+            },
+        };
+
+        const existing = await this.prisma.ares_player_stats_global.findUnique({ where: key });
+
+        let customGamesCompleted = existing?.custom_games_completed ?? 0;
+        let customGamesWon = existing?.custom_games_won ?? 0;
+        let experienceBase = existing?.experience_base ?? 0;
+        let experiencePenalty = existing?.experience_penalty ?? 0;
+        let highestSkillLevelAttained = existing?.highest_skill_level_attained ?? 0;
+        let matchmadeRankedGamesPlayed = existing?.matchmade_ranked_games_played ?? 0;
+        let matchmadeRankedGamesCompleted = existing?.matchmade_ranked_games_completed ?? 0;
+        let matchmadeRankedGamesWon = existing?.matchmade_ranked_games_won ?? 0;
+        let matchmadeUnrankedGamesPlayed = existing?.matchmade_unranked_games_played ?? 0;
+        let matchmadeUnrankedGamesCompleted = existing?.matchmade_unranked_games_completed ?? 0;
+        let matchmadeUnrankedGamesWon = existing?.matchmade_unranked_games_won ?? 0;
+        let firstGamePlayedDate: bigint | null = existing?.first_game_played_date
+            ? BigInt(existing.first_game_played_date.toString())
+            : null;
+        let lastGamePlayedDate: bigint | null = existing?.last_game_played_date
+            ? BigInt(existing.last_game_played_date.toString())
+            : null;
+
+        for (const property of properties) {
+            const value = this.readOnlineDataAsNumber(property.data);
+            if (value === null) {
+                continue;
+            }
+            switch (property.id) {
+                case this._online_property_id_global_experience_base:
+                    experienceBase += value;
+                    break;
+                case this._online_property_id_global_experience_penalty:
+                    experiencePenalty += value;
+                    break;
+                case this._online_property_id_global_highest_skill_level_attained:
+                    highestSkillLevelAttained = Math.max(highestSkillLevelAttained, value);
+                    break;
+                case this._online_property_id_global_matchmade_ranked_games_played:
+                    matchmadeRankedGamesPlayed += value;
+                    break;
+                case this._online_property_id_global_matchmade_ranked_games_completed:
+                    matchmadeRankedGamesCompleted += value;
+                    break;
+                case this._online_property_id_global_matchmade_ranked_games_won:
+                    matchmadeRankedGamesWon += value;
+                    break;
+                case this._online_property_id_global_matchmade_unranked_games_played:
+                    matchmadeUnrankedGamesPlayed += value;
+                    break;
+                case this._online_property_id_global_matchmade_unranked_games_completed:
+                    matchmadeUnrankedGamesCompleted += value;
+                    break;
+                case this._online_property_id_global_matchmade_unranked_games_won:
+                    matchmadeUnrankedGamesWon += value;
+                    break;
+                case this._online_property_id_global_custom_games_completed:
+                    customGamesCompleted += value;
+                    break;
+                case this._online_property_id_global_custom_games_won:
+                    customGamesWon += value;
+                    break;
+                case this._online_property_id_global_first_game_played_date:
+                    // Only record the first time we ever see the player play.
+                    if (firstGamePlayedDate === null || firstGamePlayedDate === BigInt(0)) {
+                        firstGamePlayedDate = BigInt(value);
+                    }
+                    break;
+                case this._online_property_id_global_last_game_played_date:
+                    lastGamePlayedDate = BigInt(value);
+                    break;
+                default:
+                    break; // _online_property_unused and unrelated ids are ignored
+            }
+        }
+
+        const data = {
+            custom_games_completed: customGamesCompleted,
+            custom_games_won: customGamesWon,
+            experience_base: experienceBase,
+            experience_penalty: experiencePenalty,
+            highest_skill_level_attained: highestSkillLevelAttained,
+            matchmade_ranked_games_played: matchmadeRankedGamesPlayed,
+            matchmade_ranked_games_completed: matchmadeRankedGamesCompleted,
+            matchmade_ranked_games_won: matchmadeRankedGamesWon,
+            matchmade_unranked_games_played: matchmadeUnrankedGamesPlayed,
+            matchmade_unranked_games_completed: matchmadeUnrankedGamesCompleted,
+            matchmade_unranked_games_won: matchmadeUnrankedGamesWon,
+            first_game_played_date: firstGamePlayedDate === null ? null : firstGamePlayedDate.toString(),
+            last_game_played_date: lastGamePlayedDate === null ? null : lastGamePlayedDate.toString(),
+        };
+
+        await this.prisma.ares_player_stats_global.upsert({
+            where: key,
+            create: {
+                leaderboard_id: leaderboardId,
+                player_xuid: xuid.toString(),
+                ...data,
+            },
+            update: data,
+        });
+
+        this.logger.log(`Persisted global stat write for session ${sessionId} leaderboard ${leaderboardId} xuid=${xuid}`);
     }
 }
 

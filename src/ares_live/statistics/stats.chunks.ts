@@ -1,6 +1,7 @@
 import { c } from "../../cstruct";
 import { blf, SBlfChunkEndOfFileSchema } from "../../blf";
 import { SBlfChunkAuthorSchema, SBlfChunkStartOfFileSchema, OnlineDataSchema } from "../chunks";
+import { TransportSessionIdSchema } from "../sessions/session.chunks";
 
 /**
  * BLF Chunk Schemas for Ares Statistics API
@@ -82,12 +83,60 @@ export const SBlfChunkStatsQueryResponseSchema = blf.createChunkSchema({
     ],
 });
 
+// Online Property Schema (s_online_property: id + padding + s_online_data)
+// Matches the C++ s_online_property struct (pack 8): id (u32) at 0x0, value at 0x8
+const OnlinePropertySchema = c.createCStruct({
+    endian: 'little',
+    pack: 1,
+    fields: [
+        { name: 'id', type: 'u32' }, // e_online_property_id
+        { name: 'padding', type: 'padding', count: 4 }, // align value to 8-byte boundary
+        { name: 'data', type: OnlineDataSchema },
+    ],
+});
+
+// Stats Write Leaderboard Schema (s_online_stat_write: leaderboard_id + property_count + properties[16])
+const StatsWriteLeaderboardSchema = c.createCStruct({
+    endian: 'little',
+    pack: 1,
+    fields: [
+        { name: 'leaderboardId', type: 'u32' }, // e_online_leaderboard_id
+        { name: 'propertyCount', type: 'u32' },
+        { name: 'properties', type: OnlinePropertySchema, count: 16 }, // Max 16 properties (matches resym: properties[16])
+    ],
+});
+
+// Stats Write Chunk Schema
+// Matches s_blf_chunk_stats_write from game code: session_id + xuid + write_count + writes[4]
+export const SBlfChunkStatsWriteSchema = blf.createChunkSchema({
+    name: 'xswq',
+    majorVersion: 1,
+    minorVersion: 0,
+    endian: 'little',
+    pack: 1,
+    fields: [
+        { name: 'sessionId', type: TransportSessionIdSchema }, // arbitrated session these writes belong to (match correlation)
+        { name: 'xuid', type: 'u64' },
+        { name: 'writeCount', type: 'u32' },
+        { name: 'writes', type: StatsWriteLeaderboardSchema, count: 4 }, // Max 4 writes (matchmade uses 3, custom/global use 1)
+    ],
+});
+
 // File schema for reading stats query requests (full BLF file with _eof)
 // Matches s_blffile_stats_query structure from game code
 export const SBlfFileStatsQuerySchema = blf.createFileSchema([
     SBlfChunkStartOfFileSchema,
     SBlfChunkAuthorSchema,
     SBlfChunkStatsQuerySchema,
+    SBlfChunkEndOfFileSchema,
+]);
+
+// File schema for reading stats write requests (full BLF file with _eof)
+// Matches s_blffile_stats_write structure from game code
+export const SBlfFileStatsWriteSchema = blf.createFileSchema([
+    SBlfChunkStartOfFileSchema,
+    SBlfChunkAuthorSchema,
+    SBlfChunkStatsWriteSchema,
     SBlfChunkEndOfFileSchema,
 ]);
 
@@ -101,10 +150,13 @@ export const SBlfFileStatsQueryResponseSchema = blf.createFileSchema([
 // Type exports
 export type s_blf_chunk_stats_query = blf.infer<typeof SBlfChunkStatsQuerySchema>;
 export type s_blf_chunk_stats_query_response = blf.infer<typeof SBlfChunkStatsQueryResponseSchema, false>;
+export type s_blf_chunk_stats_write = blf.infer<typeof SBlfChunkStatsWriteSchema>;
 
 // Helper type exports for nested structures
 export type s_stats_query_spec = c.infer<typeof StatsQuerySpecSchema>;
 export type s_stats_query_response_column = c.infer<typeof StatsQueryResponseColumnSchema>;
 export type s_stats_query_response_row = c.infer<typeof StatsQueryResponseRowSchema>;
 export type s_stats_query_response_leaderboard = c.infer<typeof StatsQueryResponseLeaderboardSchema>;
+export type s_stats_write_leaderboard = c.infer<typeof StatsWriteLeaderboardSchema>;
+export type s_online_property = c.infer<typeof OnlinePropertySchema>;
 

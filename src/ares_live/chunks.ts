@@ -59,7 +59,6 @@ export type s_blf_chunk_author = blf.infer<typeof SBlfChunkAuthorSchema, false>;
 // Online Data Schema (used by session search and stats query response)
 // C++ struct has: type (1 byte) + padding (7 bytes) + union (16 bytes) = 24 bytes total
 // The union contains various types, largest member is 16 bytes (string/binary structs)
-// Pack alignment will automatically add 7 bytes of padding after 'type' to align 'data' to offset 8
 export const OnlineDataSchema = c.createCStruct({
     endian: 'little',
     pack: 8,
@@ -75,6 +74,7 @@ export const OnlineDataSchema = c.createCStruct({
             date_time: 7,
             null: 255,
         } satisfies Record<string, number>, 'u8') },
+        { name: 'padding', type: 'padding', count: 7 }, // align union 'data' to offset 8
         { name: 'data', type: new c.Union({
             data_as_long: c.createCStruct({
                 endian: 'little',

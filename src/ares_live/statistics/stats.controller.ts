@@ -15,6 +15,8 @@ import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { StatsService } from './stats.service';
 import { StreamableFile } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @ApiTags('Stats')
 @Controller('api/stats')
@@ -78,6 +80,8 @@ export class StatsController {
                 );
             }
 
+            this.dumpStatsWriteBody(file.buffer);
+
             await this.statsService.processStatsWriteBlf(file);
             return 'ok';
         } catch (error) {
@@ -98,6 +102,46 @@ export class StatsController {
                 HttpStatus.INTERNAL_SERVER_ERROR,
             );
         }
+    }
+
+    /**
+     * Diagnostic: writes the raw stats-write request body to disk (both the exact bytes and a hex
+     * dump) so the on-the-wire payload can be inspected byte-for-byte against what the client sent.
+     * Files land in <cwd>/debug_blf/. Best-effort — never fails the request.
+     */
+    private dumpStatsWriteBody(buffer: Buffer): void {
+        try {
+            const dir = path.join(process.cwd(), 'debug_blf');
+            fs.mkdirSync(dir, { recursive: true });
+
+            const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const suffix = Math.random().toString(16).slice(2, 8);
+            const base = path.join(dir, `stats_write_${stamp}_${suffix}`);
+
+            fs.writeFileSync(`${base}.blf`, buffer);
+            fs.writeFileSync(`${base}.hex.txt`, this.formatHexDump(buffer));
+
+            this.logger.log(`Dumped stats write body (${buffer.length} bytes) to ${base}.blf (+ .hex.txt)`);
+        } catch (error) {
+            this.logger.error(`Failed to dump stats write body: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /** Classic offset | hex bytes | ascii dump for readable inspection. */
+    private formatHexDump(buffer: Buffer): string {
+        const lines: string[] = [];
+        for (let offset = 0; offset < buffer.length; offset += 16) {
+            const slice = buffer.subarray(offset, offset + 16);
+            const hex = Array.from(slice)
+                .map((b) => b.toString(16).padStart(2, '0'))
+                .join(' ')
+                .padEnd(16 * 3 - 1, ' ');
+            const ascii = Array.from(slice)
+                .map((b) => (b >= 0x20 && b <= 0x7e ? String.fromCharCode(b) : '.'))
+                .join('');
+            lines.push(`${offset.toString(16).padStart(8, '0')}  ${hex}  ${ascii}`);
+        }
+        return lines.join('\n');
     }
 
     private async handleQuery(file: Express.Multer.File, res: Response) {

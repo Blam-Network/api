@@ -1,4 +1,20 @@
-import { Rating, TrueSkill } from 'ts-trueskill';
+import type { Rating } from 'ts-trueskill';
+
+type TrueSkillModule = typeof import('ts-trueskill');
+
+let trueSkillModulePromise: Promise<TrueSkillModule> | null = null;
+
+/**
+ * ts-trueskill ships only as an ES module, but this project is compiled to CommonJS where a normal
+ * import/require of it throws ERR_REQUIRE_ESM. Load it through a real dynamic import that TypeScript
+ * will not down-level to require(), and cache the resolved module.
+ */
+function loadTrueSkill(): Promise<TrueSkillModule> {
+    if (!trueSkillModulePromise) {
+        trueSkillModulePromise = new Function('return import("ts-trueskill")')() as Promise<TrueSkillModule>;
+    }
+    return trueSkillModulePromise;
+}
 
 /**
  * TrueSkill match parameters as emitted by the game on the session's xuid=0 skill view. Values may
@@ -42,10 +58,10 @@ const DEFAULT_TAU = DEFAULT_SIGMA / 100;
  * are recomputed from each player's prior. Returns null when the match has fewer than two teams,
  * i.e. there is nothing to rate.
  */
-export function computeTrueSkillRatings(
+export async function computeTrueSkillRatings(
     params: TrueSkillMatchParams,
     players: TrueSkillPlayerInput[],
-): TrueSkillPlayerResult[] | null {
+): Promise<TrueSkillPlayerResult[] | null> {
     const teamOrder: number[] = [];
     const teams = new Map<number, TrueSkillPlayerInput[]>();
     for (const player of players) {
@@ -66,6 +82,7 @@ export function computeTrueSkillRatings(
     const beta = params.beta !== null && Number.isFinite(params.beta) && params.beta > 0 ? params.beta : DEFAULT_BETA;
     const tau = params.tau !== null && Number.isFinite(params.tau) && params.tau >= 0 ? params.tau : DEFAULT_TAU;
 
+    const { TrueSkill } = await loadTrueSkill();
     const env = new TrueSkill(DEFAULT_MU, DEFAULT_SIGMA, beta, tau, drawProbability);
 
     const ratingGroups: Rating[][] = [];

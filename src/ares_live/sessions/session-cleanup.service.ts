@@ -9,6 +9,7 @@ import ILogger, { ILoggerSymbol } from 'src/ILogger';
 export class SessionCleanupService implements OnModuleInit, OnModuleDestroy {
     private readonly checkInterval = 60 * 60 * 1000; // Check every hour (in milliseconds)
     private readonly sessionLifetime = 7 * 24 * 60 * 60 * 1000; // Delete sessions older than 7 days (in milliseconds)
+    private readonly abandonedStatWriteLifetime = 24 * 60 * 60 * 1000; // Delete staged stat writes older than 24 hours
     private intervalHandle: NodeJS.Timeout | null = null;
 
     constructor(
@@ -22,8 +23,10 @@ export class SessionCleanupService implements OnModuleInit, OnModuleDestroy {
         );
         // Run cleanup immediately on startup, then schedule periodic runs
         this.cleanupOldSessions();
+        this.cleanupAbandonedStatWrites();
         this.intervalHandle = setInterval(() => {
             this.cleanupOldSessions();
+            this.cleanupAbandonedStatWrites();
         }, this.checkInterval);
     }
 
@@ -79,6 +82,34 @@ export class SessionCleanupService implements OnModuleInit, OnModuleDestroy {
             );
         } catch (error) {
             this.logger.error(`Error occurred while cleaning up old sessions: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
+        }
+    }
+
+    /**
+     * Deletes staged stat writes that were never finalized. A finalized session removes its own
+     * staged rows on session end, so any rows left older than abandonedStatWriteLifetime belong to
+     * a session whose end notification never arrived and would otherwise leak forever.
+     */
+    private async cleanupAbandonedStatWrites(): Promise<void> {
+        try {
+            const cutoffDate = new Date(Date.now() - this.abandonedStatWriteLifetime);
+
+            const result = await this.prisma.ares_sessions_stat_writes.deleteMany({
+                where: {
+                    created_at: {
+                        lt: cutoffDate,
+                    },
+                },
+            });
+
+            if (result.count > 0) {
+                this.logger.log(
+                    `Stat write cleanup completed. Deleted ${result.count} abandoned staged stat write(s) older than ${cutoffDate.toISOString()}`,
+                );
+            }
+        } catch (error) {
+            this.logger.error(`Error occurred while cleaning up abandoned stat writes: ${error instanceof Error ? error.message : String(error)}`);
             this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
         }
     }

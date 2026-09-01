@@ -170,6 +170,18 @@ export const SBlfChunkSessionDeleteSchema = blf.createChunkSchema({
     ],
 });
 
+// Session End Chunk Schema (sent by the game when a session ends; triggers stat finalization)
+export const SBlfChunkSessionEndSchema = blf.createChunkSchema({
+    name: 'xsse',
+    majorVersion: 1,
+    minorVersion: 0,
+    endian: 'little',
+    pack: 1,
+    fields: [
+        { name: 'sessionId', type: TransportSessionIdSchema },
+    ],
+});
+
 // Session Get By ID Chunk Schema
 export const SBlfChunkSessionGetByIdSchema = blf.createChunkSchema({
     name: 'xsgi',
@@ -275,6 +287,13 @@ export const SBlfFileSessionDeleteSchema = blf.createFileSchema([
     SBlfChunkEndOfFileSchema,
 ]);
 
+export const SBlfFileSessionEndSchema = blf.createFileSchema([
+    SBlfChunkStartOfFileSchema,
+    SBlfChunkAuthorSchema,
+    SBlfChunkSessionEndSchema,
+    SBlfChunkEndOfFileSchema,
+]);
+
 export const SBlfFileSessionMigrateHostSchema = blf.createFileSchema([
     SBlfChunkStartOfFileSchema,
     SBlfChunkAuthorSchema,
@@ -324,6 +343,7 @@ export type s_blf_chunk_session_create_response = blf.infer<typeof SBlfChunkSess
 export type s_blf_chunk_session_modify = blf.infer<typeof SBlfChunkSessionModifySchema>;
 export type s_blf_chunk_session_search_response = blf.infer<typeof SBlfChunkSessionSearchResponseSchema, false>;
 export type s_blf_chunk_session_delete = blf.infer<typeof SBlfChunkSessionDeleteSchema>;
+export type s_blf_chunk_session_end = blf.infer<typeof SBlfChunkSessionEndSchema>;
 export type s_blf_chunk_session_migrate_host = blf.infer<typeof SBlfChunkSessionMigrateHostSchema>;
 export type s_blf_chunk_session_migrate_host_response = blf.infer<typeof SBlfChunkSessionMigrateHostResponseSchema, false>;
 export type s_blf_chunk_session_get_by_id = blf.infer<typeof SBlfChunkSessionGetByIdSchema>;

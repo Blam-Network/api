@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { SessionService } from './session.service';
+import { StatsService } from '../statistics/stats.service';
 import { Response } from 'express';
 import { StreamableFile } from '@nestjs/common';
 import {
@@ -24,6 +25,7 @@ import {
     SBlfFileSessionDeleteSchema,
     SBlfFileSessionMigrateHostSchema,
     SBlfFileSessionGetByIdSchema,
+    SBlfFileSessionEndSchema,
 } from './session.chunks';
 
 /**
@@ -65,6 +67,7 @@ function transport_secure_identifier_get_string(sessionIdBytes: number[] | Buffe
 export class SessionController {
     constructor(
         private readonly sessionService: SessionService,
+        private readonly statsService: StatsService,
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
     ) {}
 
@@ -402,6 +405,64 @@ export class SessionController {
             this.logger.error(`Unexpected error deleting session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
             this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
             throw new InternalServerErrorException('An internal server error occurred while processing the session delete request');
+        }
+    }
+
+    @Post('end')
+    @HttpCode(200)
+    @ApiOperation({ summary: 'Finalize a session (apply staged stat writes + TrueSkill)' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                upload: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+        },
+    })
+    @UseInterceptors(FileInterceptor('upload'))
+    async end(@UploadedFile() file: Express.Multer.File) {
+        let sessionId = 'UNKNOWN';
+        try {
+            if (!file) {
+                this.logger.warn('Session end request missing file');
+                throw new BadRequestException('File is required in multipart/form-data with field name "upload"');
+            }
+
+            if (!file.buffer || file.buffer.length === 0) {
+                this.logger.warn('Session end request has empty file buffer');
+                throw new BadRequestException('File buffer is empty');
+            }
+
+            let fileData;
+            try {
+                fileData = SBlfFileSessionEndSchema.read(file.buffer);
+            } catch (error) {
+                this.logger.error(`Failed to parse session end BLF: ${error instanceof Error ? error.message : String(error)}`);
+                throw new BadRequestException(`Invalid BLF format: ${error instanceof Error ? error.message : String(error)}`);
+            }
+
+            const sessionIdBytes = fileData.xsse?.sessionId?.data;
+            if (!sessionIdBytes || sessionIdBytes.length !== 8) {
+                this.logger.warn('Session end request has invalid session ID');
+                throw new BadRequestException('Session end request has invalid session ID');
+            }
+            sessionId = transport_secure_identifier_get_string(sessionIdBytes);
+
+            // Fold the whole match's staged writes into the player tables and run TrueSkill. This is
+            // idempotent: a retry after the staged rows are cleared simply finds nothing to do.
+            await this.statsService.finalizeSessionStatsAsync(sessionId);
+            return "ok";
+        } catch (error) {
+            if (error instanceof HttpException) {
+                throw error;
+            }
+            this.logger.error(`Unexpected error ending session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
+            throw new InternalServerErrorException('An internal server error occurred while processing the session end request');
         }
     }
 }

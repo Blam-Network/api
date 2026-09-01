@@ -749,6 +749,19 @@ model ares_player_stats_hopper_skill {
   @@schema("ares")
 }
 
+model ares_sessions_stat_writes {
+  id             BigInt   @id @default(autoincrement())
+  session_id     String   @db.VarChar(17)
+  player_xuid    Decimal  @db.Decimal(20, 0)
+  leaderboard_id Decimal  @db.Decimal(20, 0)
+  properties     Json
+  created_at     DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([session_id])
+  @@map("sessions_stat_writes")
+  @@schema("ares")
+}
+
 model ares_player_stats_global {
   leaderboard_id                              Decimal @db.Decimal(20, 0)
   player_xuid                                  Decimal @db.Decimal(20, 0)

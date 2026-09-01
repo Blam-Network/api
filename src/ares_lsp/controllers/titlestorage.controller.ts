@@ -139,7 +139,7 @@ export class TitleStorageController {
     style: 'simple',
     allowReserved: true,
   })
-  @Get('/ares/tracked/:buildNumber/*path')
+  @Get('/tracked/:buildNumber/*path')
   async getStaticFile(
     @Param('buildNumber') buildNumber: string,
     @Param('path') path: string,

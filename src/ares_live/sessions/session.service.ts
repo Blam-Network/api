@@ -238,7 +238,7 @@ export class SessionService {
             WHERE uses_matchmaking = true
                 AND ice_enabled = ${searchingIce}
                 AND (${searchingIce} OR usable_address != '127.0.0.1')
-            ORDER BY created_at DESC
+            ORDER BY secure_address, created_at DESC
             LIMIT ${searchingIce ? 200 : 50}
         `;
 

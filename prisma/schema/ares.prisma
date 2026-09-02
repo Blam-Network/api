@@ -715,6 +715,8 @@ model ares_session {
   max_public_slots          Int
   max_private_slots         Int
   creator_xuid              Decimal  @db.Decimal(20, 0)
+  ice_enabled               Boolean  @default(false)
+  host_peer_id              String   @default("") @db.VarChar(128)
   created_at                DateTime @default(now()) @db.Timestamp(6)
 
   @@id([identifier])

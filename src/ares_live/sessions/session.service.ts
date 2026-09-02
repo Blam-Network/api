@@ -17,7 +17,10 @@ import {
     s_online_session_search_result,
 } from './session.chunks';
 import { ARES_LIVE_AUTHOR, DEFAULT_BLF_CHUNK, DEFAULT_EOF_CHUNK } from '../chunks';
+import { isPeerSignallingRegistered } from '../websockets/websockets-server';
 import { z } from 'zod';
+
+export type e_session_search_transport = 'ice' | 'direct';
 
 /**
  * Formats a session ID (8 bytes) as uppercase hex with a colon in the middle
@@ -63,6 +66,8 @@ export class SessionService {
         }
         const request = fileData.xscc;
         const { flags, secureAddress, maxPublicSlots, maxPrivateSlots, userXuid } = request;
+        const iceEnabled = request.hostIceEnabled !== 0;
+        const hostPeerId = iceEnabled ? request.hostPeerId.trim() : '';
 
         // Validate secure address length
         if (!secureAddress || secureAddress.data.length !== 320) {
@@ -124,6 +129,8 @@ export class SessionService {
                 max_public_slots: maxPublicSlots,
                 max_private_slots: maxPrivateSlots,
                 creator_xuid: userXuid.toString(),
+                ice_enabled: iceEnabled,
+                host_peer_id: hostPeerId,
             },
         });
 
@@ -202,16 +209,21 @@ export class SessionService {
         return true;
     }
 
-    async searchSessionsAsync(): Promise<{ buffer: Buffer; size: number }> {
-        // Use DISTINCT ON to get the most recent session per IP in a single flat query
-        // DISTINCT ON requires ORDER BY to start with the DISTINCT ON column(s)
-        // This returns the most recent session per IP, ordered by IP then creation date
-        const sessions = await this.prisma.$queryRaw<Array<{
+    async searchSessionsAsync(transport: e_session_search_transport): Promise<{ buffer: Buffer; size: number }> {
+        const searchingIce = transport === 'ice';
+
+        // Use DISTINCT ON to get the most recent session per host in a single flat query.
+        // Only sessions matching the searcher's transport mode are returned. ICE sessions are
+        // fetched with a larger limit because they are additionally filtered by signalling
+        // registration below. The localhost exclusion only applies to direct sessions; ICE
+        // sessions are reachable regardless of the host's IP.
+        const candidates = await this.prisma.$queryRaw<Array<{
             secure_address: string;
             identifier: string;
             key: string;
             max_public_slots: number;
             max_private_slots: number;
+            host_peer_id: string;
             created_at: Date;
         }>>`
             SELECT DISTINCT ON (secure_address)
@@ -220,13 +232,31 @@ export class SessionService {
                 key,
                 max_public_slots,
                 max_private_slots,
+                host_peer_id,
                 created_at
             FROM ares.sessions
             WHERE uses_matchmaking = true
-                AND usable_address != '127.0.0.1'
-            ORDER BY secure_address, created_at DESC
-            LIMIT 50
+                AND ice_enabled = ${searchingIce}
+                AND (${searchingIce} OR usable_address != '127.0.0.1')
+            ORDER BY created_at DESC
+            LIMIT ${searchingIce ? 200 : 50}
         `;
+
+        // For ICE searches, ignore sessions whose host peer ID is not currently registered
+        // with the signalling WebSocket - those hosts cannot be signalled, so the session
+        // is unjoinable.
+        const sessions = (searchingIce
+            ? candidates.filter((session) => {
+                if (!isPeerSignallingRegistered(session.host_peer_id)) {
+                    this.logger.log(
+                        `Session search (ice): ignoring session ${session.identifier}, host peer not registered with signalling`,
+                    );
+                    return false;
+                }
+                return true;
+            })
+            : candidates
+        ).slice(0, 50);
 
 
         // Build results array
@@ -374,6 +404,8 @@ export class SessionService {
         }
         const request = fileData.xsmh;
         const { sessionId, secureAddress } = request;
+        const iceEnabled = request.hostIceEnabled !== 0;
+        const hostPeerId = iceEnabled ? request.hostPeerId.trim() : '';
 
         if (!sessionId || sessionId.data.length !== 8) {
             this.logger.warn('Session migrate host request has invalid session ID');
@@ -408,6 +440,8 @@ export class SessionService {
                 data: {
                     secure_address: secureAddressHexString,
                     usable_address: usableAddress,
+                    ice_enabled: iceEnabled,
+                    host_peer_id: hostPeerId,
                 },
             });
 

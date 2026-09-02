@@ -9,6 +9,7 @@ import {
     HttpStatus,
     Ip,
     HttpCode,
+    Query,
     Res,
     BadRequestException,
     InternalServerErrorException,
@@ -199,9 +200,12 @@ export class SessionController {
     @Get('search')
     @HttpCode(200)
     @ApiOperation({ summary: 'Search for sessions' })
-    async search(@Res({ passthrough: true }) res: Response) {
+    async search(@Query('transport') transport: string | undefined, @Res({ passthrough: true }) res: Response) {
         try {
-            const { buffer, size } = await this.sessionService.searchSessionsAsync();
+            // ICE clients ask for ICE-hosted sessions; everything else (including legacy
+            // clients that send no transport parameter) gets direct-transport sessions.
+            const searchTransport = transport === 'ice' ? 'ice' : 'direct';
+            const { buffer, size } = await this.sessionService.searchSessionsAsync(searchTransport);
             res.setHeader('Connection', 'keep-alive');
             res.setHeader('Content-Disposition', 'inline');
             res.setHeader('Content-Type', 'application/octet-stream');

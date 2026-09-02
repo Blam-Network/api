@@ -109,6 +109,9 @@ const SessionFlagsSchema = new c.Bitfield([
     'join_via_presence_friends_only',
 ], 'u16');
 
+// k_ares_live_addr_base64_max_length
+export const HOST_PEER_ID_LENGTH = 128;
+
 // Session Create Chunk Schema
 export const SBlfChunkSessionCreateSchema = blf.createChunkSchema({
     name: 'xscc',
@@ -116,13 +119,15 @@ export const SBlfChunkSessionCreateSchema = blf.createChunkSchema({
     minorVersion: 0,
     endian: 'little',
     pack: 1,
-    size: 350,
+    size: 479,
     fields: [
         { name: 'secureAddress', type: TransportSecureAddressSchema },
         { name: 'flags', type: SessionFlagsSchema },
         { name: 'maxPublicSlots', type: 'u32' },
         { name: 'maxPrivateSlots', type: 'u32' },
         { name: 'userXuid', type: 'u64' },
+        { name: 'hostIceEnabled', type: 'u8' },
+        { name: 'hostPeerId', type: new c.String(HOST_PEER_ID_LENGTH) },
     ],
 });
 
@@ -218,6 +223,8 @@ export const SBlfChunkSessionMigrateHostSchema = blf.createChunkSchema({
     fields: [
         { name: 'sessionId', type: TransportSessionIdSchema },
         { name: 'secureAddress', type: TransportSecureAddressSchema },
+        { name: 'hostIceEnabled', type: 'u8' },
+        { name: 'hostPeerId', type: new c.String(HOST_PEER_ID_LENGTH) },
     ],
 });
 

@@ -93,15 +93,35 @@ function send(ws: WebSocket, obj: object, logLabel: string, ip: string, peerId?:
     ws.send(payload);
 }
 
+// Module-level so session search can check host liveness (see isPeerSignallingRegistered).
+const peerToWs = new Map<string, WebSocket>();
+
+/**
+ * Returns true if the given peer ID currently has an open signalling WebSocket.
+ * Used by session search to drop ICE sessions whose host is no longer reachable.
+ */
+export function isPeerSignallingRegistered(peerId: string): boolean {
+    if (!peerId) {
+        return false;
+    }
+    const ws = peerToWs.get(peerId);
+    return ws !== undefined && ws.readyState === WebSocket.OPEN;
+}
+
 export function attachSignallingWebSocket(httpServer: http.Server): void {
     const wss = new WebSocketServer({ noServer: true });
-    const peerToWs = new Map<string, WebSocket>();
     const wsToPeer = new Map<WebSocket, string>();
+
+    const HEARTBEAT_INTERVAL_MS = 30_000;
 
     function unregister(ws: WebSocket): void {
         const peerId = wsToPeer.get(ws);
         if (peerId) {
-            peerToWs.delete(peerId);
+            // Only delete peerToWs if this socket still owns the mapping
+            // (a replacement register may already have swapped it).
+            if (peerToWs.get(peerId) === ws) {
+                peerToWs.delete(peerId);
+            }
             wsToPeer.delete(ws);
         }
     }
@@ -109,6 +129,28 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
     function clientIp(request: http.IncomingMessage): string {
         return request.socket?.remoteAddress ?? 'unknown';
     }
+
+    // Drop dead-but-OPEN sockets so offers get peer_unavailable instead of vanishing.
+    const heartbeatTimer = setInterval(() => {
+        for (const ws of wss.clients) {
+            const alive = (ws as WebSocket & { isAlive?: boolean }).isAlive;
+            if (alive === false) {
+                const peerId = wsToPeer.get(ws);
+                logger.warn(`heartbeat timeout peer_id=${peerId ?? '(unregistered)'} - terminating`);
+                unregister(ws);
+                ws.terminate();
+                continue;
+            }
+            (ws as WebSocket & { isAlive?: boolean }).isAlive = false;
+            try {
+                ws.ping();
+            } catch {
+                unregister(ws);
+                ws.terminate();
+            }
+        }
+    }, HEARTBEAT_INTERVAL_MS);
+    heartbeatTimer.unref?.();
 
     httpServer.on('upgrade', (request, socket, head) => {
         const path = request.url?.split('?')[0] ?? '';
@@ -125,8 +167,13 @@ export function attachSignallingWebSocket(httpServer: http.Server): void {
     wss.on('connection', (ws: WebSocket, request: http.IncomingMessage) => {
         const ip = clientIp(request);
         logger.log(`connection open - ${ip}`);
+        (ws as WebSocket & { isAlive?: boolean }).isAlive = true;
+        ws.on('pong', () => {
+            (ws as WebSocket & { isAlive?: boolean }).isAlive = true;
+        });
 
         ws.on('message', (data: Buffer | Buffer[] | ArrayBuffer) => {
+            (ws as WebSocket & { isAlive?: boolean }).isAlive = true;
             const buf = Buffer.isBuffer(data) ? data : Buffer.concat(Array.isArray(data) ? data : [Buffer.from(data)]);
             const result = parseIncomingMessage(buf);
 

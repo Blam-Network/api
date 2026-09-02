@@ -747,14 +747,12 @@ export class StatsService {
             return;
         }
 
-        // Group non-skill views per (target, leaderboard, player) so the whole match's writes for a
-        // player fold together, and collect the skill views for the TrueSkill pass.
         const accumGroups = new Map<
             string,
-            { target: 'hopper' | 'global'; leaderboardId: number; xuid: bigint; props: { id: number; value: string }[] }
+            { target: 'hopper' | 'global'; leaderboardId: number; xuid: bigint; propMap: Map<number, string> }
         >();
-        const skillParamProps: { id: number; value: string }[] = [];
-        const skillPlayerRows: { xuid: bigint; props: { id: number; value: string }[] }[] = [];
+        const skillParamMap = new Map<number, string>();
+        const skillPlayerMap = new Map<string, { xuid: bigint; propMap: Map<number, string> }>();
 
         for (const row of staged) {
             const leaderboardId = Number(row.leaderboard_id);
@@ -773,9 +771,11 @@ export class StatsService {
             if (leaderboardId === this._online_leaderboard_id_skill) {
                 // The match parameters ride on the xuid=0 view; each player's placement/team on theirs.
                 if (xuid === BigInt(0)) {
-                    skillParamProps.push(...props);
+                    for (const p of props) skillParamMap.set(p.id, p.value);
                 } else {
-                    skillPlayerRows.push({ xuid, props });
+                    const entry = skillPlayerMap.get(xuid.toString()) ?? { xuid, propMap: new Map<number, string>() };
+                    for (const p of props) entry.propMap.set(p.id, p.value);
+                    skillPlayerMap.set(xuid.toString(), entry);
                 }
                 continue;
             }
@@ -801,10 +801,17 @@ export class StatsService {
             }
 
             const key = `${target}:${leaderboardId}:${xuid}`;
-            const group = accumGroups.get(key) ?? { target, leaderboardId, xuid, props: [] };
-            group.props.push(...props);
+            const group = accumGroups.get(key) ?? { target, leaderboardId, xuid, propMap: new Map<number, string>() };
+            for (const p of props) group.propMap.set(p.id, p.value);
             accumGroups.set(key, group);
         }
+
+        // Materialize the deduped skill views (one entry per xuid) for the TrueSkill pass.
+        const skillParamProps = Array.from(skillParamMap, ([id, value]) => ({ id, value }));
+        const skillPlayerRows = Array.from(skillPlayerMap.values(), (entry) => ({
+            xuid: entry.xuid,
+            props: Array.from(entry.propMap, ([id, value]) => ({ id, value })),
+        }));
 
         this.logger.log(
             `Session ${sessionId} finalize: ${staged.length} staged row(s) -> ${accumGroups.size} accumulation group(s), ` +
@@ -828,7 +835,8 @@ export class StatsService {
 
         await this.prisma.$transaction(async (tx) => {
             for (const group of accumGroups.values()) {
-                await this.applyAccumulatedWrite(tx, group.target, group.leaderboardId, group.xuid, group.props);
+                const props = Array.from(group.propMap, ([id, value]) => ({ id, value }));
+                await this.applyAccumulatedWrite(tx, group.target, group.leaderboardId, group.xuid, props);
             }
 
             if (skillResults) {

@@ -76,6 +76,13 @@ export class StatsService {
     private readonly _online_leaderboard_id_hopper_0 = 3;
     private readonly _online_leaderboard_id_hopper_31 = 96;
 
+    // TrueSkill priors seeded for players with no stored rating. These are the standard defaults
+    // (mu=25, sigma=25/3) and MUST match trueskill.ts so a fresh player's queried mu/sigma produce a
+    // sensible starting skill level in-game (a high-uncertainty new player conservatively estimates
+    // to level 1) instead of the client's 0/0 fallback (which maps to level 6).
+    private readonly _default_skill_mu = 25;
+    private readonly _default_skill_sigma = 25 / 3;
+
     // e_online_property_id (see online_constants.h). These are the property ids the game
     // client emits on stat writes; the value is stored in each property's s_online_data.
     // Skill-leaderboard (id 0) TrueSkill inputs: the match parameters ride on the xuid=0 write,
@@ -256,7 +263,7 @@ export class StatsService {
                     result.type = 'double';
                     result.data = {
                         data_as_double: {
-                            data: statsCache.hopperSkillStats?.mu ?? 25.0,
+                            data: statsCache.hopperSkillStats?.mu ?? this._default_skill_mu,
                         },
                     };
                     return result;
@@ -264,7 +271,7 @@ export class StatsService {
                     result.type = 'double';
                     result.data = {
                         data_as_double: {
-                            data: statsCache.hopperSkillStats?.sigma ?? 8.333,
+                            data: statsCache.hopperSkillStats?.sigma ?? this._default_skill_sigma,
                         },
                     };
                     return result;
@@ -737,135 +744,146 @@ export class StatsService {
      * staged rows and does nothing.
      */
     async finalizeSessionStatsAsync(sessionId: string): Promise<void> {
-        const staged = await this.prisma.ares_sessions_stat_writes.findMany({
-            where: { session_id: sessionId },
-            orderBy: { id: 'asc' },
-        });
+        // Reading, accumulating and clearing a session's staged writes must be atomic. Otherwise two
+        // concurrent or duplicate session-end notifications both read the same staged rows and each
+        // apply the match's contribution, double-counting the 'sum' counters. Everything therefore
+        // runs in a single transaction guarded by a per-session advisory lock: a racing finalize
+        // blocks on the lock, then finds the staged rows already consumed below and no-ops.
+        await this.prisma.$transaction(
+            async (tx) => {
+                await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${sessionId})::bigint)`;
 
-        if (staged.length === 0) {
-            this.logger.log(`Session ${sessionId} finalize: no staged stat writes`);
-            return;
-        }
+                const staged = await tx.ares_sessions_stat_writes.findMany({
+                    where: { session_id: sessionId },
+                    orderBy: { id: 'asc' },
+                });
 
-        const accumGroups = new Map<
-            string,
-            { target: 'hopper' | 'global'; leaderboardId: number; xuid: bigint; propMap: Map<number, string> }
-        >();
-        const skillParamMap = new Map<number, string>();
-        const skillPlayerMap = new Map<string, { xuid: bigint; propMap: Map<number, string> }>();
-
-        for (const row of staged) {
-            const leaderboardId = Number(row.leaderboard_id);
-            const xuid = BigInt(row.player_xuid.toString());
-            const props = Array.isArray(row.properties)
-                ? (row.properties as unknown as { id: number; value: string }[]).map((p) => ({
-                      id: Number(p.id),
-                      value: String(p.value),
-                  }))
-                : [];
-
-            this.logger.log(
-                `Session ${sessionId} finalize: staged row id=${row.id} lb=${leaderboardId} xuid=${xuid} props=${JSON.stringify(props)}`,
-            );
-
-            if (leaderboardId === this._online_leaderboard_id_skill) {
-                // The match parameters ride on the xuid=0 view; each player's placement/team on theirs.
-                if (xuid === BigInt(0)) {
-                    for (const p of props) skillParamMap.set(p.id, p.value);
-                } else {
-                    const entry = skillPlayerMap.get(xuid.toString()) ?? { xuid, propMap: new Map<number, string>() };
-                    for (const p of props) entry.propMap.set(p.id, p.value);
-                    skillPlayerMap.set(xuid.toString(), entry);
+                if (staged.length === 0) {
+                    this.logger.log(`Session ${sessionId} finalize: no staged stat writes`);
+                    return;
                 }
-                continue;
-            }
 
-            if (xuid === BigInt(0)) {
-                continue; // non-skill view with no player to attribute
-            }
+                const accumGroups = new Map<
+                    string,
+                    { target: 'hopper' | 'global'; leaderboardId: number; xuid: bigint; propMap: Map<number, string> }
+                >();
+                const skillParamMap = new Map<number, string>();
+                const skillPlayerMap = new Map<string, { xuid: bigint; propMap: Map<number, string> }>();
 
-            let target: 'hopper' | 'global' | null = null;
-            if (
-                leaderboardId >= this._online_leaderboard_id_hopper_0 &&
-                leaderboardId <= this._online_leaderboard_id_hopper_31
-            ) {
-                target = 'hopper';
-            } else if (
-                leaderboardId === this._online_leaderboard_id_global_arbitrated ||
-                leaderboardId === this._online_leaderboard_id_global_unarbitrated
-            ) {
-                target = 'global';
-            } else {
-                this.logger.warn(`Session ${sessionId} finalize: unrecognized leaderboard id ${leaderboardId} (xuid=${xuid})`);
-                continue;
-            }
+                for (const row of staged) {
+                    const leaderboardId = Number(row.leaderboard_id);
+                    const xuid = BigInt(row.player_xuid.toString());
+                    const props = Array.isArray(row.properties)
+                        ? (row.properties as unknown as { id: number; value: string }[]).map((p) => ({
+                              id: Number(p.id),
+                              value: String(p.value),
+                          }))
+                        : [];
 
-            const key = `${target}:${leaderboardId}:${xuid}`;
-            const group = accumGroups.get(key) ?? { target, leaderboardId, xuid, propMap: new Map<number, string>() };
-            for (const p of props) group.propMap.set(p.id, p.value);
-            accumGroups.set(key, group);
-        }
+                    this.logger.log(
+                        `Session ${sessionId} finalize: staged row id=${row.id} lb=${leaderboardId} xuid=${xuid} props=${JSON.stringify(props)}`,
+                    );
 
-        // Materialize the deduped skill views (one entry per xuid) for the TrueSkill pass.
-        const skillParamProps = Array.from(skillParamMap, ([id, value]) => ({ id, value }));
-        const skillPlayerRows = Array.from(skillPlayerMap.values(), (entry) => ({
-            xuid: entry.xuid,
-            props: Array.from(entry.propMap, ([id, value]) => ({ id, value })),
-        }));
+                    if (leaderboardId === this._online_leaderboard_id_skill) {
+                        // The match parameters ride on the xuid=0 view; each player's placement/team on theirs.
+                        if (xuid === BigInt(0)) {
+                            for (const p of props) skillParamMap.set(p.id, p.value);
+                        } else {
+                            const entry = skillPlayerMap.get(xuid.toString()) ?? { xuid, propMap: new Map<number, string>() };
+                            for (const p of props) entry.propMap.set(p.id, p.value);
+                            skillPlayerMap.set(xuid.toString(), entry);
+                        }
+                        continue;
+                    }
 
-        this.logger.log(
-            `Session ${sessionId} finalize: ${staged.length} staged row(s) -> ${accumGroups.size} accumulation group(s), ` +
-                `${skillPlayerRows.length} skill player view(s), ${skillParamProps.length} skill param prop(s)`,
-        );
+                    if (xuid === BigInt(0)) {
+                        continue; // non-skill view with no player to attribute
+                    }
 
-        // Compute TrueSkill first, in memory, so a failure here never rolls back the accumulation.
-        let skillResults: TrueSkillPlayerResult[] | null = null;
-        try {
-            skillResults = await this.computeSessionTrueSkill(sessionId, skillParamProps, skillPlayerRows);
-        } catch (error) {
-            this.logger.error(
-                `Session ${sessionId} finalize: TrueSkill computation failed: ${error instanceof Error ? error.message : String(error)}`,
-            );
-            skillResults = null;
-        }
+                    let target: 'hopper' | 'global' | null = null;
+                    if (
+                        leaderboardId >= this._online_leaderboard_id_hopper_0 &&
+                        leaderboardId <= this._online_leaderboard_id_hopper_31
+                    ) {
+                        target = 'hopper';
+                    } else if (
+                        leaderboardId === this._online_leaderboard_id_global_arbitrated ||
+                        leaderboardId === this._online_leaderboard_id_global_unarbitrated
+                    ) {
+                        target = 'global';
+                    } else {
+                        this.logger.warn(`Session ${sessionId} finalize: unrecognized leaderboard id ${leaderboardId} (xuid=${xuid})`);
+                        continue;
+                    }
 
-        if (skillResults) {
-            this.logger.log(`Session ${sessionId} finalize: TrueSkill results ${JSON.stringify(skillResults)}`);
-        }
-
-        await this.prisma.$transaction(async (tx) => {
-            for (const group of accumGroups.values()) {
-                const props = Array.from(group.propMap, ([id, value]) => ({ id, value }));
-                await this.applyAccumulatedWrite(tx, group.target, group.leaderboardId, group.xuid, props);
-            }
-
-            if (skillResults) {
-                for (const result of skillResults) {
-                    const key = {
-                        leaderboard_id_player_xuid: {
-                            leaderboard_id: this._online_leaderboard_id_skill,
-                            player_xuid: result.xuid,
-                        },
-                    };
-                    await tx.ares_player_stats_hopper_skill.upsert({
-                        where: key,
-                        create: {
-                            leaderboard_id: this._online_leaderboard_id_skill,
-                            player_xuid: result.xuid,
-                            mu: result.mu,
-                            sigma: result.sigma,
-                        },
-                        update: { mu: result.mu, sigma: result.sigma },
-                    });
+                    const key = `${target}:${leaderboardId}:${xuid}`;
+                    const group = accumGroups.get(key) ?? { target, leaderboardId, xuid, propMap: new Map<number, string>() };
+                    for (const p of props) group.propMap.set(p.id, p.value);
+                    accumGroups.set(key, group);
                 }
-            }
 
-            await tx.ares_sessions_stat_writes.deleteMany({ where: { session_id: sessionId } });
-        });
+                // Materialize the deduped skill views (one entry per xuid) for the TrueSkill pass.
+                const skillParamProps = Array.from(skillParamMap, ([id, value]) => ({ id, value }));
+                const skillPlayerRows = Array.from(skillPlayerMap.values(), (entry) => ({
+                    xuid: entry.xuid,
+                    props: Array.from(entry.propMap, ([id, value]) => ({ id, value })),
+                }));
 
-        this.logger.log(
-            `Session ${sessionId} finalize complete: applied ${accumGroups.size} accumulation group(s)` +
-                (skillResults ? `, updated TrueSkill for ${skillResults.length} player(s)` : ', no TrueSkill update'),
+                this.logger.log(
+                    `Session ${sessionId} finalize: ${staged.length} staged row(s) -> ${accumGroups.size} accumulation group(s), ` +
+                        `${skillPlayerRows.length} skill player view(s), ${skillParamProps.length} skill param prop(s)`,
+                );
+
+                // TrueSkill is computed in memory; a failure is caught and simply skips the skill update
+                // without aborting the counter accumulation.
+                let skillResults: TrueSkillPlayerResult[] | null = null;
+                try {
+                    skillResults = await this.computeSessionTrueSkill(sessionId, skillParamProps, skillPlayerRows);
+                } catch (error) {
+                    this.logger.error(
+                        `Session ${sessionId} finalize: TrueSkill computation failed: ${error instanceof Error ? error.message : String(error)}`,
+                    );
+                    skillResults = null;
+                }
+
+                if (skillResults) {
+                    this.logger.log(`Session ${sessionId} finalize: TrueSkill results ${JSON.stringify(skillResults)}`);
+                }
+
+                for (const group of accumGroups.values()) {
+                    const props = Array.from(group.propMap, ([id, value]) => ({ id, value }));
+                    await this.applyAccumulatedWrite(tx, group.target, group.leaderboardId, group.xuid, props);
+                }
+
+                if (skillResults) {
+                    for (const result of skillResults) {
+                        const key = {
+                            leaderboard_id_player_xuid: {
+                                leaderboard_id: this._online_leaderboard_id_skill,
+                                player_xuid: result.xuid,
+                            },
+                        };
+                        await tx.ares_player_stats_hopper_skill.upsert({
+                            where: key,
+                            create: {
+                                leaderboard_id: this._online_leaderboard_id_skill,
+                                player_xuid: result.xuid,
+                                mu: result.mu,
+                                sigma: result.sigma,
+                            },
+                            update: { mu: result.mu, sigma: result.sigma },
+                        });
+                    }
+                }
+
+                await tx.ares_sessions_stat_writes.deleteMany({ where: { session_id: sessionId } });
+
+                this.logger.log(
+                    `Session ${sessionId} finalize complete: applied ${accumGroups.size} accumulation group(s)` +
+                        (skillResults ? `, updated TrueSkill for ${skillResults.length} player(s)` : ', no TrueSkill update'),
+                );
+            },
+            { timeout: 20000, maxWait: 10000 },
         );
     }
 

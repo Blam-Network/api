@@ -23,8 +23,8 @@ export class AresUserService {
                 let bungie_user_role = 0;
                 bungie_user_role |= (1 << 0); // give everyone the seventh column
                 if (playerData.is_pro) bungie_user_role |= (1 << 1);
-                /*if (playerData.is_bungie)*/ bungie_user_role |= (1 << 2);
-                /*if (playerData.has_recon)*/ bungie_user_role |= (1 << 3);
+                if (playerData.is_bungie) bungie_user_role |= (1 << 2);
+                if (playerData.has_recon) bungie_user_role |= (1 << 3);
                 fupd = {
                     hopper_access: playerData.hopper_access ?? 0,
                     highest_skill: playerData.highest_skill ?? 0,
@@ -37,7 +37,7 @@ export class AresUserService {
 
         if (!fupd) {
             fupd = {
-                bungie_user_role: 0xffffffff,
+                bungie_user_role: 1,
                 highest_skill: 1,
                 hopper_access: 0xffffffff,
                 hopper_directory: 'default_hoppers'

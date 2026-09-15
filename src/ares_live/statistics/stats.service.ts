@@ -145,6 +145,55 @@ export class StatsService {
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
     ) {}
 
+    /**
+     * Sessions that migrated to a new identity (old id -> new id, both in "AAAAAAAA:BBBBBBBB"
+     * form). A host migration mints a new session on the server while the match keeps going, so
+     * stat writes and the session-end notification can arrive under either id. Staged rows are
+     * re-keyed at migration time; this map catches stragglers that still quote the old id.
+     * Entries expire after migratedSessionTtlMs, well past any match length.
+     */
+    private readonly migratedSessions = new Map<string, { newId: string; at: number }>();
+    private readonly migratedSessionTtlMs = 6 * 60 * 60 * 1000;
+
+    /** Records that staged writes and end notifications for oldId now belong to newId. */
+    async registerSessionMigrationAsync(oldId: string, newId: string): Promise<void> {
+        if (!oldId || !newId || oldId === newId) {
+            return;
+        }
+        this.pruneMigratedSessions();
+        this.migratedSessions.set(oldId, { newId, at: Date.now() });
+
+        const moved = await this.prisma.ares_sessions_stat_writes.updateMany({
+            where: { session_id: oldId },
+            data: { session_id: newId },
+        });
+        if (moved.count > 0) {
+            this.logger.log(`Session migration ${oldId} -> ${newId}: re-keyed ${moved.count} staged stat write(s)`);
+        }
+    }
+
+    /** Follows the migration chain so writes and finalization land on the session's current id. */
+    resolveSessionId(sessionId: string): string {
+        let resolved = sessionId;
+        for (let hops = 0; hops < 16; hops++) {
+            const next = this.migratedSessions.get(resolved);
+            if (!next) {
+                break;
+            }
+            resolved = next.newId;
+        }
+        return resolved;
+    }
+
+    private pruneMigratedSessions(): void {
+        const cutoff = Date.now() - this.migratedSessionTtlMs;
+        for (const [oldId, entry] of this.migratedSessions) {
+            if (entry.at < cutoff) {
+                this.migratedSessions.delete(oldId);
+            }
+        }
+    }
+
     async fetchAllStatsAsync(
         leaderboardIds: number[],
         xuids: bigint[],
@@ -647,7 +696,11 @@ export class StatsService {
         const request = fileData.xswq;
         const xuid = request.xuid;
         const writeCount = Math.min(request.writeCount, request.writes.length);
-        const sessionId = this.formatSessionId(request.sessionId.data);
+        const requestedSessionId = this.formatSessionId(request.sessionId.data);
+        const sessionId = this.resolveSessionId(requestedSessionId);
+        if (sessionId !== requestedSessionId) {
+            this.logger.log(`Stats write for migrated session ${requestedSessionId} redirected to ${sessionId}`);
+        }
 
         // Without a resolved session id we cannot correlate this write to a match, and it would
         // never be finalized (session end matches on session id), so drop it rather than orphan it.
@@ -743,7 +796,11 @@ export class StatsService {
      * rows, so a repeated session-end (or a client retry) is idempotent — the second call finds no
      * staged rows and does nothing.
      */
-    async finalizeSessionStatsAsync(sessionId: string): Promise<void> {
+    async finalizeSessionStatsAsync(requestedSessionId: string): Promise<void> {
+        const sessionId = this.resolveSessionId(requestedSessionId);
+        if (sessionId !== requestedSessionId) {
+            this.logger.log(`Session end for migrated session ${requestedSessionId} finalizing ${sessionId}`);
+        }
         // Reading, accumulating and clearing a session's staged writes must be atomic. Otherwise two
         // concurrent or duplicate session-end notifications both read the same staged rows and each
         // apply the match's contribution, double-counting the 'sum' counters. Everything therefore

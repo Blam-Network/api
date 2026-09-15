@@ -10,7 +10,10 @@ export class SessionCleanupService implements OnModuleInit, OnModuleDestroy {
     private readonly checkInterval = 60 * 60 * 1000; // Check every hour (in milliseconds)
     private readonly sessionLifetime = 7 * 24 * 60 * 60 * 1000; // Delete sessions older than 7 days (in milliseconds)
     private readonly abandonedStatWriteLifetime = 24 * 60 * 60 * 1000; // Delete staged stat writes older than 24 hours
+    private readonly migratedSessionCheckInterval = 5 * 60 * 1000; // Check for retired (migrated-away) sessions every 5 minutes
+    private readonly migratedSessionLifetime = 10 * 60 * 1000; // Delete a session 10 minutes after it migrated to a new one
     private intervalHandle: NodeJS.Timeout | null = null;
+    private migratedIntervalHandle: NodeJS.Timeout | null = null;
 
     constructor(
         private readonly prisma: PrismaService,
@@ -28,12 +31,20 @@ export class SessionCleanupService implements OnModuleInit, OnModuleDestroy {
             this.cleanupOldSessions();
             this.cleanupAbandonedStatWrites();
         }, this.checkInterval);
+        this.cleanupMigratedSessions();
+        this.migratedIntervalHandle = setInterval(() => {
+            this.cleanupMigratedSessions();
+        }, this.migratedSessionCheckInterval);
     }
 
     onModuleDestroy() {
         if (this.intervalHandle) {
             clearInterval(this.intervalHandle);
             this.intervalHandle = null;
+        }
+        if (this.migratedIntervalHandle) {
+            clearInterval(this.migratedIntervalHandle);
+            this.migratedIntervalHandle = null;
         }
         this.logger.log('Session cleanup service stopped');
     }
@@ -83,6 +94,27 @@ export class SessionCleanupService implements OnModuleInit, OnModuleDestroy {
         } catch (error) {
             this.logger.error(`Error occurred while cleaning up old sessions: ${error instanceof Error ? error.message : String(error)}`);
             this.logger.error(`Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
+        }
+    }
+
+    /**
+     * Deletes sessions that a host migration replaced. The old row is kept briefly so a stale
+     * invite can still be resolved to its successor, then removed.
+     */
+    private async cleanupMigratedSessions(): Promise<void> {
+        try {
+            const cutoffDate = new Date(Date.now() - this.migratedSessionLifetime);
+            const result = await this.prisma.ares_session.deleteMany({
+                where: {
+                    migrated_to: { not: null },
+                    migrated_at: { lt: cutoffDate },
+                },
+            });
+            if (result.count > 0) {
+                this.logger.log(`Migrated session cleanup: deleted ${result.count} retired session(s) migrated before ${cutoffDate.toISOString()}`);
+            }
+        } catch (error) {
+            this.logger.error(`Error occurred while cleaning up migrated sessions: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 

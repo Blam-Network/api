@@ -1,6 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from 'src/db/prisma.service';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
+import { StatsService } from '../statistics/stats.service';
 import { 
     randomNonce, 
     randomTransportSessionId, 
@@ -50,6 +51,7 @@ const usableAddressSchema = z
 export class SessionService {
     constructor(
         private readonly prisma: PrismaService,
+        private readonly statsService: StatsService,
         @Inject(ILoggerSymbol) private readonly logger: ILogger,
     ) {}
 
@@ -236,6 +238,7 @@ export class SessionService {
                 created_at
             FROM ares.sessions
             WHERE uses_matchmaking = true
+                AND migrated_to IS NULL
                 AND ice_enabled = ${searchingIce}
                 AND (${searchingIce} OR usable_address != '127.0.0.1')
             ORDER BY secure_address, created_at DESC
@@ -432,22 +435,63 @@ export class SessionService {
         // Check if secure address is all zeros (user index zero case)
         const secureAddressIsZero = secureAddress.data.every((b: number) => b === 0);
 
+        // The row the response describes: the original one for a "user index zero" query, or a
+        // brand-new session for a real migration.
+        let migratedSession = session;
+
         if (!secureAddressIsZero) {
-            // Update session with new secure address and usable address
+            // As on Xbox LIVE, a host migration produces a NEW session (new id and key) owned
+            // by the new host. The old row is left untouched: its owner deletes it when it follows
+            // the migration, or cleanup removes it. Repointing the shared row would let any peer
+            // that runs a solo election (after losing only its own link) hijack, and then delete,
+            // the session everyone else is still playing in.
+            const newIdentifier = randomTransportSessionId();
+            const newKey = randomTransportSessionKey();
+            // The nonce identifies the game for arbitration and stats and clients keep theirs across a
+            // migration, so it carries over; only the identity and key are new.
+            const newIdentifierHexString = Buffer.from(newIdentifier.data).toString('hex');
+            const newKeyHexString = Buffer.from(newKey.data).toString('hex');
             const secureAddressHexString = Buffer.from(secureAddress.data).toString('hex');
-            await this.prisma.ares_session.update({
-                where: { identifier: sessionIdHexString },
+
+            migratedSession = await this.prisma.ares_session.create({
                 data: {
                     secure_address: secureAddressHexString,
+                    identifier: newIdentifierHexString,
+                    key: newKeyHexString,
+                    nonce: session.nonce,
                     usable_address: usableAddress,
+                    uses_presence: session.uses_presence,
+                    uses_stats: session.uses_stats,
+                    uses_matchmaking: session.uses_matchmaking,
+                    uses_arbitration: session.uses_arbitration,
+                    multiplayer: session.multiplayer,
+                    invites_disabled: session.invites_disabled,
+                    join_via_presence_disabled: session.join_via_presence_disabled,
+                    join_in_progress_disabled: session.join_in_progress_disabled,
+                    join_via_presence_friends_only: session.join_via_presence_friends_only,
+                    max_public_slots: session.max_public_slots,
+                    max_private_slots: session.max_private_slots,
+                    creator_xuid: session.creator_xuid,
                     ice_enabled: iceEnabled,
                     host_peer_id: hostPeerId,
                 },
             });
 
+            const formattedNewSessionId = transport_secure_identifier_get_string(newIdentifier.data);
             this.logger.log(
-                `Host migration completed: SessionId=${formattedSessionId}, SecureAddress updated, Nonce=${session.nonce}`,
+                `Host migration: ${formattedSessionId} -> ${formattedNewSessionId} hosted by ${usableAddress}, Nonce=${migratedSession.nonce}`,
             );
+
+            // Retire the old row: stamped rows are hidden from search, resolve to their successor
+            // for get-by-id (stale invites), and are dropped by the cleanup service shortly after.
+            await this.prisma.ares_session.update({
+                where: { identifier: sessionIdHexString },
+                data: { migrated_to: newIdentifierHexString, migrated_at: new Date() },
+            });
+
+            // The match continues under the new identity: carry its staged stat writes over and
+            // redirect anything that still quotes the old id (late writes, the session-end call).
+            await this.statsService.registerSessionMigrationAsync(formattedSessionId, formattedNewSessionId);
         } else {
             this.logger.log(
                 `Host migration (user index zero): SessionId=${formattedSessionId}, returning latest session description, Nonce=${session.nonce}`,
@@ -455,10 +499,10 @@ export class SessionService {
         }
 
         // Parse session data from database
-        const sessionIdentifier = { data: Array.from(Buffer.from(session.identifier, 'hex')) as any };
-        const sessionKey = { data: Array.from(Buffer.from(session.key, 'hex')) as any };
-        const sessionHostAddress = { data: Array.from(Buffer.from(session.secure_address, 'hex')) as any };
-        const sessionNonce = BigInt(session.nonce.toString());
+        const sessionIdentifier = { data: Array.from(Buffer.from(migratedSession.identifier, 'hex')) as any };
+        const sessionKey = { data: Array.from(Buffer.from(migratedSession.key, 'hex')) as any };
+        const sessionHostAddress = { data: Array.from(Buffer.from(migratedSession.secure_address, 'hex')) as any };
+        const sessionNonce = BigInt(migratedSession.nonce.toString());
 
         const buffer = SBlfFileSessionMigrateHostResponseSchema.write({
             _blf: DEFAULT_BLF_CHUNK,
@@ -495,9 +539,20 @@ export class SessionService {
         const sessionIdHexString = Buffer.from(sessionId.data).toString('hex');
         const formattedSessionId = transport_secure_identifier_get_string(sessionId.data);
 
-        // Find the session by identifier
+        // Find the session by identifier, following host migrations so an invite that still carries
+        // the pre-migration id lands on the session the match is now running under.
         const sessions = await this.prisma.ares_session.findMany();
-        const session = sessions.find((s) => s.identifier === sessionIdHexString);
+        let session = sessions.find((s) => s.identifier === sessionIdHexString);
+        for (let hops = 0; session?.migrated_to && hops < 16; hops++) {
+            const successor = sessions.find((s) => s.identifier === session!.migrated_to);
+            if (!successor) {
+                break;
+            }
+            this.logger.log(
+                `Session get by id: ${formattedSessionId} migrated to ${transport_secure_identifier_get_string(Buffer.from(successor.identifier, 'hex'))}`,
+            );
+            session = successor;
+        }
 
         if (!session) {
             this.logger.warn(`Session not found: ${formattedSessionId}`);

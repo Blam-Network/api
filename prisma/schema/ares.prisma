@@ -717,6 +717,8 @@ model ares_session {
   creator_xuid              Decimal  @db.Decimal(20, 0)
   ice_enabled               Boolean  @default(false)
   host_peer_id              String   @default("") @db.VarChar(128)
+  migrated_to               String?  @db.VarChar(16)
+  migrated_at               DateTime? @db.Timestamp(6)
   created_at                DateTime @default(now()) @db.Timestamp(6)
 
   @@id([identifier])

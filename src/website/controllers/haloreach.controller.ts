@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, Headers, NotFoundException, Param, ParseIntPipe, Post, Query, StreamableFile, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Header, Headers, NotFoundException, Param, ParseIntPipe, ParseUUIDPipe, Post, Query, StreamableFile, UnauthorizedException } from "@nestjs/common";
 import { ApiHeader, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import { PrismaService } from "src/db/prisma.service";
 import {
@@ -12,6 +12,8 @@ import {
 } from "src/lsp/haloreach/population.service";
 import { HaloReachSpartanRenderService } from "src/lsp/haloreach/spartan-render.service";
 import { HaloReachHoppersService } from "../services/haloreach-hoppers.service";
+import { HaloReachGamesService, REACH_GAME_MODE_FILTERS, type ReachGameModeFilter } from "../services/haloreach-games.service";
+import { HaloReachEmblemsService } from "../services/haloreach-emblems.service";
 import { ReachNameplatesService } from "../services/reach-nameplates.service";
 import { ReachArmourUnlocksService } from "../services/reach-armour-unlocks.service";
 import { parseXuid } from "src/xbox/xuid";
@@ -111,6 +113,8 @@ export class HaloReachController {
         private readonly populationService: HaloReachPopulationService,
         private readonly spartanRenderService: HaloReachSpartanRenderService,
         private readonly hoppersService: HaloReachHoppersService,
+        private readonly gamesService: HaloReachGamesService,
+        private readonly emblemsService: HaloReachEmblemsService,
         private readonly nameplatesService: ReachNameplatesService,
         private readonly armourUnlocksService: ReachArmourUnlocksService,
     ) { }
@@ -222,6 +226,65 @@ export class HaloReachController {
                 }),
             })),
         };
+    }
+
+    @Get('/emblem')
+    @ApiOperation({
+        summary: 'Get Emblem',
+        description: 'Renders a Halo: Reach emblem PNG from a player appearance (emblem indices, flags and emblem color indices).',
+    })
+    @Header('Content-Type', 'image/png')
+    @Header('Cache-Control', 'public, max-age=86400')
+    async renderEmblem(
+        @Query('size', ParseIntPipe) size: number,
+        @Query('foreground', ParseIntPipe) foreground: number,
+        @Query('background', ParseIntPipe) background: number,
+        @Query('flags', new ParseIntPipe({ optional: true })) flags: number = 0,
+        @Query('primary_color', ParseIntPipe) primary_color: number,
+        @Query('secondary_color', ParseIntPipe) secondary_color: number,
+        @Query('background_color', ParseIntPipe) background_color: number,
+    ) {
+        if (size < 1 || size > 512) throw new BadRequestException('Invalid emblem size.');
+        return new StreamableFile(await this.emblemsService.renderEmblem({
+            size,
+            foreground,
+            background,
+            flags,
+            primary_color,
+            secondary_color,
+            background_color,
+        }));
+    }
+
+    @Get('/games')
+    @ApiOperation({
+        summary: 'List Games',
+        description: 'Paginated Halo: Reach games, newest first. Filter by player gamertag and by mode (campaign, matchmaking, custom, forge, firefight).',
+    })
+    async listGames(
+        @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
+        @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 25,
+        @Query('gamertag') gamertag?: string,
+        @Query('mode') mode?: string,
+    ) {
+        if (mode && !(mode in REACH_GAME_MODE_FILTERS)) {
+            throw new BadRequestException('Invalid mode.');
+        }
+        return this.gamesService.listGames({
+            page: Math.max(1, page),
+            pageSize: Math.min(100, Math.max(1, pageSize)),
+            gamertag: gamertag?.trim() || undefined,
+            mode: mode as ReachGameModeFilter | undefined,
+        });
+    }
+
+    @Get('/games/:id')
+    @ApiParam({ name: 'id' })
+    @ApiOperation({ summary: 'Get Game', description: 'A Halo: Reach game with its teams, players, statistics and medals.' })
+    async getGame(
+        @Param('id', new ParseUUIDPipe()) id: string,
+    ) {
+        return this.gamesService.getGame(id);
     }
 
     @Get('/players')

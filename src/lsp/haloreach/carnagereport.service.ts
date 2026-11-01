@@ -1,14 +1,16 @@
 import { Inject } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { CompressionService } from "../services/compression.service";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { isGuestXuid } from "src/xbox/xuid";
-import { find_chunk } from "@blamnetwork/blf";
 import {
-  s_blf_chunk_author,
-  s_blf_chunk_multiplayer_players,
-} from "@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual";
+  buildReachGameCreateInput,
+  read_reach_game_results,
+  REACH_TU1_BUILD_STRING,
+  type reach_game_results,
+} from "./game-results-blf";
 
 /** A decoded `c.Bitfield` as its storage integer; the keys are in bit order. */
 function bitfieldToRaw(flags: Record<string, boolean>): number {
@@ -28,11 +30,8 @@ export class HaloReachCarnageReportService {
         private readonly discordWebhookService: DiscordWebhookService,
     ) {}
 
-    private isValidCarnageReport = (
-        athr: s_blf_chunk_author,
-        mppl: s_blf_chunk_multiplayer_players,
-    ) => {
-        if (athr.build_string !== '12065.11.08.24.1738.tu1actu') {
+    private isValidCarnageReport = ({ athr, mppl }: reach_game_results) => {
+        if (athr.build_string !== REACH_TU1_BUILD_STRING) {
             this.logger.warn(`[UPLOAD] Received carnage report from unsupported build '${athr.build_string}', skipping.`)
             return false;
         }
@@ -48,28 +47,51 @@ export class HaloReachCarnageReportService {
         return true;
     }
 
-    // This function is only partly implemented, it only updates Service Records currently.
     public handleHaloReachResultsUpload = async (upload: Express.Multer.File) => {
         const buffer = ALLOW_UNCOMPRESSED_CARNAGE_REPORTS 
             ? this.compressionService.inflateIfCompressed(upload)
             : this.compressionService.inflate(upload);
 
-        const athr = new s_blf_chunk_author();
-        const mppl = new s_blf_chunk_multiplayer_players();
-
-        const found_athr = find_chunk(buffer, athr, "big");
-        const found_mppl = find_chunk(buffer, mppl, "big");
-
-        if (!found_athr || !found_mppl) {
+        const results = read_reach_game_results(buffer);
+        if (!results) {
+            this.logger.warn(`[UPLOAD] Received unreadable Halo: Reach game results, skipping.`)
             return;
         }
 
-        if (!this.isValidCarnageReport(athr, mppl)) {
+        if (!this.isValidCarnageReport(results)) {
             return;
         }
 
-        await this.prisma.$transaction(async (tx) => {
-            await tx.reach_service_record.deleteMany({
+        await this.storeGameResults(results);
+    }
+
+    public storeGameResults = async (results: reach_game_results) => {
+        await this.storeGame(results);
+        await this.updateServiceRecords(results);
+    }
+
+    private storeGame = async (results: reach_game_results) => {
+        const game = buildReachGameCreateInput(results);
+        try {
+            // Every console in the game uploads its own copy of the results; keep the latest one.
+            await this.prisma.$transaction([
+                this.prisma.reach_game.deleteMany({
+                    where: { game_instance: game.game_instance },
+                }),
+                this.prisma.reach_game.create({ data: game, select: { id: true } }),
+            ]);
+        } catch (error) {
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+                this.logger.debug(`[UPLOAD] Halo: Reach game ${game.game_instance} was stored by another upload, skipping.`)
+                return;
+            }
+            this.logger.error(`[UPLOAD] Failed to store Halo: Reach game ${game.game_instance}: ${error}`)
+        }
+    }
+
+    private updateServiceRecords = async ({ mppl }: reach_game_results) => {
+        await this.prisma.$transaction([
+            this.prisma.reach_service_record.deleteMany({
                 where: {
                     player_xuid: {
                         in: mppl.players
@@ -77,9 +99,9 @@ export class HaloReachCarnageReportService {
                             .map(player => player.configuration_from_client.xuid.toString())
                     }
                 }
-            })
+            }),
 
-            await tx.reach_service_record.createMany({
+            this.prisma.reach_service_record.createMany({
                 data: mppl.players
                     .filter(player => player.player_exists)
                     .filter(player => !isGuestXuid(player.configuration_from_client.xuid))
@@ -123,7 +145,7 @@ export class HaloReachCarnageReportService {
                         };
                     }
                 )
-            });
-        }, { timeout: 15_000 });
+            }),
+        ]);
     }
 }

@@ -29,6 +29,8 @@ import { UploadService } from 'src/lsp/services/upload.service';
 import { HaloReachPopulationService } from 'src/lsp/haloreach/population.service';
 import { HaloReachSpartanRenderService } from 'src/lsp/haloreach/spartan-render.service';
 import { HaloReachHoppersService } from './services/haloreach-hoppers.service';
+import { HaloReachGamesService } from './services/haloreach-games.service';
+import { HaloReachEmblemsService } from './services/haloreach-emblems.service';
 import { ReachNameplatesService } from './services/reach-nameplates.service';
 import { ReachArmourUnlocksService } from './services/reach-armour-unlocks.service';
 
@@ -63,6 +65,8 @@ import { ReachArmourUnlocksService } from './services/reach-armour-unlocks.servi
         HaloReachPopulationService,
         HaloReachSpartanRenderService,
         HaloReachHoppersService,
+        HaloReachGamesService,
+        HaloReachEmblemsService,
         ReachNameplatesService,
         ReachArmourUnlocksService,
         AresPopulationService,

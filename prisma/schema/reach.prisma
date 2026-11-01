@@ -532,3 +532,186 @@ model reach_active_player {
   @@map("active_players")
   @@schema("reach")
 }
+model reach_game {
+  id                             String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  game_instance                  Decimal                  @unique @db.Decimal(20, 0)
+  build_string                   String                   @db.VarChar(32)
+  uploaded_at                    DateTime                 @default(now()) @db.Timestamp(6)
+  gui_game_mode                  Int                      @db.SmallInt
+  game_engine                    Int                      @db.SmallInt
+  game_engine_category           Int                      @db.SmallInt
+  game_mode                      Int                      @db.SmallInt
+  team_game                      Boolean
+  started                        Boolean
+  start_time                     DateTime                 @db.Timestamp(6)
+  finished                       Boolean
+  finish_time                    DateTime                 @db.Timestamp(6)
+  game_end_reason                Int                      @db.SmallInt
+  map_id                         Int
+  map_variant_name               String                   @db.VarChar(32)
+  map_variant_unique_id          Decimal                  @db.Decimal(20, 0)
+  scenario_path                  String                   @db.VarChar(260)
+  game_variant_name              String                   @db.VarChar(128)
+  game_variant_description       String                   @db.VarChar(256)
+  game_variant_unique_id         Decimal                  @db.Decimal(20, 0)
+  game_variant_icon_index        Int                      @db.SmallInt
+  custom_statistic_names         String[]
+  custom_statistic_formats       Int[]
+  campaign_difficulty            Int                      @db.SmallInt
+  initial_skulls                 Decimal                  @db.Decimal(10, 0)
+  round_time_limit_seconds       Int
+  score_to_win_round             Int
+  number_of_rounds               Int
+  hopper_identifier              Int?
+  hopper_name                    String?                  @db.VarChar(32)
+  hopper_ranked                  Boolean?
+  survival_sets_completed        Int
+  survival_full_rounds_completed Int
+  survival_waves_completed       Int
+  teams                          reach_game_team[]
+  players                        reach_game_player[]
+  events                         reach_game_event[]
+  medal_events                   reach_game_medal_event[]
+
+  @@index([start_time])
+  @@index([finish_time])
+  @@index([map_id])
+  @@map("game")
+  @@schema("reach")
+}
+
+model reach_game_team {
+  game_id    String     @db.Uuid
+  team_index Int        @db.SmallInt
+  standing   Int        @db.SmallInt
+  score      Int
+  statistics Int[]
+  game       reach_game @relation(fields: [game_id], references: [id], onDelete: Cascade)
+
+  @@id([game_id, team_index])
+  @@map("game_team")
+  @@schema("reach")
+}
+
+model reach_game_player {
+  game_id                       String                     @db.Uuid
+  player_index                  Int                        @db.SmallInt
+  player_xuid                   Decimal                    @db.Decimal(20, 0)
+  player_name                   String                     @db.VarChar(16)
+  service_tag                   String                     @db.VarChar(5)
+  team                          Int                        @db.SmallInt
+  standing                      Int                        @db.SmallInt
+  score                         Int
+  player_rating                 Int
+  ticks_played                  Int
+  grade                         Int                        @db.SmallInt
+  sub_grade                     Int                        @db.SmallInt
+  is_elite                      Boolean
+  primary_color                 Int                        @db.SmallInt
+  secondary_color               Int                        @db.SmallInt
+  tertiary_color                Int                        @db.SmallInt
+  foreground_emblem             Int                        @db.SmallInt
+  background_emblem             Int                        @db.SmallInt
+  emblem_flags                  Int                        @db.SmallInt
+  emblem_primary_color          Int                        @db.SmallInt
+  emblem_secondary_color        Int                        @db.SmallInt
+  emblem_background_color       Int                        @db.SmallInt
+  kills                         Int
+  deaths                        Int
+  assists                       Int
+  betrayals                     Int
+  suicides                      Int
+  most_kills_in_a_row           Int
+  seconds_alive                 Int
+  statistics                    Int[]
+  medals                        Int[]
+  reward_statistics             Int[]
+  campaign_metagame_final_score Int
+  game                          reach_game                 @relation(fields: [game_id], references: [id], onDelete: Cascade)
+  weapons                       reach_game_player_weapon[]
+  versus                        reach_game_player_versus[]
+  ai_kills                      reach_game_player_ai[]
+
+  @@id([game_id, player_index])
+  @@index([player_xuid])
+  @@index([player_name])
+  @@map("game_player")
+  @@schema("reach")
+}
+
+model reach_game_player_weapon {
+  game_id      String            @db.Uuid
+  player_index Int               @db.SmallInt
+  damage_type  Int               @db.SmallInt
+  kills        Int
+  deaths       Int
+  betrayals    Int
+  suicides     Int
+  headshots    Int
+  player       reach_game_player @relation(fields: [game_id, player_index], references: [game_id, player_index], onDelete: Cascade)
+
+  @@id([game_id, player_index, damage_type])
+  @@map("game_player_weapon")
+  @@schema("reach")
+}
+
+model reach_game_player_versus {
+  game_id        String            @db.Uuid
+  player_index   Int               @db.SmallInt
+  opponent_index Int               @db.SmallInt
+  kills          Int
+  deaths         Int
+  player         reach_game_player @relation(fields: [game_id, player_index], references: [game_id, player_index], onDelete: Cascade)
+
+  @@id([game_id, player_index, opponent_index])
+  @@map("game_player_versus")
+  @@schema("reach")
+}
+
+model reach_game_player_ai {
+  game_id      String            @db.Uuid
+  player_index Int               @db.SmallInt
+  bucket_type  Int               @db.SmallInt
+  bucket_class Int               @db.SmallInt
+  kills        Int
+  betrayals    Int
+  player       reach_game_player @relation(fields: [game_id, player_index], references: [game_id, player_index], onDelete: Cascade)
+
+  @@id([game_id, player_index, bucket_type, bucket_class])
+  @@map("game_player_ai")
+  @@schema("reach")
+}
+
+model reach_game_event {
+  game_id                     String     @db.Uuid
+  event_index                 Int        @db.SmallInt
+  time                        Int
+  event_type                  Int        @db.SmallInt
+  player_index                Int        @db.SmallInt
+  victim_index_or_bucket_type Int        @db.SmallInt
+  bucket_class                Int        @db.SmallInt
+  damage_type                 Int        @db.SmallInt
+  victim_damage_type          Int        @db.SmallInt
+  points                      Int        @db.SmallInt
+  player_position             Float[]
+  victim_position             Float[]
+  game                        reach_game @relation(fields: [game_id], references: [id], onDelete: Cascade)
+
+  @@id([game_id, event_index])
+  @@map("game_event")
+  @@schema("reach")
+}
+
+model reach_game_medal_event {
+  game_id         String     @db.Uuid
+  event_index     Int        @db.SmallInt
+  time            Int
+  player_index    Int        @db.SmallInt
+  medal           Int        @db.SmallInt
+  player_position Float[]
+  game            reach_game @relation(fields: [game_id], references: [id], onDelete: Cascade)
+
+  @@id([game_id, event_index])
+  @@map("game_medal_event")
+  @@schema("reach")
+}

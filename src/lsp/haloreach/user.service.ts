@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
-import * as BLF from '@blam-network/blf_lsp';
+import * as H3 from '@blamnetwork/blf/halo3/v12070_08_09_05_2031_halo3_ship';
+import * as HR from '@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual';
 import {
     s_blf_chunk_challenge_progress,
 } from "@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual";
@@ -25,10 +26,10 @@ export class HaloReachUserService {
 
     public getUserFile = async (xuid: BigInt) => {
         // If the DB is too slow, or data isn't present, we'll return a file without player data or a service record.
-        let fupd: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_player_data = undefined;
+        let fupd: undefined | HR.s_blf_chunk_player_data = undefined;
         let chpr: undefined | s_blf_chunk_challenge_progress = undefined;
-        let umsg: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_user_messaging_data = undefined;
-        let filq: undefined | BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_file_transfers = undefined;
+        let umsg: undefined | HR.s_blf_chunk_user_messaging_data = undefined;
+        let filq: undefined | HR.s_blf_chunk_file_transfers = undefined;
         let name = '<unknown>';
 
         const playerDataPromise = this.prisma.$transaction(async (prisma) => {
@@ -64,7 +65,7 @@ export class HaloReachUserService {
             });
 
             if (transfers.length > 0) {
-                filq = {
+                filq = Object.assign(new HR.s_blf_chunk_file_transfers(), {
                     transfers: transfers.map(transfer => {
                         const file = transfer.file;
                         const modified_by = (file.modifier_name ?? file.creator_name ?? '').slice(0, 16);
@@ -80,73 +81,72 @@ export class HaloReachUserService {
                             file_name: file.name ?? '',
                             share_id: BigInt(file.share_id.toString()),
                             icon_index: file.icon_index ?? -1,
-                            size_in_bytes: Number(file.size_in_bytes?.toString()),
-                        } satisfies BLF.haloreach_12065_11_08_24_1738_tu1actual.s_files_user_auto_download_queue_item;
+                            size_in_bytes: Number(file.size_in_bytes ?? 0),
+                        } satisfies HR.s_files_user_auto_download_queue_item;
                     }),
-                };
+                });
             }
 
             if (playerData) {
                 let bungie_user_role = 0;
-                bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.registered;
-                if (playerData.is_pro) bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.pro_member;
-                if (playerData.is_bungie) bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.staff;
-                if (playerData.is_vip) bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.debug_enabled;
+                bungie_user_role |= HR.e_bungienet_user_flags.registered;
+                if (playerData.is_pro) bungie_user_role |= HR.e_bungienet_user_flags.pro_member;
+                if (playerData.is_bungie) bungie_user_role |= HR.e_bungienet_user_flags.staff;
+                if (playerData.is_vip) bungie_user_role |= HR.e_bungienet_user_flags.debug_enabled;
 
                 switch (playerData.nameplate) {
                     case reach_player_data_nameplate.none:
                         break;
                     case reach_player_data_nameplate.seventh_column:
-                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_seventh_column;
+                        bungie_user_role |= HR.e_bungienet_user_flags.nameplate_seventh_column;
                         break;
                     case reach_player_data_nameplate.dmr:
-                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_dmr;
+                        bungie_user_role |= HR.e_bungienet_user_flags.nameplate_dmr;
                         break;
                     case reach_player_data_nameplate.bungie:
-                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_bungie;
+                        bungie_user_role |= HR.e_bungienet_user_flags.nameplate_bungie;
                         break;
                     case reach_player_data_nameplate.marathon:
-                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_marathon;
+                        bungie_user_role |= HR.e_bungienet_user_flags.nameplate_marathon;
                         break;
                     case reach_player_data_nameplate.halo1:
-                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_halo1;
+                        bungie_user_role |= HR.e_bungienet_user_flags.nameplate_halo1;
                         break;
                     case reach_player_data_nameplate.halo2:
-                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_halo2;
+                        bungie_user_role |= HR.e_bungienet_user_flags.nameplate_halo2;
                         break;
                     case reach_player_data_nameplate.halo3:
-                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_halo3;
+                        bungie_user_role |= HR.e_bungienet_user_flags.nameplate_halo3;
                         break;
                     case reach_player_data_nameplate.odst:
-                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_odst;
+                        bungie_user_role |= HR.e_bungienet_user_flags.nameplate_odst;
                         break;
                     case reach_player_data_nameplate.assault_rifle:
-                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_assault_rifle;
+                        bungie_user_role |= HR.e_bungienet_user_flags.nameplate_assault_rifle;
                         break;
                     case reach_player_data_nameplate.mk4_helmet:
-                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_mk4_helmet;
+                        bungie_user_role |= HR.e_bungienet_user_flags.nameplate_mk4_helmet;
                         break;
                     case reach_player_data_nameplate.halo:
-                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_halo;
+                        bungie_user_role |= HR.e_bungienet_user_flags.nameplate_halo;
                         break;
                     case reach_player_data_nameplate.allstar:
-                        bungie_user_role |= BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.nameplate_allstar;
+                        bungie_user_role |= HR.e_bungienet_user_flags.nameplate_allstar;
                         break;
                 }
                 
-                fupd = {
+                fupd = Object.assign(new HR.s_blf_chunk_player_data(), {
                     extras_portal_debug: playerData.extras_portal_debug,
-                    unlock_achievements: new Array(32).fill(0, 0, 32),
                     hopper_access: playerData.hopper_access ?? 0,
                     bungie_user_role,
                     hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
-                }
+                })
 
                 if (playerData.nag_message && (playerData.nag_message_expires_at == null || playerData.nag_message_expires_at >= new Date())) {
-                    umsg = {
+                    umsg = Object.assign(new HR.s_blf_chunk_user_messaging_data(), {
                         message_index: playerData.nag_message,
                         expires_at: playerData.nag_message_expires_at || addYears(new Date(), 1)
-                    }
+                    })
                 }
             }
         })
@@ -162,21 +162,20 @@ export class HaloReachUserService {
         await Promise.allSettled([playerDataPromise, challengesPromise, namePromise]);
 
         if (!fupd) {
-            fupd = {
-                bungie_user_role: BLF.haloreach_12065_11_08_24_1738_tu1actual.e_bungienet_user_flags.registered,
+            fupd = Object.assign(new HR.s_blf_chunk_player_data(), {
+                bungie_user_role: HR.e_bungienet_user_flags.registered,
                 extras_portal_debug: false,
                 hopper_access: 0,
                 hopper_directory: 'default_hoppers',
-                unlock_achievements: new Array(32).fill(0, 0, 32),
-            }
+            })
         }
 
         this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
 
-        return BLF.haloreach_12065_11_08_24_1738_tu1actual.build_user_file(fupd, chpr, undefined, umsg, filq);
+        return HR.build_user_file(fupd, chpr, undefined, umsg, filq);
     }
 
-    public getServiceRecord = async (xuid: BigInt): Promise<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record> => {
+    public getServiceRecord = async (xuid: BigInt): Promise<HR.s_blf_chunk_service_record> => {
         const serviceRecord = await this.prisma.reach_service_record.findUnique({
             where: {
                 player_xuid: xuid.toString(),
@@ -242,7 +241,7 @@ export class HaloReachUserService {
             }
         );
 
-        return {
+        return Object.assign(new HR.s_blf_chunk_service_record(), {
             player_name: serviceRecord?.player_name || '',
             player_info_available: true,
             player_model_choice: serviceRecord?.is_elite || 0,
@@ -267,19 +266,19 @@ export class HaloReachUserService {
             campaign_enemies_killed: 0,
             campaign_vehicles_destroyed: 0,
             campaign_seconds_played: 0,
-            campaign_difficulty_stats: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_campaign_difficulty_stats>(3).fill({
+            campaign_difficulty_stats: new Array<HR.s_blf_chunk_service_record_campaign_difficulty_stats>(3).fill({
                 covenant_kills: 0,
                 vehicles_destroyed: 0,
                 highest_skull_multiplier: 1,
                 missions_complete: 0,
                 missions_completed_without_dying_or_restarting: 0,
                 unknown1: 0,
-            }, 0, 3),
+            }, 0, 3) as HR.s_blf_chunk_service_record['campaign_difficulty_stats'],
             campaign_commendations_count: campaignCommendations.length,
             campaign_commendations: [
                 ...campaignCommendations,
                 ...new Array(16 - campaignCommendations.length).fill({ commendation: 0, progress: 0 }),
-            ],
+            ] as HR.s_blf_chunk_service_record['campaign_commendations'],
 
             firefight_record_available: true,
             firefight_covenant_kills: 0,
@@ -289,7 +288,7 @@ export class HaloReachUserService {
             firefight_waves_completed: 0,
             firefight_generators_destroyed: 0,
             firefight_enemy_players_killed: 0,
-            firefight_difficulty_stats: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_firefight_difficulty_stats>(3).fill({
+            firefight_difficulty_stats: new Array<HR.s_blf_chunk_service_record_firefight_difficulty_stats>(3).fill({
                 biggest_kill: 0,
                 covenant_kills: 0,
                 vehicles_destroyed: 0,
@@ -297,36 +296,36 @@ export class HaloReachUserService {
                 highest_set_completed: 0,
                 times_beat_par: 0,
                 most_consecutive_kills_without_dying: 0,
-            }, 0, 3),
+            }, 0, 3) as HR.s_blf_chunk_service_record['firefight_difficulty_stats'],
             firefight_commendations_count: firefightCommendations.length,
             firefight_commendations: [
                 ...firefightCommendations,
                 ...new Array(16 - firefightCommendations.length).fill({ commendation: 0, progress: 0 }),
-            ],
+            ] as HR.s_blf_chunk_service_record['firefight_commendations'],
 
             matchmaking_record_available: true,
             matchmaking_games_won: 0,
             matchmaking_assists: 0,
             matchmaking_kills: 0,
             matchmaking_deaths: 0,
-            matchmaking_category_stats: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_matchmaking_category_stats>(5).fill({
+            matchmaking_category_stats: new Array<HR.s_blf_chunk_service_record_matchmaking_category_stats>(5).fill({
                 games_won: 0,
                 kills: 0,
                 deaths: 0,
                 assists: 0,
                 percentage_of_matchmaking_games_played_in_category: 0,
-            }, 0, 5),
+            }, 0, 5) as HR.s_blf_chunk_service_record['matchmaking_category_stats'],
             matchmaking_commendations_count: matchmakingCommendations.length,
             matchmaking_commendations: [
                 ...matchmakingCommendations,
                 ...new Array(16 - matchmakingCommendations.length).fill({ commendation: 0, progress: 0 }),
-            ],
+            ] as HR.s_blf_chunk_service_record['matchmaking_commendations'],
 
             arena_season_stats_count: 0,
-            arena_season_stats: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_arena_season_stats>(3).fill({
+            arena_season_stats: new Array<HR.s_blf_chunk_service_record_arena_season_stats>(3).fill({
                 season_number: 0,
                 hopper_stats_count: 0,
-                hopper_stats: new Array<BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_service_record_arena_hopper_stats>(8).fill({
+                hopper_stats: new Array<HR.s_blf_chunk_service_record_arena_hopper_stats>(8).fill({
                     kills: 0,
                     deaths: 0,
                     assists: 0,
@@ -346,8 +345,8 @@ export class HaloReachUserService {
                     current_best_set: 0,
                     yesterdays_best_set: 0,
                     hopper_name: ''
-                }, 0, 8)
-            }, 0, 3),
+                }, 0, 8) as HR.s_blf_chunk_service_record_arena_season_stats['hopper_stats']
+            }, 0, 3) as HR.s_blf_chunk_service_record['arena_season_stats'],
 
             custom_games_record_available: false,
             custom_games_firefight_killed: 0,
@@ -368,18 +367,11 @@ export class HaloReachUserService {
             odst_grunts_killed_in_firefight: 0,
             odst_highest_difficulty: 0,
             
-            unknown1: [0, 0, 0, 0],
-            unknown2: [0, 0, 0],
-            unknown3: new Array(14).fill(0, 0, 14),
-            unknown4: [0, 0],
-            unknown5: 0,
-        }
+        })
     }
 
     // TODO: Implement
     public getRecentPlayersFile = (_xuid: string) => {
-        return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_recent_players_file({
-            players: []
-        })
+        return H3.build_recent_players_file(new H3.s_blf_chunk_user_recent_players())
     }
 }

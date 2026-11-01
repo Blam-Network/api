@@ -1,5 +1,5 @@
 ![hero](hero.jpg)
-# web_private 
+# Blam Network API 
 This API contains a reimplementation of web services for Halo 3, Halo 3: ODST and Halo: Reach. It's features include:
 - Matchmaking
 - File Share
@@ -49,4 +49,4 @@ $ npm run start:prod
 ```
 ---
 
-Last Updated 05/08/25 by Codie Newark 🐧
+Last Updated 01/11/26 by Codie Newark 🐧

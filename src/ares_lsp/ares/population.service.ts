@@ -1,7 +1,11 @@
 import { Inject, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import * as BLF from '@blam-network/blf_lsp';
+import {
+    build_hopper_statistics_file,
+    type hopper_population,
+    s_blf_chunk_matchmaking_hopper_statistics,
+} from "../blf";
 import { z } from "zod";
 import { lookup } from 'geoip-lite'; // Or whatever you use to resolve IPs
 import { readFile } from "fs/promises";
@@ -20,11 +24,11 @@ export class AresPopulationService {
     ) { }
 
     public getHopperStatistics = async () => {
-        const hopperStats: BLF.ares_untracked.s_blf_chunk_matchmaking_hopper_statistics['data'] = [];
+        let hopperStats: hopper_population[] = [];
 
         await Promise.allSettled([this.prisma.$transaction(async () => {
             const hopperPopulationResponse = await this.prisma.$queryRaw`
-                SELECT COUNT(player_xuid) AS player_count, hopper_identifier
+                SELECT COUNT(player_xuid)::int AS player_count, hopper_identifier
                 FROM (
                     SELECT DISTINCT ON (crp.player_xuid)
                         crp.player_xuid,
@@ -40,17 +44,17 @@ export class AresPopulationService {
                 LIMIT 32;
             `;
 
-            hopperStats.concat(z.object({
+            hopperStats = z.object({
                 player_count: z.number(),
                 hopper_identifier: z.number()
-            }).array().parse(hopperPopulationResponse));
+            }).array().parse(hopperPopulationResponse);
 
         }, { timeout: 5000 })]);
 
-        return BLF.ares_untracked.build_hopper_statistics_file({
-            data: hopperStats.concat(Array(32 - hopperStats.length).fill({ hopper_identifier: 0, player_count: 0 })),
-            player_count: hopperStats.reduce((count, hp) => count + hp.player_count, 0)
-        })
+        return build_hopper_statistics_file(s_blf_chunk_matchmaking_hopper_statistics.create(
+            hopperStats.reduce((count, hp) => count + hp.player_count, 0),
+            hopperStats,
+        ))
     }
 
     private latLonToPixel = (lat, lon, width, height) => {

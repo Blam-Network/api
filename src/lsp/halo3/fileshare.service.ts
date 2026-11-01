@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import * as BLF from '@blam-network/blf_lsp'
+import * as H3 from '@blamnetwork/blf/halo3/v12070_08_09_05_2031_halo3_ship';
+import * as ODST from '@blamnetwork/blf/halo3odst/v13895_09_04_27_2201_atlas_release';
 import { PrismaService } from "src/db/prisma.service";
 import { HALO3_BUILD_NUMBER, HALO3_EPSILON_BUILD_NUMBER, HALO3_EPSILON_REFRESH_BUILD_NUMBER, HALO3_EXPO_BUILD_NUMBER, HALO3_ODST_BUILD_NUMBER, HALO3_TU1_BUILD_NUMBER, HALO3_TU2_BUILD_NUMBER } from "./constants";
 import { access, mkdir, rm, stat, writeFile } from "fs/promises";
@@ -14,6 +15,8 @@ import { createReadStream } from "fs";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { xuidToHexString } from "src/xbox/xuid";
 import { UploadService } from "../services/upload.service";
+import { read_halo3_11637_blind_screenshot, read_halo3_blind_screenshot, read_odst_blind_screenshot } from 'src/utils/blf_files';
+import { find_blf_chunk } from 'src/utils/blf_files';
 
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
@@ -1094,7 +1097,7 @@ export class Halo3FileShareService {
             throw new UnauthorizedException("Can't upload to someone elses file share.")
         }
 
-        const contentHeader = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_content_header(file.buffer);
+        const contentHeader = find_blf_chunk(file.buffer, new H3.s_blf_chunk_content_header());
         if (!contentHeader) { 
             await this.uploadService.storeUploadedFile(file);
             throw new BadRequestException('No header found for upload.'); 
@@ -1172,7 +1175,7 @@ export class Halo3FileShareService {
             throw new UnauthorizedException("Can't upload to someone elses file share.")
         }
 
-        const contentHeader = BLF.halo3odst_13895_09_04_27_2201_atlas_release.read_content_header(file.buffer);
+        const contentHeader = find_blf_chunk(file.buffer, new ODST.s_blf_chunk_content_header());
         if (!contentHeader) throw new BadRequestException('No header found for upload.');
 
         if (contentHeader.build_number !== HALO3_BUILD_NUMBER
@@ -1240,7 +1243,7 @@ export class Halo3FileShareService {
             throw new BadRequestException('Invalid filetype.')
         }
 
-        const screenshot = BLF.halo3odst_13895_09_04_27_2201_atlas_release.read_blind_screenshot(file.buffer);
+        const screenshot = read_odst_blind_screenshot(file.buffer);
         if (!screenshot) throw new BadRequestException('No header found for upload.');
 
         if (screenshot.chdr.build_number !== HALO3_ODST_BUILD_NUMBER) {
@@ -1291,8 +1294,8 @@ export class Halo3FileShareService {
                 game_tick: screenshot.scnc.game_tick,
                 film_tick: screenshot.scnc.film_tick,
                 jpeg_length: screenshot.scnc.jpeg_data_length,
-                pixel_width: screenshot.scnc.camera.camera.render_pixel_bounds.x.upper,
-                pixel_height: screenshot.scnc.camera.camera.render_pixel_bounds.y.upper,
+                pixel_width: screenshot.scnc.camera.camera.render_pixel_bounds.right - screenshot.scnc.camera.camera.render_pixel_bounds.left,
+                pixel_height: screenshot.scnc.camera.camera.render_pixel_bounds.bottom - screenshot.scnc.camera.camera.render_pixel_bounds.top,
                 camera_position: [
                     screenshot.scnc.camera.camera.position.x,
                     screenshot.scnc.camera.camera.position.y,
@@ -1340,12 +1343,12 @@ export class Halo3FileShareService {
             throw new BadRequestException('Invalid filetype.')
         }
 
-        let chdr: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_content_header | undefined = undefined;
-        let scnc: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_screenshot_camera | undefined = undefined;
-        let scnd: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_screenshot_data | undefined = undefined;
+        let chdr: H3.s_blf_chunk_content_header | undefined = undefined;
+        let scnc: H3.s_blf_chunk_screenshot_camera | undefined = undefined;
+        let scnd: H3.s_blf_chunk_screenshot_data | undefined = undefined;
 
-        const screenshot_12070 = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_blind_screenshot(file.buffer);
-        const screenshot_11637 = BLF.halo3_11637_07_08_02_2348_release.read_blind_screenshot(file.buffer);
+        const screenshot_12070 = read_halo3_blind_screenshot(file.buffer);
+        const screenshot_11637 = read_halo3_11637_blind_screenshot(file.buffer);
 
         chdr = (screenshot_12070?.chdr || screenshot_11637?.chdr) ?? undefined;
         scnc = screenshot_12070?.scnc ?? undefined;
@@ -1409,8 +1412,8 @@ export class Halo3FileShareService {
                 game_tick: scnc?.game_tick,
                 film_tick: scnc?.film_tick,
                 jpeg_length: scnc?.jpeg_data_length,
-                pixel_width: scnc?.camera.camera.render_pixel_bounds.x.upper,
-                pixel_height: scnc?.camera.camera.render_pixel_bounds.y.upper,
+                pixel_width: scnc && scnc.camera.camera.render_pixel_bounds.right - scnc.camera.camera.render_pixel_bounds.left,
+                pixel_height: scnc && scnc.camera.camera.render_pixel_bounds.bottom - scnc.camera.camera.render_pixel_bounds.top,
                 camera_position: scnc 
                     ? [
                         scnc.camera.camera.position.x,

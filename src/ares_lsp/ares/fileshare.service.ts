@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import * as BLF from '@blam-network/blf_lsp'
+import * as H3 from '@blamnetwork/blf/halo3/v12070_08_09_05_2031_halo3_ship';
 import { PrismaService } from "src/db/prisma.service";
 import { access, mkdir, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
@@ -12,6 +12,8 @@ import { h32 } from 'xxhashjs';
 import { createReadStream } from "fs";
 import { xuidToHexString } from "src/xbox/xuid";
 import { UploadService } from "../services/upload.service";
+import { read_halo3_blind_screenshot } from 'src/utils/blf_files';
+import { find_blf_chunk } from 'src/utils/blf_files';
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 
@@ -728,7 +730,7 @@ export class AresFileShareService {
             throw new UnauthorizedException("Can't upload to someone elses file share.")
         }
 
-        const contentHeader = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_content_header(file.buffer);
+        const contentHeader = find_blf_chunk(file.buffer, new H3.s_blf_chunk_content_header());
         if (!contentHeader) { 
             await this.uploadService.storeUploadedFile(file);
             throw new BadRequestException('No header found for upload.'); 
@@ -790,11 +792,11 @@ export class AresFileShareService {
             throw new BadRequestException('Invalid filetype.')
         }
 
-        let chdr: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_content_header | undefined = undefined;
-        let scnc: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_screenshot_camera | undefined = undefined;
-        let scnd: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_screenshot_data | undefined = undefined;
+        let chdr: H3.s_blf_chunk_content_header | undefined = undefined;
+        let scnc: H3.s_blf_chunk_screenshot_camera | undefined = undefined;
+        let scnd: H3.s_blf_chunk_screenshot_data | undefined = undefined;
 
-        const screenshot = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_blind_screenshot(file.buffer);
+        const screenshot = read_halo3_blind_screenshot(file.buffer);
 
         chdr = (screenshot?.chdr) ?? undefined;
         scnc = screenshot?.scnc ?? undefined;
@@ -847,8 +849,8 @@ export class AresFileShareService {
                 game_tick: scnc.game_tick,
                 film_tick: scnc.film_tick,
                 jpeg_length: scnc.jpeg_data_length,
-                pixel_width: scnc.camera.camera.render_pixel_bounds.x.upper,
-                pixel_height: scnc.camera.camera.render_pixel_bounds.y.upper,
+                pixel_width: scnc.camera.camera.render_pixel_bounds.right - scnc.camera.camera.render_pixel_bounds.left,
+                pixel_height: scnc.camera.camera.render_pixel_bounds.bottom - scnc.camera.camera.render_pixel_bounds.top,
                 camera_position: [
                     scnc.camera.camera.position.x,
                     scnc.camera.camera.position.y,

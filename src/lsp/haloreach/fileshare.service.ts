@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, InternalServerErrorException, NotFoundException, ServiceUnavailableException, StreamableFile, UnauthorizedException } from "@nestjs/common";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import * as BLF from '@blam-network/blf_lsp'
+import * as H3 from '@blamnetwork/blf/halo3/v12070_08_09_05_2031_halo3_ship';
+import * as HR from '@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual';
 import { PrismaService } from "src/db/prisma.service";
 import { access, mkdir, readFile, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
@@ -12,9 +13,6 @@ import { xuidToHexString } from "src/xbox/xuid";
 import { HALOREACH_BUILD_NUMBERS } from "./constants";
 import { UploadService } from "../services/upload.service";
 import { randomBytes } from "crypto";
-import { blf } from "src/blf";
-import { HaloReach } from "../blf";
-import { c } from "src/cstruct";
 import { createReadStream } from "fs";
 import { Decimal } from "@prisma/client/runtime/library";
 import * as sharp from "sharp";
@@ -28,7 +26,11 @@ import {
     s_content_item_matchmaking_metadata,
     s_content_item_campaign_metadata,
     s_content_item_firefight_metadata,
+    type s_online_file_metadata,
+    type s_online_file_summary_listing_entry,
 } from "@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual";
+import { fileshare_details_file, fileshare_listing_file, fileshare_summary_file } from "./fileshare-blf";
+import { read_reach_09449_blind_screenshot, read_reach_09730_blind_screenshot, read_reach_blind_screenshot } from 'src/utils/blf_files';
 const IS_FILESHARE_ENABLED = true;
 const FILESHARE_UNAVAILABLE_MESSAGE = 'Pardon our dust! File Share is currently Unavailable.'
 const FILESHARE_WELCOME_MESSAGE = null;
@@ -47,6 +49,20 @@ const SHAREDFILE_MIME = 'application/x-reach-sharedfile'
 
 const ENABLE_DEBUG_MIME = true;
 const DEBUG_MIME = SHAREDFILE_MIME
+
+// Fileshare search filters the game sends.
+export enum e_file_age_filter {
+    day = 0,
+    week = 1,
+    month = 2,
+}
+
+export enum e_file_sort_by {
+    date_added = 0,
+    highest_ranked = 1,
+    most_viewed = 2,
+    most_related = 3, // ???
+}
 
 export enum e_predefined_query {
     _predefined_query_most_downloaded = 12,
@@ -303,38 +319,48 @@ export class HaloReachFileShareService {
             throw new BadRequestException('Invalid filetype.')
         }
 
-        let chdr: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_content_header | undefined = undefined;
-        let scnd: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_screenshot_data | undefined = undefined;
+        let chdr: HR.s_blf_chunk_content_header | undefined = undefined;
+        let scnd: H3.s_blf_chunk_screenshot_data | undefined = undefined;
 
-        const releaseScreenshot = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_blind_screenshot(file.buffer);
+        const releaseScreenshot = read_reach_blind_screenshot(file.buffer);
         if (releaseScreenshot && releaseScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.RELEASE_TU1) {
             chdr = releaseScreenshot.chdr;
             scnd = releaseScreenshot.scnd;
         }
 
-        const betaScreenshot = BLF.haloreach_09730_10_04_09_1309_omaha_delta.read_blind_screenshot(file.buffer);
+        const betaScreenshot = read_reach_09730_blind_screenshot(file.buffer);
         if (betaScreenshot && (
             betaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PUBLIC
             || betaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PRIVATE_TU1
         )) {
             chdr = betaScreenshot.chdr;
-            scnd = betaScreenshot._cmp;
+            scnd = betaScreenshot._cmp.chunk;
         }
 
-        const privateBetaScreenshot = BLF.haloreach_09449_10_03_25_1545_omaha_beta.read_blind_screenshot(file.buffer);
+        const privateBetaScreenshot = read_reach_09449_blind_screenshot(file.buffer);
         if (privateBetaScreenshot && (
             privateBetaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PRIVATE_TU1
             || privateBetaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.BETA_PRIVATE
             || privateBetaScreenshot.chdr.build_number == HALOREACH_BUILD_NUMBERS.ALPHA_PRIVATE
         )) {
             chdr = privateBetaScreenshot.chdr;
-            scnd = privateBetaScreenshot._cmp;
+            scnd = privateBetaScreenshot._cmp.chunk;
         }
 
         if (!chdr || !scnd) {
             this.logger.warn(`[FileShare] Got an unsupported blind file.`)
             throw new BadRequestException("Bad Version: The file is unsupported.")
         }
+
+        const { general } = chdr.metadata;
+        const campaign_data = general.game_mode === HR.e_game_mode.campaign
+            ? chdr.metadata.game_mode_data as HR.s_content_item_campaign_metadata : undefined;
+        const firefight_data = general.game_mode === HR.e_game_mode.survival
+            ? chdr.metadata.game_mode_data as HR.s_content_item_firefight_metadata : undefined;
+        const film_data = general.file_type === HR.e_file_type.Film || general.file_type === HR.e_file_type.FilmClip
+            ? chdr.metadata.file_type_data as HR.s_content_item_film_metadata : undefined;
+        const matchmaking_data = general.activity === HR.e_gui_game_mode.matchmaking
+            ? chdr.metadata.activity_data as HR.s_content_item_matchmaking_metadata : undefined;
 
         const destinationFolder = join(
             process.cwd(),
@@ -348,8 +374,8 @@ export class HaloReachFileShareService {
                 author: chdr.metadata.creation_history.name,
                 author_id: uploaderXuid.toString(),
                 author_is_xuid_online: chdr.metadata.creation_history.is_online,
-                difficulty: chdr.metadata.campaign_data?.campaign_difficulty || chdr.metadata.firefight_data?.firefight_difficulty,
-                campaign_id: chdr.metadata.campaign_data?.campaign_id,
+                difficulty: campaign_data?.campaign_difficulty || firefight_data?.firefight_difficulty,
+                campaign_id: campaign_data?.campaign_id,
                 date: chdr.metadata.creation_history.timestamp,
                 description: chdr.metadata.description,
                 file_type: chdr.metadata.general.file_type,
@@ -357,14 +383,14 @@ export class HaloReachFileShareService {
                 game_mode: chdr.metadata.general.game_mode,
                 activity: chdr.metadata.general.activity,
                 game_id: chdr.metadata.general.game_id.toString(),
-                length_seconds: chdr.metadata.film_data?.seconds,
+                length_seconds: film_data?.seconds,
                 map_id: chdr.metadata.general.map_id,
                 name: chdr.metadata.name,
                 size_in_bytes: chdr.metadata.general.size_in_bytes.toString(),
                 unique_id: chdr.metadata.general.unique_id.toString(),
                 parent_unique_id: chdr.metadata.general.parent_unique_id.toString(),
                 root_unique_id: chdr.metadata.general.root_unique_id.toString(),
-                hopper_id: chdr.metadata.matchmaking_data?.hopper_identifier,
+                hopper_id: matchmaking_data?.hopper_identifier,
                 jpeg_length: scnd.jpeg_data.length,
                 build_number: chdr.build_number,
             },
@@ -547,28 +573,31 @@ export class HaloReachFileShareService {
         let firefight_data: s_content_item_firefight_metadata | undefined = undefined;
 
         switch (chdr.metadata.general.file_type) {
-            case e_file_type.Film | e_file_type.FilmClip: {
+            case e_file_type.Film:
+            case e_file_type.FilmClip: {
                 film_data = chdr.metadata.file_type_data as s_content_item_film_metadata;
+                break;
             }
             case e_file_type.GameVariant: {
                 game_variant_data = chdr.metadata.file_type_data as s_content_item_game_variant_metadata;
+                break;
             }
         }
-        switch (chdr.metadata.general.activity) {
-            case 3: {
-                matchmaking_data = chdr.metadata.activity_data as s_content_item_matchmaking_metadata;
-            }
+        if (chdr.metadata.general.activity === HR.e_gui_game_mode.matchmaking) {
+            matchmaking_data = chdr.metadata.activity_data as s_content_item_matchmaking_metadata;
         }
         switch (chdr.metadata.general.game_mode) {
-            case 1: {
+            case HR.e_game_mode.campaign: {
                 campaign_data = chdr.metadata.game_mode_data as s_content_item_campaign_metadata;
+                break;
             }
-            case 2: {
+            case HR.e_game_mode.survival: {
                 firefight_data = chdr.metadata.game_mode_data as s_content_item_firefight_metadata;
+                break;
             }
         }
 
-        // const contentHeader = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_content_header(file.buffer);
+        // const contentHeader = HR.read_content_header(file.buffer);
         if (!found_chdr) { 
             await this.uploadService.storeUploadedFile(file);
             throw new BadRequestException('No header found for upload.'); 
@@ -665,68 +694,6 @@ export class HaloReachFileShareService {
 
         const fileShare = await this.getFileShare(viewerXuid, BigInt(file?.share_id.toString()));
 
-        const s_online_file_general_metadata = (tagCount: number) => c.createCStruct({pack: 1, endian: 'big', fields: [
-            { name: 'id', type: 'u64' }, // probs unique id
-            { name: 'file_type', type: 'u8' },
-            { name: 'tag_count', type: new c.MagicNumber(tagCount, 'u8') },
-            { name: 'megalo_category_index', type: 'u8' },
-            { name: 'unknown2', type: 'u8', count: 1 }, // pad?
-            { name: 'size_in_bytes', type: 'u32' },
-            { name: 'activity', type: 'u8' },
-            { name: 'game_mode', type: 'u8' },
-            { name: 'game_engine_type', type: 'u8' },
-            { name: 'unknown3', type: 'padding', count: 1 },
-            { name: 'unknown3', type: 'u8', count: 8 }, // game ID?
-            { name: 'map_id', type: 'i32' },
-          ]});
-          
-           
-          const s_online_file_metadata = (screenshotLength: number, tagCount: number) => c.createCStruct({pack: 1, endian: 'big', fields: [
-            { name: 'general', type: s_online_file_general_metadata(tagCount) },
-            { name: 'created', type: HaloReach.v12065.s_content_item_history },
-            { name: 'modified', type: HaloReach.v12065.s_content_item_history },
-            { name: 'name', type: new c.WString(128) },
-            { name: 'description', type: new c.WString(128) },
-            { name: 'game_variant_or_film', type: new c.Union({
-              game_variant: HaloReach.v12065.s_content_item_game_variant_metadata,
-              film: HaloReach.v12065.s_content_item_film_metadata,
-              pad: c.createCStruct({pack: 1, endian: 'big', fields: [
-                { name: 'pad', type: 'padding', count: 16 },
-              ]}),
-            }) },
-            { name: 'matchmaking', type: new c.Union({
-              metadata: HaloReach.v12065.s_content_item_matchmaking_metadata,
-              pad: c.createCStruct({pack: 1, endian: 'big', fields: [
-                { name: 'pad', type: 'padding', count: 16 },
-              ]}),
-            }) },
-            { name: 'campaign_or_firefight', type: new c.Union({
-              campaign: HaloReach.v12065.s_content_item_metadata_campaign_data,
-              firefight: HaloReach.v12065.s_content_item_metadata_firefight_data,
-              pad: c.createCStruct({pack: 1, endian: 'big', fields: [
-                { name: 'pad', type: 'padding', count: 16 },
-              ]})
-            }) },
-            { name: 'screenshot_length', type: new c.MagicNumber(screenshotLength, 'u32') },
-          ]});
-
-        const s_online_file_listing = (screenshotLength: number, tagCount: number) => c.createCStruct({pack: 1, endian: 'big', fields: [
-            { name: 'xuid', type: 'u64' }, // this is a guess
-            { name: 'gamertag', type: new c.String(16) },
-            { name: 'unknown16', type: 'u8' },
-            { name: 'unknown17', type: 'u8' },
-            { name: 'unknown18', type: 'u8' },
-            { name: 'unknown19', type: 'u8' },
-            { name: 'quota_byte_count', type: 'u32' },
-            { name: 'quota_slot_count', type: 'u8' },
-            { name: 'pad', type: 'padding', count: 1 },
-            { name: 'slot_count', type: new c.MagicNumber(1, 'u16') }, // for details, has to be 1
-            { name: 'message_length', type: new c.MagicNumber(0, 'u8') }, // not used for details
-            { name: 'pad', type: 'padding', count: 3 },
-            { name: 'entries', count: 1, type: s_online_file_metadata(screenshotLength, tagCount) },
-            { name: 'screenshot', type: 'u8', count: screenshotLength },
-            { name: 'tags', type: HaloReach.v12065.s_online_file_tag, count: tagCount },
-          ]});
 
         // if its a screenshot, build preview
         let screenshot_preview: number[] = [];
@@ -738,7 +705,7 @@ export class HaloReachFileShareService {
                 serverId.toString(16).padStart(16, '0'),
             ));
 
-            const parsed_screenshot = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_blind_screenshot(screenshot);
+            const parsed_screenshot = read_reach_blind_screenshot(screenshot);
             const jpeg_data = parsed_screenshot?.scnd.jpeg_data;
             if (jpeg_data && jpeg_data.length > 0) {
                 // resize down
@@ -754,20 +721,6 @@ export class HaloReachFileShareService {
 
         const tags = file.tags ?? [];
 
-        const fileCatalogSchema = blf.createFileSchema([
-            HaloReach.v12065.s_blf_chunk_start_of_file,
-            blf.createChunkSchema({
-                name: 'fitm',
-                majorVersion: 4,
-                minorVersion: 0,
-                endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'online_file_listing', type: s_online_file_listing(screenshot_preview.length, tags.length) },
-                ],
-            }),
-            HaloReach.v12065.s_blf_chunk_end_of_file,
-          ]);
 
         const fileShareOwnerName = await this.prisma.reach_service_record.findUnique({
             where: {
@@ -778,13 +731,7 @@ export class HaloReachFileShareService {
             },
         });
 
-        return new StreamableFile(fileCatalogSchema.write({
-            _blf: {
-                name: 'test',
-                byte_order_mark: 0xfffe,
-            },
-            fitm: {
-                online_file_listing: {
+        return new StreamableFile(fileshare_details_file({
                     xuid: BigInt(file?.share_id.toString()).valueOf(),
                     gamertag: fileShareOwnerName?.player_name ?? '',
                     unknown16: 0,
@@ -793,15 +740,12 @@ export class HaloReachFileShareService {
                     unknown19: 0,
                     quota_byte_count: fileShare?.quota_bytes ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
                     quota_slot_count: Math.min(fileShare?.quota_slots ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA, MAX_FILES_PER_SHARE),
-                    slot_count: 1,
-                    message_length: 0,
                     entries: {
                         general: {
                             id: BigInt(file.id.toString()),
                             file_type: file.file_type ?? 0,
                             tag_count: tags.length,
                             megalo_category_index: file.megalo_category_index ?? 0,
-                            unknown2: 0,
                             size_in_bytes: file.size_in_bytes?.toNumber() ?? 0,
                             activity: file.activity ?? 0,
                             game_mode: file.game_mode ?? 0,
@@ -813,17 +757,17 @@ export class HaloReachFileShareService {
                             timestamp: file.created_at ?? new Date(),
                             xuid: BigInt((file.creator_xuid ?? '0').toString()),
                             name: file.creator_name ?? '',
-                            is_online: file.creator_is_xuid_online ? 1 : 0,
+                            is_online: !!file.creator_is_xuid_online,
                         },
                         modified: {
                             timestamp: file.modified_at ?? new Date(),
                             xuid: BigInt((file.modifier_xuid ?? '0').toString()),
                             name: file.modifier_name ?? '',
-                            is_online: file.modifier_is_xuid_online ? 1 : 0,
+                            is_online: !!file.modifier_is_xuid_online,
                         },
                         name: file.name ?? '',
                         description: file.description ?? '',
-                        game_variant_or_film: file.file_type == 3 ? {
+                        game_variant_or_film: file.file_type == 3 || file.file_type == 4 ? {
                             film: {
                                 seconds: file.length_seconds ?? 0,
                             },
@@ -834,7 +778,7 @@ export class HaloReachFileShareService {
                         } : {
                             pad: {}
                         },
-                        matchmaking: file.activity == 3 ? {
+                        matchmaking: file.activity == 2 ? {
                             metadata: {
                                 hopper_identifier: file.hopper_identifier ?? 0,
                             },
@@ -850,7 +794,7 @@ export class HaloReachFileShareService {
                                 campaign_primary_skulls: file.campaign_primary_skulls ?? 0,
                                 campaign_secondary_skulls: file.campaign_secondary_skulls ?? 0,
                             },
-                        } : file.activity == 2 ? {
+                        } : file.game_mode == 2 ? {
                             firefight: {
                                 firefight_difficulty: file.firefight_difficulty ?? 0,
                                 firefight_primary_skulls: file.firefight_primary_skulls ?? 0,
@@ -863,39 +807,13 @@ export class HaloReachFileShareService {
                     },
                     screenshot: screenshot_preview,
                     tags: tags.map(tag => ({ tag, unknown: 0 })),
-                },
-            },
-            _eof: {
-                file_size: 0,
-                authentication_type: 0,
-            }
-        }))
+                }))
     }
 
     public viewFileShare = async (viewerXuid: BigInt, shareXuid: BigInt, locale: string) => {
         if (!IS_FILESHARE_ENABLED) {
-            const fileCatalogSchema = blf.createFileSchema([
-                HaloReach.v12065.s_blf_chunk_start_of_file,
-                blf.createChunkSchema({
-                    name: 'fitm',
-                    majorVersion: 4,
-                    minorVersion: 0,
-                    endian: 'big',
-                    pack: 1,
-                    fields: [
-                        { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(0, FILESHARE_UNAVAILABLE_MESSAGE.length) },
-                    ],
-                }),
-                HaloReach.v12065.s_blf_chunk_end_of_file,
-              ]);
 
-            return fileCatalogSchema.write({
-                _blf: {
-                    name: 'test',
-                    byte_order_mark: 0xfffe,
-                },
-                fitm: {
-                    online_file_listing: {
+            return fileshare_listing_file({
                         xuid: shareXuid.valueOf(),
                         gamertag: '',
                         unknown16: 0,
@@ -904,45 +822,17 @@ export class HaloReachFileShareService {
                         unknown19: 0,
                         quota_byte_count: 0,
                         quota_slot_count: 0,
-                        slot_count: 0,
-                        message_length: FILESHARE_UNAVAILABLE_MESSAGE.length,
                         entries: [],
                         message: FILESHARE_UNAVAILABLE_MESSAGE,
-                    }
-                },
-                _eof: {
-                    file_size: 0,
-                    authentication_type: 0,
-                }
-            })
+                    })
         }
 
         const ownsFileshare = viewerXuid === shareXuid;
         const fileShare = await this.getFileShare(viewerXuid, shareXuid);
 
         if (!fileShare) {
-            const fileCatalogSchema = blf.createFileSchema([
-                HaloReach.v12065.s_blf_chunk_start_of_file,
-                blf.createChunkSchema({
-                    name: 'fitm',
-                    majorVersion: 4,
-                    minorVersion: 0,
-                    endian: 'big',
-                    pack: 1,
-                    fields: [
-                        { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(0, 0) },
-                    ],
-                }),
-                HaloReach.v12065.s_blf_chunk_end_of_file,
-              ]);
 
-            return fileCatalogSchema.write({
-                _blf: {
-                    name: 'test',
-                    byte_order_mark: 0xfffe,
-                },
-                fitm: {
-                    online_file_listing: {
+            return fileshare_listing_file({
                         xuid: shareXuid.valueOf(),
                         gamertag: '',
                         unknown16: 1,
@@ -951,20 +841,12 @@ export class HaloReachFileShareService {
                         unknown19: 4,
                         quota_byte_count: 0,
                         quota_slot_count: 0,
-                        slot_count: 0,
-                        message_length: 0,
                         entries: [],
                         message: '',
-                    }
-                },
-                _eof: {
-                    file_size: 0,
-                    authentication_type: 0,
-                }
-            })
+                    })
         }
 
-        let listing_entries: c.infer<typeof HaloReach.v12065.s_online_file_metadata>[] = [];
+        let listing_entries: s_online_file_metadata[] = [];
 
         let fileShareFiles = await this.prisma.reach_file_share_file.findMany({
             where: {
@@ -985,7 +867,7 @@ export class HaloReachFileShareService {
                 try {
                     await access(join(fileshareFolder, BigInt(file.id.toString()).toString(16).padStart(16, '0')))
 
-                    const entry: c.infer<typeof HaloReach.v12065.s_online_file_metadata> = {
+                    const entry: s_online_file_metadata = {
                         general: {
                             id: BigInt(file.id.toString()),
                             file_type: file.file_type ?? 0,
@@ -1002,17 +884,17 @@ export class HaloReachFileShareService {
                             timestamp: file.created_at ?? new Date(),
                             xuid: 0n,
                             name: file.creator_name ?? '',
-                            is_online: file.creator_is_xuid_online ? 1 : 0,
+                            is_online: !!file.creator_is_xuid_online,
                         },
                         modified: {
                             timestamp: file.modified_at ?? new Date(),
                             xuid: 0n,
                             name: file.modifier_name ?? '',
-                            is_online: file.modifier_is_xuid_online ? 1 : 0,
+                            is_online: !!file.modifier_is_xuid_online,
                         },
                         name: file.name ?? '',
                         description: file.description ?? '',
-                        game_variant_or_film: file.file_type == 3 ? {
+                        game_variant_or_film: file.file_type == 3 || file.file_type == 4 ? {
                             film: {
                                 seconds: file.length_seconds ?? 0,
                             },
@@ -1023,7 +905,7 @@ export class HaloReachFileShareService {
                         } : {
                             pad: {}
                         },
-                        matchmaking: file.activity == 3 ? {
+                        matchmaking: file.activity == 2 ? {
                             metadata: {
                                 hopper_identifier: file.hopper_identifier ?? 0,
                             },
@@ -1039,7 +921,7 @@ export class HaloReachFileShareService {
                                 campaign_primary_skulls: file.campaign_primary_skulls ?? 0,
                                 campaign_secondary_skulls: file.campaign_secondary_skulls ?? 0,
                             },
-                        } : file.activity == 2 ? {
+                        } : file.game_mode == 2 ? {
                             firefight: {
                                 firefight_difficulty: file.firefight_difficulty ?? 0,
                                 firefight_primary_skulls: file.firefight_primary_skulls ?? 0,
@@ -1082,7 +964,7 @@ export class HaloReachFileShareService {
             if (typeof entry.name !== 'string' || typeof entry.description !== 'string') return false;
             return true;
         });
-        const serializedEntries: c.infer<typeof HaloReach.v12065.s_online_file_metadata>[] = validEntries.map((entry) => ({
+        const serializedEntries: s_online_file_metadata[] = validEntries.map((entry) => ({
             general: {
                 id: entry.general.id,
                 file_type: entry.general.file_type,
@@ -1115,20 +997,6 @@ export class HaloReachFileShareService {
             screenshot_length: 0,
         }));
 
-        const fileCatalogSchema = blf.createFileSchema([
-            HaloReach.v12065.s_blf_chunk_start_of_file,
-            blf.createChunkSchema({
-                name: 'fitm',
-                majorVersion: 4,
-                minorVersion: 0,
-                endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(serializedEntries.length, fileShare.message?.length ?? 0) },
-                ],
-            }),
-            HaloReach.v12065.s_blf_chunk_end_of_file,
-          ]);
 
         const fileShareOwnerName = await this.prisma.reach_service_record.findUnique({
             where: {
@@ -1139,13 +1007,7 @@ export class HaloReachFileShareService {
             },
         });
 
-        return fileCatalogSchema.write({
-            _blf: {
-                name: 'test',
-                byte_order_mark: 0xfffe,
-            },
-            fitm: {
-                online_file_listing: {
+        return fileshare_listing_file({
                     xuid: shareXuid.valueOf(),
                     gamertag: fileShareOwnerName?.player_name ?? '',
                     unknown16: 1,
@@ -1154,17 +1016,9 @@ export class HaloReachFileShareService {
                     unknown19: 4,
                     quota_byte_count: fileShare.quota_bytes ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
                     quota_slot_count: fileShare.quota_slots ?? HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_COUNT_QUOTA,
-                    slot_count: serializedEntries.length,
-                    message_length: fileShare.message?.length ?? 0,
                     entries: serializedEntries,
                     message: fileShare.message ?? '',
-                }
-            },
-            _eof: {
-                file_size: 0,
-                authentication_type: 0,
-            }
-        })
+                })
     }
 
     public stageDownload = async (
@@ -1329,40 +1183,14 @@ export class HaloReachFileShareService {
         ));
 
         const fileShareSummaries = summaryQueries.filter((result) => result.status === 'fulfilled').map((result) => result.value);
-        return new StreamableFile(blf.createFileSchema([
-            HaloReach.v12065.s_blf_chunk_start_of_file,
-            blf.createChunkSchema({
-                name: 'finf',
-                majorVersion: 1,
-                minorVersion: 0,
-                endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'entry_count', type: 'u16' },
-                    { name: 'pad', type: 'padding', count: 2 },
-                    { name: 'entries', count: fileShareSummaries.length, type: HaloReach.v12065.s_online_file_summary_listing_entry },
-                ],
-            }),
-            HaloReach.v12065.s_blf_chunk_end_of_file,
-        ]).write({
-            _blf: {
-                name: 'test',
-                byte_order_mark: 0xfffe,
-            },
-            finf: {
-                entry_count: fileShareSummaries.length,
+        return new StreamableFile(fileshare_summary_file({
                 entries: fileShareSummaries,
-            },
-            _eof: {
-                file_size: 0,
-                authentication_type: 0,
-            },
-        }));
+            }));
     }
 
-    public async getFileShareSummary(userXuid: BigInt, gamertag: string): Promise<c.infer<typeof HaloReach.v12065.s_online_file_summary_listing_entry>>;
-    public async getFileShareSummary(userXuid: BigInt, shareXuid: BigInt): Promise<c.infer<typeof HaloReach.v12065.s_online_file_summary_listing_entry>>;
-    public async getFileShareSummary(userXuid: BigInt, share: string | BigInt): Promise<c.infer<typeof HaloReach.v12065.s_online_file_summary_listing_entry>> {
+    public async getFileShareSummary(userXuid: BigInt, gamertag: string): Promise<s_online_file_summary_listing_entry>;
+    public async getFileShareSummary(userXuid: BigInt, shareXuid: BigInt): Promise<s_online_file_summary_listing_entry>;
+    public async getFileShareSummary(userXuid: BigInt, share: string | BigInt): Promise<s_online_file_summary_listing_entry> {
         if (!IS_FILESHARE_ENABLED) {
             throw new ServiceUnavailableException();
         }
@@ -1402,7 +1230,7 @@ export class HaloReachFileShareService {
             map_variants_count: mapVariantsCount,
             game_variants_count: gameVariantsCount,
             new_items_count: 0,
-            unknown1C: 0,
+            last_modified_timestamp: 0,
             unknown20: 1,
         }
     }
@@ -1530,7 +1358,7 @@ export class HaloReachFileShareService {
             }
         }
 
-        let listing_entries: c.infer<typeof HaloReach.v12065.s_online_file_metadata>[] = [];
+        let listing_entries: s_online_file_metadata[] = [];
 
         if (fileShareFiles) {
             for (const file of fileShareFiles) {
@@ -1543,7 +1371,7 @@ export class HaloReachFileShareService {
 
                     await access(join(fileshareFolder, BigInt(file.id.toString()).toString(16).padStart(16, '0')))
 
-                    const entry: c.infer<typeof HaloReach.v12065.s_online_file_metadata> = {
+                    const entry: s_online_file_metadata = {
                         general: {
                             id: BigInt(file.id.toString()),
                             file_type: file.file_type ?? 0,
@@ -1560,17 +1388,17 @@ export class HaloReachFileShareService {
                             timestamp: file.created_at ?? new Date(),
                             xuid: 0n,
                             name: file.creator_name ?? '',
-                            is_online: file.creator_is_xuid_online ? 1 : 0,
+                            is_online: !!file.creator_is_xuid_online,
                         },
                         modified: {
                             timestamp: file.modified_at ?? new Date(),
                             xuid: 0n,
                             name: file.modifier_name ?? '',
-                            is_online: file.modifier_is_xuid_online ? 1 : 0,
+                            is_online: !!file.modifier_is_xuid_online,
                         },
                         name: file.name ?? '',
                         description: file.description ?? '',
-                        game_variant_or_film: file.file_type == 3 ? {
+                        game_variant_or_film: file.file_type == 3 || file.file_type == 4 ? {
                             film: {
                                 seconds: file.length_seconds ?? 0,
                             },
@@ -1581,7 +1409,7 @@ export class HaloReachFileShareService {
                         } : {
                             pad: {}
                         },
-                        matchmaking: file.activity == 3 ? {
+                        matchmaking: file.activity == 2 ? {
                             metadata: {
                                 hopper_identifier: file.hopper_identifier ?? 0,
                             },
@@ -1597,7 +1425,7 @@ export class HaloReachFileShareService {
                                 campaign_primary_skulls: file.campaign_primary_skulls ?? 0,
                                 campaign_secondary_skulls: file.campaign_secondary_skulls ?? 0,
                             },
-                        } : file.activity == 2 ? {
+                        } : file.game_mode == 2 ? {
                             firefight: {
                                 firefight_difficulty: file.firefight_difficulty ?? 0,
                                 firefight_primary_skulls: file.firefight_primary_skulls ?? 0,
@@ -1615,28 +1443,8 @@ export class HaloReachFileShareService {
             }
         }
 
-        const fileCatalogSchema = blf.createFileSchema([
-            HaloReach.v12065.s_blf_chunk_start_of_file,
-            blf.createChunkSchema({
-                name: 'fitm',
-                majorVersion: 4,
-                minorVersion: 0,
-                endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(listing_entries.length, 0) },
-                ],
-            }),
-            HaloReach.v12065.s_blf_chunk_end_of_file,
-          ]);
 
-        return new StreamableFile(fileCatalogSchema.write({
-            _blf: {
-                name: 'test',
-                byte_order_mark: 0xfffe,
-            },
-            fitm: {
-                online_file_listing: {
+        return new StreamableFile(fileshare_listing_file({
                     xuid: viewerXuid.valueOf(),
                     gamertag: 'Recommendations',
                     unknown16: 1,
@@ -1645,17 +1453,9 @@ export class HaloReachFileShareService {
                     unknown19: 4,
                     quota_byte_count: HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
                     quota_slot_count: MAX_FILES_PER_PAGE,
-                    slot_count: listing_entries.length,
-                    message_length: 0,
                     entries: listing_entries,
                     message: '',
-                }
-            },
-            _eof: {
-                file_size: 0,
-                authentication_type: 0,
-            }
-        }));
+                }));
     }
 
     public getPredefinedQuerySummary = async (userId: BigInt, searchId: number) => {
@@ -1664,22 +1464,6 @@ export class HaloReachFileShareService {
         }
 
         // group by file type
-        const fileCatalogSchema = blf.createFileSchema([
-            HaloReach.v12065.s_blf_chunk_start_of_file,
-            blf.createChunkSchema({
-              name: 'finf',
-              majorVersion: 1,
-              minorVersion: 0,
-              endian: 'big',
-              pack: 1,
-              fields: [
-                { name: 'entry_count', type: 'u16' },
-                { name: 'pad', type: 'padding', count: 2 },
-                { name: 'entries', count: 1, type: HaloReach.v12065.s_online_file_summary_listing_entry },
-              ],
-            }),
-            HaloReach.v12065.s_blf_chunk_end_of_file,
-          ])
           
           let fileShareFileTypeDownloads: { [file_type: number]: number } = {};
 
@@ -1826,30 +1610,19 @@ export class HaloReachFileShareService {
           const mapVariantsCount = fileShareFileTypeDownloads[5] ?? 0;
           const gameVariantsCount = fileShareFileTypeDownloads[6] ?? 0;
       
-          const blfFile = fileCatalogSchema.write({
-            _blf: {
-              byte_order_mark: 0xfffe,
-              name: 'test',
-            },
-            finf: {
-              entry_count: 1,
+          const blfFile = fileshare_summary_file({
               entries: 
-                {
+                [{
                   share_id: userId.valueOf(),
                   screenshots_count: screenshotsCount,
                   films_count: filmsCount,
                   map_variants_count: mapVariantsCount,
                   game_variants_count: gameVariantsCount,
                   new_items_count: 0,
-                  unknown1C: 0,
+                  last_modified_timestamp: 0,
                   unknown20: 1,
-                }
-            },
-            _eof: {
-              file_size: 0,
-              authentication_type: 0,
-            },
-          })
+                }]
+            })
 
           return new StreamableFile(blfFile);
     }
@@ -1964,7 +1737,7 @@ export class HaloReachFileShareService {
             },
         });
 
-        let listing_entries: c.infer<typeof HaloReach.v12065.s_online_file_metadata>[] = [];
+        let listing_entries: s_online_file_metadata[] = [];
 
         if (files) {
             for (const file of files) {
@@ -1977,7 +1750,7 @@ export class HaloReachFileShareService {
 
                     // await access(join(fileshareFolder, BigInt(file.id.toString()).toString(16).padStart(16, '0')))
 
-                    const entry: c.infer<typeof HaloReach.v12065.s_online_file_metadata> = {
+                    const entry: s_online_file_metadata = {
                         general: {
                             id: BigInt(file.id.toString()),
                             file_type: file.file_type ?? 0,
@@ -1994,17 +1767,17 @@ export class HaloReachFileShareService {
                             timestamp: file.created_at ?? new Date(),
                             xuid: 0n,
                             name: file.creator_name ?? '',
-                            is_online: file.creator_is_xuid_online ? 1 : 0,
+                            is_online: !!file.creator_is_xuid_online,
                         },
                         modified: {
                             timestamp: file.modified_at ?? new Date(),
                             xuid: 0n,
                             name: file.modifier_name ?? '',
-                            is_online: file.modifier_is_xuid_online ? 1 : 0,
+                            is_online: !!file.modifier_is_xuid_online,
                         },
                         name: file.name ?? '',
                         description: file.description ?? '',
-                        game_variant_or_film: file.file_type == 3 ? {
+                        game_variant_or_film: file.file_type == 3 || file.file_type == 4 ? {
                             film: {
                                 seconds: file.length_seconds ?? 0,
                             },
@@ -2015,7 +1788,7 @@ export class HaloReachFileShareService {
                         } : {
                             pad: {}
                         },
-                        matchmaking: file.activity == 3 ? {
+                        matchmaking: file.activity == 2 ? {
                             metadata: {
                                 hopper_identifier: file.hopper_identifier ?? 0,
                             },
@@ -2031,7 +1804,7 @@ export class HaloReachFileShareService {
                                 campaign_primary_skulls: file.campaign_primary_skulls ?? 0,
                                 campaign_secondary_skulls: file.campaign_secondary_skulls ?? 0,
                             },
-                        } : file.activity == 2 ? {
+                        } : file.game_mode == 2 ? {
                             firefight: {
                                 firefight_difficulty: file.firefight_difficulty ?? 0,
                                 firefight_primary_skulls: file.firefight_primary_skulls ?? 0,
@@ -2049,28 +1822,8 @@ export class HaloReachFileShareService {
             }
         }
 
-        const fileCatalogSchema = blf.createFileSchema([
-            HaloReach.v12065.s_blf_chunk_start_of_file,
-            blf.createChunkSchema({
-                name: 'fitm',
-                majorVersion: 4,
-                minorVersion: 0,
-                endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(listing_entries.length, 0) },
-                ],
-            }),
-            HaloReach.v12065.s_blf_chunk_end_of_file,
-          ]);
 
-        return new StreamableFile(fileCatalogSchema.write({
-            _blf: {
-                name: 'test',
-                byte_order_mark: 0xfffe,
-            },
-            fitm: {
-                online_file_listing: {
+        return new StreamableFile(fileshare_listing_file({
                     xuid: userId.valueOf(),
                     gamertag: '',
                     unknown16: 1,
@@ -2079,27 +1832,19 @@ export class HaloReachFileShareService {
                     unknown19: 4,
                     quota_byte_count: HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
                     quota_slot_count: MAX_FILES_PER_PAGE,
-                    slot_count: listing_entries.length,
-                    message_length: 0,
                     entries: listing_entries,
                     message: '',
-                }
-            },
-            _eof: {
-                file_size: 0,
-                authentication_type: 0,
-            }
-        }));
+                }));
     }
 
     public searchFileCount = async (
         userId: BigInt, 
-        fileType?: HaloReach.v12065.FileType, 
+        fileType?: HR.e_file_type, 
         author?: string, 
-        gameEngine?: HaloReach.v12065.GameEngine, 
+        gameEngine?: HR.e_game_engine_type, 
         megaloCategoryIndex?: number, 
-        fileAge?: HaloReach.v12065.FileAgeFilter, 
-        sortBy: HaloReach.v12065.FileSortBy = HaloReach.v12065.FileSortBy.DateAdded, 
+        fileAge?: e_file_age_filter, 
+        sortBy: e_file_sort_by = e_file_sort_by.date_added, 
         tag?: string, 
         mapId?: number
     ) => {
@@ -2110,13 +1855,13 @@ export class HaloReachFileShareService {
         const DAY_IN_MS = 24 * 60 * 60 * 1000;
         let fileAgeFilter: Date | undefined = undefined;
         switch (fileAge) {
-            case HaloReach.v12065.FileAgeFilter.Day:
+            case e_file_age_filter.day:
                 fileAgeFilter = new Date(Date.now() - 1 * DAY_IN_MS);
                 break;
-            case HaloReach.v12065.FileAgeFilter.Week:
+            case e_file_age_filter.week:
                 fileAgeFilter = new Date(Date.now() - 7 * DAY_IN_MS);
                 break;
-            case HaloReach.v12065.FileAgeFilter.Month:
+            case e_file_age_filter.month:
                 fileAgeFilter = new Date(Date.now() - 30 * DAY_IN_MS);
                 break;
         }
@@ -2145,56 +1890,29 @@ export class HaloReachFileShareService {
             return acc;
         }, {});
 
-        const blfFileSchema = blf.createFileSchema([
-            HaloReach.v12065.s_blf_chunk_start_of_file,
-            blf.createChunkSchema({
-                name: 'finf',
-                majorVersion: 1,
-                minorVersion: 0,
-                endian: 'big',
-                pack: 1,
-                fields: [
-                  { name: 'entry_count', type: 'u16' },
-                  { name: 'pad', type: 'padding', count: 2 },
-                  { name: 'entries', count: 1, type: HaloReach.v12065.s_online_file_summary_listing_entry },
-                ],
-              }),
-            HaloReach.v12065.s_blf_chunk_end_of_file,
-        ]);
         
-        return new StreamableFile(blfFileSchema.write({
-            _blf: {
-                name: 'test',
-                byte_order_mark: 0xfffe,
-            },
-            finf: {
-                entry_count: 1,
-                entries: {
+        return new StreamableFile(fileshare_summary_file({
+                entries: [{
                     share_id: 0n,
-                    screenshots_count: fileCountByType[HaloReach.v12065.FileType.Screenshot] ?? 0,
-                    films_count: (fileCountByType[HaloReach.v12065.FileType.Film] ?? 0) + (fileCountByType[HaloReach.v12065.FileType.FilmClip] ?? 0),
-                    map_variants_count: fileCountByType[HaloReach.v12065.FileType.MapVariant] ?? 0,
-                    game_variants_count: fileCountByType[HaloReach.v12065.FileType.GameVariant] ?? 0,
+                    screenshots_count: fileCountByType[HR.e_file_type.Screenshot] ?? 0,
+                    films_count: (fileCountByType[HR.e_file_type.Film] ?? 0) + (fileCountByType[HR.e_file_type.FilmClip] ?? 0),
+                    map_variants_count: fileCountByType[HR.e_file_type.MapVariant] ?? 0,
+                    game_variants_count: fileCountByType[HR.e_file_type.GameVariant] ?? 0,
                     new_items_count: 0,
-                    unknown1C: 0,
+                    last_modified_timestamp: 0,
                     unknown20: 0,
-                },
-            },
-            _eof: {
-                file_size: 0,
-                authentication_type: 0,
-            },
-        }));
+                }],
+            }));
     }
 
     public searchFiles = async (
         userXuid: BigInt, 
-        fileType?: HaloReach.v12065.FileType, 
+        fileType?: HR.e_file_type, 
         author?: string, 
-        gameEngine?: HaloReach.v12065.GameEngine, 
+        gameEngine?: HR.e_game_engine_type, 
         megaloCategoryIndex?: number, 
-        fileAge?: HaloReach.v12065.FileAgeFilter, 
-        sortBy: HaloReach.v12065.FileSortBy = HaloReach.v12065.FileSortBy.DateAdded, 
+        fileAge?: e_file_age_filter, 
+        sortBy: e_file_sort_by = e_file_sort_by.date_added, 
         tag?: string, 
         mapId?: number,
         page: number = 0,
@@ -2206,13 +1924,13 @@ export class HaloReachFileShareService {
         const DAY_IN_MS = 24 * 60 * 60 * 1000;
         let fileAgeFilter: Date | undefined = undefined;
         switch (fileAge) {
-            case HaloReach.v12065.FileAgeFilter.Day:
+            case e_file_age_filter.day:
                 fileAgeFilter = new Date(Date.now() - 1 * DAY_IN_MS);
                 break;
-            case HaloReach.v12065.FileAgeFilter.Week:
+            case e_file_age_filter.week:
                 fileAgeFilter = new Date(Date.now() - 7 * DAY_IN_MS);
                 break;
-            case HaloReach.v12065.FileAgeFilter.Month:
+            case e_file_age_filter.month:
                 fileAgeFilter = new Date(Date.now() - 30 * DAY_IN_MS);
                 break;
             default:
@@ -2246,28 +1964,8 @@ export class HaloReachFileShareService {
             },
         });
 
-        const fileCatalogSchema = blf.createFileSchema([
-            HaloReach.v12065.s_blf_chunk_start_of_file,
-            blf.createChunkSchema({
-                name: 'fitm',
-                majorVersion: 4,
-                minorVersion: 0,
-                endian: 'big',
-                pack: 1,
-                fields: [
-                    { name: 'online_file_listing', type: HaloReach.v12065.s_online_file_listing(fileIds.length, 0) },
-                ],
-            }),
-            HaloReach.v12065.s_blf_chunk_end_of_file,
-        ]);
 
-        return new StreamableFile(fileCatalogSchema.write({
-            _blf: {
-                name: 'test',
-                byte_order_mark: 0xfffe,
-            },
-            fitm: {
-                online_file_listing: {
+        return new StreamableFile(fileshare_listing_file({
                     xuid: userXuid.valueOf(),
                     gamertag: '',
                     unknown16: 1,
@@ -2276,8 +1974,6 @@ export class HaloReachFileShareService {
                     unknown19: 4,
                     quota_byte_count: HALOREACH_UNSUBSCRIBED_DEFAULT_FILE_SIZE_QUOTA,
                     quota_slot_count: MAX_FILES_PER_PAGE,
-                    slot_count: files.length,
-                    message_length: 0,
                     entries: files.map((file) => ({
                         general: {
                             id: BigInt(file.id.toString()),
@@ -2295,17 +1991,17 @@ export class HaloReachFileShareService {
                             timestamp: file.created_at ?? new Date(),
                             xuid: BigInt((file.creator_xuid ?? 0).toString()),
                             name: file.creator_name ?? '',
-                            is_online: file.creator_is_xuid_online ? 1 : 0,
+                            is_online: !!file.creator_is_xuid_online,
                         },
                         modified: {
                             timestamp: file.modified_at ?? new Date(),
                             xuid: BigInt((file.modifier_xuid ?? 0).toString()),
                             name: file.modifier_name ?? '',
-                            is_online: file.modifier_is_xuid_online ? 1 : 0,
+                            is_online: !!file.modifier_is_xuid_online,
                         },
                         name: file.name ?? '',
                         description: file.description ?? '',
-                        game_variant_or_film: file.file_type == 3 ? {
+                        game_variant_or_film: file.file_type == 3 || file.file_type == 4 ? {
                             film: {
                                 seconds: file.length_seconds ?? 0,
                             },
@@ -2316,7 +2012,7 @@ export class HaloReachFileShareService {
                         } : {
                             pad: {}
                         },
-                        matchmaking: file.activity == 3 ? {
+                        matchmaking: file.activity == 2 ? {
                             metadata: {
                                 hopper_identifier: file.hopper_identifier ?? 0,
                             },
@@ -2333,7 +2029,7 @@ export class HaloReachFileShareService {
                                 campaign_secondary_skulls: file.campaign_secondary_skulls ?? 0,
                             },
                             pad: {}
-                        } : file.activity == 2 ? {
+                        } : file.game_mode == 2 ? {
                             firefight: {
                                 firefight_difficulty: file.firefight_difficulty ?? 0,
                                 firefight_primary_skulls: file.firefight_primary_skulls ?? 0,
@@ -2345,12 +2041,6 @@ export class HaloReachFileShareService {
                         screenshot_length: 0,
                     })),
                     message: '',
-                }
-            },
-            _eof: {
-                file_size: 0,
-                authentication_type: 0,
-            },
-        }));
+                }));
     }
 }

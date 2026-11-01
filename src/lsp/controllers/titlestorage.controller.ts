@@ -20,7 +20,6 @@ import { Halo3PopulationService } from '../halo3/population.service';
 import { HaloReachPopulationService } from '../haloreach/population.service';
 import { TitleID } from 'src/xbox/titles';
 import { ParseHexPipe } from 'src/middleware/ParseHexPipe';
-import * as BLF from '@blam-network/blf_lsp';
 
 @ApiTags('Title Storage')
 @Controller('/storage/title')

@@ -17,8 +17,9 @@ import {
 } from '@nestjs/common';
 import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
-import * as BLF from '@blam-network/blf_lsp';
-import { s_blf_chunk_challenge_state } from '@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual';
+import * as HR from '@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual';
+import { s_blf_chunk_challenge_state, s_blf_chunk_xuid_list } from '@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual';
+import { find_chunk } from '@blamnetwork/blf';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { EXAMPLE_XUID } from '../../constants';
 import { getExampleResponse, HaloReachWhitelistService } from '../haloreach/whitelist.service';
@@ -29,17 +30,14 @@ import { parseBungieHeader } from '../parse-bungie-header.pipe';
 import { hexStringXuidSchema, xuidToHexString } from 'src/xbox/xuid';
 import { z } from 'zod';
 import { UploadService } from '../services/upload.service';
-import { e_predefined_query, HaloReachFileShareService } from '../haloreach/fileshare.service';
+import { e_file_age_filter, e_file_sort_by, e_predefined_query, HaloReachFileShareService } from '../haloreach/fileshare.service';
 import { build_user_rewards_file, read_rewards_upload } from '../haloreach/rewards-blf';
 import { HaloReachRewardsService } from '../haloreach/rewards.service';
 import { HaloReachUserService } from '../haloreach/user.service';
 import { HaloReachChallengeService } from '../haloreach/challenge.service';
 import { HaloReachSpartanRenderService } from '../haloreach/spartan-render.service';
-import { blf } from 'src/blf';
 import { ParseBigIntPipe } from 'src/utils/parse-big-int.pipe';
-import { HaloReach } from '../blf';
 import { Response } from 'express';
-import { find_chunk_in_file } from 'src/blf/helpers';
 
 @ApiTags('Game API Omaha', 'Halo: Reach')
 @Controller('/gameapi_omaha')
@@ -69,14 +67,9 @@ export class GameApiOmahaController {
     @Query('version') version,
     @Res({ passthrough: true }) res,
   ) {
-    const blfFile =  BLF.haloreach_12065_11_08_24_1738_tu1actual.build_arena_hopper_stats_file({
-      season: 1,
-      unknown04: 0,
-      unknown08: 0,
-      unknown0C: 0,
-      unknown10: 0,
-      unknown14: 0,
-    });
+    const blfFile =  HR.build_arena_hopper_stats_file(
+      Object.assign(new HR.s_blf_chunk_arena_hopper_stats(), { season: 1 }),
+    );
 
     return new StreamableFile(blfFile);
   }
@@ -431,29 +424,8 @@ export class GameApiOmahaController {
     // Uploads an idls 1.1 chunk which is a list of friend XUIDs
     if (!upload) throw new BadRequestException();
 
-    // TODO: move to blf_lsp
-    const friends_count = find_chunk_in_file(upload.buffer, blf.createChunkSchema({
-      name: 'idls',
-      majorVersion: 1,
-      minorVersion: 1,
-      endian: 'big',
-      pack: 1,
-      fields: [ { name: 'friend_count', type: 'u32' } ],
-    }))?.friend_count ?? 0;
-
-    const idls = blf.createChunkSchema({
-      name: 'idls',
-      majorVersion: 1,
-      minorVersion: 1,
-      endian: 'big',
-      pack: 1,
-      fields: [
-        { name: 'friend_count', type: 'u32' },
-        { name: 'friend_xuid', type: 'u64', count: friends_count },
-      ],
-    });
-
-    const friends = find_chunk_in_file(upload.buffer, idls)?.friend_xuid ?? [];
+    const idls = new s_blf_chunk_xuid_list();
+    const friends = find_chunk(upload.buffer, idls, 'big') ? idls.xuids : [];
 
     return this.fileshareService.viewRecommendations(userId, friends);
   }
@@ -501,12 +473,12 @@ export class GameApiOmahaController {
 
     const customSearch = z
       .object({
-        fileType: z.nativeEnum(HaloReach.v12065.FileType).optional(),
+        fileType: z.nativeEnum(HR.e_file_type).optional(),
         authortaghex: hexStringSchema.optional(),
-        gameEngine: z.nativeEnum(HaloReach.v12065.GameEngine).optional(),
+        gameEngine: z.nativeEnum(HR.e_game_engine_type).optional(),
         megaloCategoryIndex: z.number().optional(),
-        fileAge: z.nativeEnum(HaloReach.v12065.FileAgeFilter).optional(),
-        sortBy: z.nativeEnum(HaloReach.v12065.FileSortBy).optional(),
+        fileAge: z.nativeEnum(e_file_age_filter).optional(),
+        sortBy: z.nativeEnum(e_file_sort_by).optional(),
         taghex0: hexStringSchema.optional(),
         mapId: z.number().optional(),
       })
@@ -602,12 +574,12 @@ export class GameApiOmahaController {
     const hexStringSchema = z.string().regex(/^[0-9a-fA-F]+$/);
 
     const customSearch = z.object({
-      fileType: z.nativeEnum(HaloReach.v12065.FileType).optional(),
+      fileType: z.nativeEnum(HR.e_file_type).optional(),
       authortaghex: hexStringSchema.optional(),
-      gameEngine: z.nativeEnum(HaloReach.v12065.GameEngine).optional(),
+      gameEngine: z.nativeEnum(HR.e_game_engine_type).optional(),
       megaloCategoryIndex: z.number().optional(),
-      fileAge: z.nativeEnum(HaloReach.v12065.FileAgeFilter).optional(),
-      sortBy: z.nativeEnum(HaloReach.v12065.FileSortBy).optional(),
+      fileAge: z.nativeEnum(e_file_age_filter).optional(),
+      sortBy: z.nativeEnum(e_file_sort_by).optional(),
       taghex0: hexStringSchema.optional(),
       mapId: z.number().optional(),
     }).transform(
@@ -861,7 +833,7 @@ export class GameApiOmahaController {
     @Query('userId', ParseXUIDPipe) userId: BigInt,
   ) {
     return new StreamableFile(
-      BLF.haloreach_12065_11_08_24_1738_tu1actual.build_service_record_file(
+      HR.build_service_record_file(
         await this.userService.getServiceRecord(userId)
       )
     );

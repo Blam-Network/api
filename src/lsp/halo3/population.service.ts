@@ -1,7 +1,7 @@
 import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import * as BLF from '@blam-network/blf_lsp';
+import * as H3 from '@blamnetwork/blf/halo3/v12070_08_09_05_2031_halo3_ship';
 import { parseXuid } from "src/xbox/xuid";
 import { z } from "zod";
 import { lookup } from 'geoip-lite'; // Or whatever you use to resolve IPs
@@ -22,7 +22,7 @@ export class Halo3PopulationService {
     ) { }
 
     public getHopperStatistics = async () => {
-        let hopperStats: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_matchmaking_hopper_statistics['data'] = [];
+        let hopperStats: H3.s_blf_chunk_matchmaking_hopper_statistics['data'] = [];
 
         await Promise.allSettled([this.prisma.$transaction(async () => {
             const hopperPopulationResponse = await this.prisma.$queryRaw`
@@ -48,7 +48,7 @@ export class Halo3PopulationService {
             }).array().parse(hopperPopulationResponse);
         }, { timeout: 5000 })]);
 
-        return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_hopper_statistics_file({
+        return H3.build_hopper_statistics_file({
             data: hopperStats.concat(Array(32 - hopperStats.length).fill({ hopper_identifier: 0, player_count: 0 })),
             player_count: hopperStats.reduce((count, hp) => count + hp.player_count, 0)
         })

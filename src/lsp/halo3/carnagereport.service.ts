@@ -1,11 +1,12 @@
 import { Inject } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import * as BLF from '@blam-network/blf_lsp';
+import * as H3 from '@blamnetwork/blf/halo3/v12070_08_09_05_2031_halo3_ship';
 import { CompressionService } from "../services/compression.service";
 import { DiscordWebhookService } from "../services/discordwebhook.service";
 import { isGuestXuid } from "src/xbox/xuid";
 import { interval, intervalToDuration } from "date-fns";
+import { type campaign, type multi, read_campaign_pgcr, read_webstats } from './webstats-blf';
 
 // We turn this on for debugging but turn it off for security in prod.
 const ALLOW_UNCOMPRESSED_CARNAGE_REPORTS = false;
@@ -86,7 +87,7 @@ export class Halo3CarnageReportService {
         private readonly discordWebhookService: DiscordWebhookService,
     ) {}
 
-    private isValidCarnageReport = (multi: BLF.halo3_12070_08_09_05_2031_halo3_ship.multi) => {
+    private isValidCarnageReport = (multi: multi) => {
         if (multi.athr.build_string !== '12070.08.09.05.2031.halo3_s') {
             this.logger.warn(`[UPLOAD] Received carnage report from unsupported build '${multi.athr.build_string}', skipping.`)
             return false;
@@ -103,7 +104,7 @@ export class Halo3CarnageReportService {
         return true;
     }
 
-    private isValidCampaignCarnageReport = (campaign: BLF.halo3_12070_08_09_05_2031_halo3_ship.campaign) => {
+    private isValidCampaignCarnageReport = (campaign: campaign) => {
         if (campaign.athr.build_string !== '12070.08.09.05.2031.halo3_s') {
             this.logger.warn(`[UPLOAD] Received campaign carnage report from unsupported build '${campaign.athr.build_string}', skipping.`)
             return false;
@@ -130,7 +131,7 @@ export class Halo3CarnageReportService {
             ? this.compressionService.inflateIfCompressed(upload)
             : this.compressionService.inflate(upload);
 
-        const multi = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_webstats(buffer);
+        const multi = read_webstats(buffer);
 
         if (!multi) {
             return;
@@ -366,7 +367,7 @@ export class Halo3CarnageReportService {
                     carnage_report_event_carry: {
                         createMany: {
                             data: multi.mpev.events
-                                .filter(e => e.type_ === BLF.halo3_12070_08_09_05_2031_halo3_ship.e_game_results_data_type._carry)
+                                .filter(e => e.type_ === H3.e_game_results_data_type._carry)
                                 .map(e => ({
                                     time: e.time,
                                     carry_type: e.carry_data!.carry_type,
@@ -379,7 +380,7 @@ export class Halo3CarnageReportService {
                     carnage_report_event_kill: {
                         createMany: {
                             data: multi.mpev.events
-                                .filter(e => e.type_ === BLF.halo3_12070_08_09_05_2031_halo3_ship.e_game_results_data_type._kill)
+                                .filter(e => e.type_ === H3.e_game_results_data_type._kill)
                                 .map(e => ({
                                     time: e.time,
                                     killer_position: [
@@ -401,7 +402,7 @@ export class Halo3CarnageReportService {
                     carnage_report_event_score: {
                         createMany: {
                             data: multi.mpev.events
-                                .filter(e => e.type_ === BLF.halo3_12070_08_09_05_2031_halo3_ship.e_game_results_data_type._score)
+                                .filter(e => e.type_ === H3.e_game_results_data_type._score)
                                 .map(e => ({
                                     time: e.time,
                                     score_player_index: e.player_references[0],
@@ -438,9 +439,9 @@ export class Halo3CarnageReportService {
                         fear_the_pink_mist: stats.achievements.fear_the_pink_mist,
                         fog: stats.achievements.fog,
                         graduate: stats.achievements.graduate,
-                        guerilla: stats.achievements.graduate,
+                        guerilla: stats.achievements.guerilla,
                         headshot_honcho: stats.achievements.headshot_honcho,
-                        holdout: stats.achievements.headshot_honcho,
+                        holdout: stats.achievements.holdout,
                         iron: stats.achievements.iron,
                         killing_frenzy: stats.achievements.killing_frenzy,
                         landfall: stats.achievements.landfall,
@@ -500,7 +501,7 @@ export class Halo3CarnageReportService {
                                 betrayals: v.betrayals,
                                 deaths: v.deaths,
                                 suicides: v.suicides,
-                                headshots: v.suicides,
+                                headshots: v.headshots,
                             })
                         })
                 })
@@ -684,7 +685,7 @@ export class Halo3CarnageReportService {
             : this.compressionService.inflate(upload);
 
         this.logger.log('[PGCR] Reading Campaign Carnage Report...')
-        const campaign = BLF.halo3_12070_08_09_05_2031_halo3_ship.read_campaign_pgcr(buffer);
+        const campaign = read_campaign_pgcr(buffer);
 
         if (!campaign) {
             return;
@@ -887,7 +888,7 @@ export class Halo3CarnageReportService {
                             ...Object.entries(campaign_results.kill_counts)
                                 .filter(
                                     ([enemy_type, data]) => {
-                                        const kills = data as BLF.halo3_12070_08_09_05_2031_halo3_ship.s_metagame_state_class_kill_counts;
+                                        const kills = data as H3.s_metagame_state_class_kill_counts;
                                         if (
                                             kills.giant_vehicle == 0 
                                             && kills.heavy_vehicle == 0 
@@ -909,11 +910,11 @@ export class Halo3CarnageReportService {
                                         enemy_type,
                                         ...data,
                                     })
-                                ) as ({ player_xuid: string, enemy_type: string, carnage_report_id: string } & BLF.halo3_12070_08_09_05_2031_halo3_ship.s_metagame_state_class_kill_counts)[]
+                                ) as ({ player_xuid: string, enemy_type: string, carnage_report_id: string } & H3.s_metagame_state_class_kill_counts)[]
                         );
                     }
                     return acc;
-                }, [] as ({ player_xuid: string, enemy_type: string, carnage_report_id: string } & BLF.halo3_12070_08_09_05_2031_halo3_ship.s_metagame_state_class_kill_counts)[]);
+                }, [] as ({ player_xuid: string, enemy_type: string, carnage_report_id: string } & H3.s_metagame_state_class_kill_counts)[]);
 
             await tx.halo3_campaign_carnage_report_player_kills.createMany({ data: kills });
 

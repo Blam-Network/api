@@ -219,7 +219,7 @@ export class HaloReachPopulationService {
     mmhs.unknown_population_2 = 0;
     mmhs.unknown_population_3 = 0;
     mmhs.hoppers = hopperRows.map((row) => {
-      const hopper = new s_online_population_statistic();
+      const hopper = s_online_population_statistic.zero();
       hopper.presence_type = 2; // not sure what this magic number is, doesnt work without it 
       hopper.hopper_identifier = row.hopper_id;
       hopper.player_count = row.player_count;
@@ -250,8 +250,8 @@ export class HaloReachPopulationService {
       gui_game_mode: session.gui_game_mode,
       session_game_mode: session.session_game_mode,
       hopper_id: session.hopper_id === 0 ? null : session.hopper_id,
-      session_privacy: session.session_piracy_mode.network_session_privacy,
-      session_closed: session.session_piracy_mode.network_session_closed_status,
+      session_privacy: session.session_privacy_mode.privacy_mode,
+      session_closed: session.session_privacy_mode.closed_mode,
     };
   }
 

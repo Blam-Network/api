@@ -1,3 +1,4 @@
+import { e_online_data_type } from "../chunks";
 import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from 'src/db/prisma.service';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
@@ -286,7 +287,7 @@ export class SessionService {
                 properties: Array(3).fill(null).map(() => ({
                     id: 0,
                     value: {
-                        type: 'null' as const,
+                        type: e_online_data_type.null,
                         data: {
                             data_as_null: {
                                 padding: Array(16).fill(0) as any,
@@ -321,7 +322,7 @@ export class SessionService {
                 properties: Array(3).fill(null).map(() => ({
                     id: 0,
                     value: {
-                        type: 'null' as const,
+                        type: e_online_data_type.null,
                         data: {
                             data_as_null: {
                                 padding: Array(16).fill(0) as any,

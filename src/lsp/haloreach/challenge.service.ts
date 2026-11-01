@@ -22,7 +22,7 @@ const DAILY_CHALLENGE_CREDITS_MULTIPLIER = 1.5;
 const WEEKLY_CHALLENGE_CREDITS_MULTIPLIER = 1.5;
 
 function emptyChallengeSlots(): s_challenge_state[] {
-    return Array.from({ length: MAXIMUM_CHALLENGES_PER_SET }, () => new s_challenge_state());
+    return Array.from({ length: MAXIMUM_CHALLENGES_PER_SET }, () => s_challenge_state.zero());
 }
 
 @Injectable()
@@ -163,8 +163,8 @@ export class HaloReachChallengeService {
         const dcha = new s_blf_chunk_challenge_state();
 
         if (!CHALLENGES_ENABLED || (CHALLENGES_WHITELIST && !await this.isWhitelisted(xuid))) {
-            dcha.chalenge_set_1 = emptyChallengeSlots();
-            dcha.chalenge_set_2 = emptyChallengeSlots();
+            dcha.chalenge_set_1 = emptyChallengeSlots() as s_blf_chunk_challenge_state["chalenge_set_1"];
+            dcha.chalenge_set_2 = emptyChallengeSlots() as s_blf_chunk_challenge_state["chalenge_set_2"];
             dcha.chalenge_set_1_timestamp = new Date();
             dcha.chalenge_set_2_timestamp = new Date();
             return dcha;
@@ -176,8 +176,8 @@ export class HaloReachChallengeService {
         dcha.chalenge_set_2_count = WEEKLY_CHALLENGES_COUNT;
         dcha.chalenge_set_1_timestamp = this.getNextDailyResetDate();
         dcha.chalenge_set_2_timestamp = this.getNextWeeklyResetDate();
-        dcha.chalenge_set_1 = this.getRandomDailyChallenges();
-        dcha.chalenge_set_2 = this.getRandomWeeklyChallenges();
+        dcha.chalenge_set_1 = this.getRandomDailyChallenges() as s_blf_chunk_challenge_state["chalenge_set_1"];
+        dcha.chalenge_set_2 = this.getRandomWeeklyChallenges() as s_blf_chunk_challenge_state["chalenge_set_2"];
         return dcha;
     }
 

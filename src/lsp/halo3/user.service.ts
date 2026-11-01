@@ -1,7 +1,8 @@
 import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import * as BLF from '@blam-network/blf_lsp';
+import * as H3 from '@blamnetwork/blf/halo3/v12070_08_09_05_2031_halo3_ship';
+import * as ODST from '@blamnetwork/blf/halo3odst/v13895_09_04_27_2201_atlas_release';
 import { parseXuid } from "src/xbox/xuid";
 import { z } from "zod";
 import { clamp_to_byte, i32_to_u32 } from "../datatypes";
@@ -17,10 +18,10 @@ export class Halo3UserService {
     public getUserFile = async (xuid: BigInt) => {
         const player_xuid = xuid.toString();
         // If the DB is too slow, or data isn't present, we'll return a file without player data or a service record.
-        let srid: undefined | BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_service_record = undefined;
-        let fupd: undefined | BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_player_data = undefined;
-        let osri: undefined | BLF.halo3odst_13895_09_04_27_2201_atlas_release.s_blf_chunk_odst_service_record = undefined;
-        let filq: undefined | BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_file_transfers = undefined;
+        let srid: undefined | H3.s_blf_chunk_service_record = undefined;
+        let fupd: undefined | H3.s_blf_chunk_player_data = undefined;
+        let osri: undefined | ODST.s_blf_chunk_odst_service_record = undefined;
+        let filq: undefined | H3.s_blf_chunk_file_transfers = undefined;
         
         const userFileDataPromise = this.prisma.$transaction(async (tx) => {
             const serviceRecord = await tx.halo3_service_record.findUnique({
@@ -84,7 +85,7 @@ export class Halo3UserService {
             })
 
             
-            srid = serviceRecord ? serviceRecord : undefined;
+            srid = serviceRecord ? Object.assign(new H3.s_blf_chunk_service_record(), serviceRecord) : undefined;
 
             if (playerData) {
                 let bungie_user_role = 0;
@@ -92,14 +93,14 @@ export class Halo3UserService {
                 if (playerData.is_pro) bungie_user_role |= (1 << 1);
                 if (playerData.is_bungie) bungie_user_role |= (1 << 2);
                 if (playerData.has_recon || playerData.road_to_recon_completed) bungie_user_role |= (1 << 3);
-                fupd = {
+                fupd = Object.assign(new H3.s_blf_chunk_player_data(), {
                     hopper_access: playerData.hopper_access ?? 0,
                     highest_skill: playerData.highest_skill ?? 0,
                     bungie_user_role,
                     hopper_directory: playerData.hopper_directory_override || 'default_hoppers'
-                }
+                })
 
-                osri = {
+                osri = Object.assign(new ODST.s_blf_chunk_odst_service_record(), {
                     extras_portal_debug: playerData.odst_extras_portal_debug ?? false,
                     vidmaster: clamp_to_byte(i32_to_u32(playerData.odst_vidmaster_flag)) ?? 0,
                     
@@ -132,11 +133,11 @@ export class Halo3UserService {
                     spartan_right_shoulder: 0,
                     service_tag: '',
                     total_exp: 0,
-                }
+                })
             }
 
             if (transfers.length > 0) {
-                filq = {
+                filq = Object.assign(new H3.s_blf_chunk_file_transfers(), {
                     transfers: transfers.map(transfer => ({
                         share_id: BigInt(transfer.file.share_id.toFixed(0)),
                         slot: transfer.file.slot,
@@ -148,8 +149,8 @@ export class Halo3UserService {
                         map_id: transfer.file.map_id ?? 0,
                         game_engine_type: transfer.file.game_engine_type ?? 0,
                         size_bytes: BigInt(transfer.file.size_in_bytes.toFixed(0)),
-                    } satisfies BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_file_transfers['transfers'][0]))
-                }
+                    } satisfies H3.s_files_user_auto_download_queue_item))
+                })
             }
         }, {timeout: 3000});
 
@@ -160,7 +161,7 @@ export class Halo3UserService {
         let name = srid ? srid.player_name : '<unknown>';
         this.logger.log(`[USER] user file requested for user ${xuid} / ${name}`)
 
-        return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_user_file(
+        return H3.build_user_file(
             fupd,
             srid,
             filq,
@@ -169,9 +170,7 @@ export class Halo3UserService {
     }
 
     public getRecentPlayersFile = async (playerXuid: BigInt) => {
-        let furp: BLF.halo3_12070_08_09_05_2031_halo3_ship.s_blf_chunk_user_recent_players = {
-            players: []
-        }
+        const furp = new H3.s_blf_chunk_user_recent_players()
 
         const playersDataPromise = this.prisma.$transaction(async (tx) => {
             const carnageReports = await tx.halo3_carnage_report.findMany({
@@ -220,7 +219,7 @@ export class Halo3UserService {
 
         await Promise.allSettled([playersDataPromise]);
 
-        return BLF.halo3_12070_08_09_05_2031_halo3_ship.build_recent_players_file(furp);
+        return H3.build_recent_players_file(furp);
     }
 
     public updateHighestSkill = async (xuid: BigInt, highestSkill: number) => {

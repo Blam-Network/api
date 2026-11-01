@@ -1,3 +1,4 @@
+import { e_online_data_type } from "../chunks";
 import { SBlfFileStatsQuerySchema, SBlfFileStatsQueryResponseSchema } from './stats.chunks';
 import { DEFAULT_BLF_CHUNK, ARES_LIVE_AUTHOR, DEFAULT_EOF_CHUNK } from '../chunks';
 import * as fs from 'fs';
@@ -28,15 +29,15 @@ describe('Stats Query BLF Parsing', () => {
         expect(fileData._eof).toBeDefined();
         
         // Verify _blf chunk
-        expect(fileData._blf.fileName).toBe('stats query');
-        expect(fileData._blf.bom).toBe(0xFEFF);
+        expect(fileData._blf.name).toBe('stats query');
+        expect(fileData._blf.byte_order_mark).toBe(0xFEFF);
         
         // Verify athr chunk
-        expect(fileData.athr.programName).toBeDefined();
-        expect(fileData.athr.buildNumberSequence).toBeDefined();
-        expect(fileData.athr.buildNumber).toBeDefined();
-        expect(fileData.athr.buildString).toBeDefined();
-        expect(fileData.athr.authorName).toBeDefined();
+        expect(fileData.athr.program_name).toBeDefined();
+        expect(fileData.athr.build_number_sequence).toBeDefined();
+        expect(fileData.athr.build_number).toBeDefined();
+        expect(fileData.athr.build_string).toBeDefined();
+        expect(fileData.athr.author_name).toBeDefined();
         
         // Verify xsqq chunk structure
         expect(fileData.xsqq.xuidCount).toBeDefined();
@@ -84,7 +85,7 @@ describe('Stats Query BLF Parsing', () => {
                         stats: Array.from({ length: 32 }, () => ({
                             id: 0,
                             data: {
-                                type: 'null' as const,
+                                type: e_online_data_type.null,
                                 data: {
                                     data_as_null: {},
                                 },
@@ -158,15 +159,15 @@ describe('Stats Query BLF Parsing', () => {
         expect(fileData._eof).toBeDefined();
         
         // Verify _blf chunk
-        expect(fileData._blf.fileName).toBeDefined();
-        expect(fileData._blf.bom).toBe(0xFEFF);
+        expect(fileData._blf.name).toBeDefined();
+        expect(fileData._blf.byte_order_mark).toBe(0xFEFF);
         
         // Verify athr chunk
-        expect(fileData.athr.programName).toBeDefined();
-        expect(fileData.athr.buildNumberSequence).toBeDefined();
-        expect(fileData.athr.buildNumber).toBeDefined();
-        expect(fileData.athr.buildString).toBeDefined();
-        expect(fileData.athr.authorName).toBeDefined();
+        expect(fileData.athr.program_name).toBeDefined();
+        expect(fileData.athr.build_number_sequence).toBeDefined();
+        expect(fileData.athr.build_number).toBeDefined();
+        expect(fileData.athr.build_string).toBeDefined();
+        expect(fileData.athr.author_name).toBeDefined();
         
         // Verify xsqr chunk structure
         expect(fileData.xsqr.leaderboardCount).toBeDefined();

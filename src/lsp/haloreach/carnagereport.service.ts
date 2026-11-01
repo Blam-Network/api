@@ -10,6 +10,11 @@ import {
   s_blf_chunk_multiplayer_players,
 } from "@blamnetwork/blf/haloreach/v12065_11_08_24_1738_tu1actual";
 
+/** A decoded `c.Bitfield` as its storage integer; the keys are in bit order. */
+function bitfieldToRaw(flags: Record<string, boolean>): number {
+    return Object.values(flags).reduce((raw, set, bit) => raw | (set ? 1 << bit : 0), 0);
+}
+
 // We turn this on for debugging but turn it off for security in prod.
 const ALLOW_UNCOMPRESSED_CARNAGE_REPORTS = false;
 
@@ -34,7 +39,7 @@ export class HaloReachCarnageReportService {
 
         if (!mppl.players
             .filter(player => player.player_exists)
-            .every(player => VALID_GAMERTAG_REGEX.test(player.player_configuration_from_client.desired_name))
+            .every(player => VALID_GAMERTAG_REGEX.test(player.configuration_from_client.desired_name))
         ) {
             this.logger.warn(`[UPLOAD] Received carnage report with an invalid gamertag, skipping.`)
             return false;
@@ -69,7 +74,7 @@ export class HaloReachCarnageReportService {
                     player_xuid: {
                         in: mppl.players
                             .filter(player => player.player_exists)
-                            .map(player => player.player_configuration_from_client.xuid.toString())
+                            .map(player => player.configuration_from_client.xuid.toString())
                     }
                 }
             })
@@ -77,20 +82,20 @@ export class HaloReachCarnageReportService {
             await tx.reach_service_record.createMany({
                 data: mppl.players
                     .filter(player => player.player_exists)
-                    .filter(player => !isGuestXuid(player.player_configuration_from_client.xuid))
+                    .filter(player => !isGuestXuid(player.configuration_from_client.xuid))
                     .map(player => {
-                        const config = player.player_configuration_from_client;
+                        const config = player.configuration_from_client;
                         return {
                             player_xuid: config.xuid.toString(),
                             player_name: config.desired_name,
-                            appearance_flags: config.appearance.voice,
+                            appearance_flags: bitfieldToRaw(config.appearance.flags),
                             primary_color: config.appearance.primary_color,
                             secondary_color: config.appearance.secondary_color,
                             tertiary_color: config.appearance.tertiary_color,
                             is_elite: config.appearance.player_model_choice,
                             foreground_emblem: config.appearance.foreground_emblem,
                             background_emblem: config.appearance.background_emblem,
-                            emblem_flags: config.appearance.emblem_flags,
+                            emblem_flags: bitfieldToRaw(config.appearance.emblem_flags),
                             emblem_primary_color: config.appearance.emblem_primary_color,
                             emblem_secondary_color: config.appearance.emblem_secondary_color,
                             emblem_background_color: config.appearance.emblem_background_color,
@@ -112,8 +117,8 @@ export class HaloReachCarnageReportService {
                             commendation_unlock_pct: config.commendation_unlock_pct,
                             grade: config.grade,
                             sub_grade: config.sub_grade,
-                            cheat_flags: config.cheat_flags,
-                            ban_flags: config.ban_flags,
+                            cheat_flags: bitfieldToRaw(config.cheat_flags),
+                            ban_flags: bitfieldToRaw(config.ban_flags),
                             matchmade_games_played: config.hopper_stats.games_played,
                         };
                     }

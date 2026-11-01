@@ -1,103 +1,62 @@
 import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
 import { randomUUID } from "crypto";
-import { mkdir, unlink, writeFile } from "fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "fs/promises";
 import { join } from "path";
+import {
+    date_from_filetime,
+    datamine_record_format_text,
+    e_datamine_parameter_type,
+    read_datamine_upload,
+    type s_datamine_file,
+    type s_datamine_parameter,
+    type s_datamine_record,
+} from "@blamnetwork/datamine/reading";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
 import { UPLOADS_FOLDER } from "src/constants";
-import * as yauzl from 'yauzl';
-import * as BLF from '@blam-network/blf_lsp';
 
 const DATAMINE_MIME_TYPE = 'application/x-bungie-datamine';
-const DATAMINE_COMPRESSED_FILE_NAME = "compressed.dat";
 const DATAMINE_QUEUE_FOLDER = join(UPLOADS_FOLDER, 'datamine-queue');
 const MAX_CONCURRENT = 2;
 const MAX_QUEUED = 32;
 const INSERT_BATCH_SIZE = 500;
 
-function closeZip(zipfile: yauzl.ZipFile): void {
-    try {
-        zipfile.removeAllListeners();
-        zipfile.close();
-    } catch {
-        // already closed or ended
-    }
+/** The zipped upload's `compressed.dat`, parsed. */
+async function readDatamineZip(path: string): Promise<s_datamine_file> {
+    return read_datamine_upload(await readFile(path));
 }
 
-async function openDatamineZip(path: string): Promise<yauzl.ZipFile> {
-    return new Promise((resolve, reject) => {
-        yauzl.open(path, { lazyEntries: true }, (err, zipfile) => {
-            if (err || !zipfile) {
-                reject(err ?? new Error('Failed to open datamine zip'));
-            } else {
-                resolve(zipfile);
-            }
-        });
-    });
+/** The file's event and occurrence records (v3 definitions only describe them). */
+function datamineRecords(file: s_datamine_file): s_datamine_record[] {
+    return file.records.flatMap((entry) => entry.kind === 'definition' ? [] : [entry.record]);
 }
 
-async function readCompressedDat(zipfile: yauzl.ZipFile): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-        let settled = false;
-        const succeed = (buf: Buffer) => {
-            if (settled) return;
-            settled = true;
-            resolve(buf);
-        };
-        const fail = (err: Error) => {
-            if (settled) return;
-            settled = true;
-            reject(err);
-        };
-
-        zipfile.on('error', fail);
-        zipfile.on('end', () => fail(new Error('No compressed.dat found in zip')));
-        zipfile.on('entry', (entry: yauzl.Entry) => {
-            if (entry.fileName !== DATAMINE_COMPRESSED_FILE_NAME) {
-                zipfile.readEntry();
-                return;
-            }
-
-            zipfile.openReadStream(entry, (err, readStream) => {
-                if (err || !readStream) {
-                    fail(err ?? new Error('Failed to open compressed.dat'));
-                    return;
-                }
-
-                const chunks: Buffer[] = [];
-                readStream.on('data', (chunk: Buffer) => chunks.push(chunk));
-                readStream.on('end', () => succeed(Buffer.concat(chunks)));
-                readStream.on('error', fail);
-            });
-        });
-
-        zipfile.readEntry();
-    });
-}
-
-async function readDatamineZip(path: string): Promise<BLF.common.s_datamine_file | undefined> {
-    const zipfile = await openDatamineZip(path);
-    try {
-        const datamineBuffer = await readCompressedDat(zipfile);
-        return BLF.common.read_datamine_file(datamineBuffer);
-    } finally {
-        closeZip(zipfile);
-    }
-}
-
-function convertParameterType(blfType: number): 'LONG' | 'INT64' | 'FLOAT' | 'STRING' {
-    switch (blfType) {
-        case BLF.common.e_datamine_parameter_type._datamine_parameter_type_long:
+function convertParameterType(type: number): 'LONG' | 'INT64' | 'FLOAT' | 'STRING' {
+    switch (type) {
+        case e_datamine_parameter_type.long:
             return 'LONG';
-        case BLF.common.e_datamine_parameter_type._datamine_parameter_type_int64:
+        case e_datamine_parameter_type.int64:
             return 'INT64';
-        case BLF.common.e_datamine_parameter_type._datamine_parameter_type_float:
+        case e_datamine_parameter_type.float:
             return 'FLOAT';
-        case BLF.common.e_datamine_parameter_type._datamine_parameter_type_string:
+        case e_datamine_parameter_type.string:
             return 'STRING';
         default:
-            throw new Error(`Unknown parameter type: ${blfType}`);
+            throw new Error(`Unknown parameter type: ${type}`);
     }
+}
+
+/** A parameter's stored values: numbers keep a numeric copy, strings do not. */
+function parameterValues(parameter: s_datamine_parameter): { numericValue?: string; stringValue: string } {
+    if (parameter.type === e_datamine_parameter_type.string) {
+        return { stringValue: String(parameter.value) };
+    }
+    // int64s are stored unsigned (session ids, qwords), as rows written before this reader were.
+    const value = parameter.type === e_datamine_parameter_type.int64
+        ? BigInt.asUintN(64, BigInt(parameter.value))
+        : parameter.value;
+    const text = value.toString();
+    return { numericValue: text, stringValue: text };
 }
 
 @Injectable()
@@ -167,19 +126,22 @@ export class DatamineUploadService implements OnModuleInit {
     }
 
     private async processQueuedFile(path: string) {
-        const datamineFile = await readDatamineZip(path);
-
-        if (!datamineFile) {
-            this.logger.error(`[DatamineUpload] Unsupported datamine file.`);
+        let datamineFile: s_datamine_file;
+        try {
+            datamineFile = await readDatamineZip(path);
+        } catch (error) {
+            this.logger.error(`[DatamineUpload] Unsupported datamine file: ${error}`);
             return;
         }
+        const records = datamineRecords(datamineFile);
+        const sessionStartDate = date_from_filetime(datamineFile.header.session_start_date);
 
         await this.prisma.$transaction(async (tx) => {
             let session = await tx.datamine_session.findUnique({
                 where: {
                     sessionid_session_start_date: {
                         sessionid: datamineFile.header.sessionid,
-                        session_start_date: datamineFile.header.session_start_date,
+                        session_start_date: sessionStartDate,
                     },
                 },
             });
@@ -192,20 +154,20 @@ export class DatamineUploadService implements OnModuleInit {
                         build_number: datamineFile.header.build_number,
                         systemid: datamineFile.header.systemid,
                         title: datamineFile.header.title,
-                        session_start_date: datamineFile.header.session_start_date,
+                        session_start_date: sessionStartDate,
                     },
                 });
             }
 
-            const eventsData = datamineFile.events.map((event) => ({
-                event_index: event.header.event_index,
+            const eventsData = records.map((record) => ({
+                event_index: record.event_index,
                 session_id: session.id,
-                priority: event.header.priority,
-                game_instance: event.header.game_info.game_instance.toString(),
-                map: event.header.game_info.map,
-                event_date: event.header.event_date,
-                message: BLF.common.get_formatted_event_string(event) || `<invalid message string: ${event.header.event_name}>`,
-                categories: event.categories,
+                priority: record.priority,
+                game_instance: record.game_info.game_instance.toString(),
+                map: record.game_info.map,
+                event_date: date_from_filetime(record.event_date),
+                message: datamine_record_format_text(record) || `<invalid message string: ${record.event_name}>`,
+                categories: record.categories,
             }));
 
             for (let i = 0; i < eventsData.length; i += INSERT_BATCH_SIZE) {
@@ -225,48 +187,21 @@ export class DatamineUploadService implements OnModuleInit {
                 });
             }
 
-            const allParameters = datamineFile.events.flatMap((event) => {
-                return event.parameters
+            const allParameters = records.flatMap((record) =>
+                record.parameters
                     .filter(parameter => parameter.name)
                     .map((parameter) => {
-                        let numericValue: string | undefined = undefined;
-                        let stringValue: string;
-
-                        switch (parameter.parameter_type) {
-                            case BLF.common.e_datamine_parameter_type._datamine_parameter_type_long:
-                                if (parameter.value_long === undefined) return null;
-                                numericValue = parameter.value_long.toString();
-                                stringValue = parameter.value_long.toString();
-                                break;
-                            case BLF.common.e_datamine_parameter_type._datamine_parameter_type_int64:
-                                if (parameter.value_int64 === undefined) return null;
-                                numericValue = parameter.value_int64.toString();
-                                stringValue = parameter.value_int64.toString();
-                                break;
-                            case BLF.common.e_datamine_parameter_type._datamine_parameter_type_float:
-                                if (parameter.value_float === undefined) return null;
-                                numericValue = parameter.value_float.toString();
-                                stringValue = parameter.value_float.toString();
-                                break;
-                            case BLF.common.e_datamine_parameter_type._datamine_parameter_type_string:
-                                if (parameter.value_string === undefined) return null;
-                                stringValue = parameter.value_string.string;
-                                break;
-                            default:
-                                return null;
-                        }
-
+                        const { numericValue, stringValue } = parameterValues(parameter);
                         return {
-                            event_index: event.header.event_index,
+                            event_index: record.event_index,
                             session_id: session.id,
                             key: parameter.name,
-                            type: convertParameterType(parameter.parameter_type),
+                            type: convertParameterType(parameter.type),
                             numeric_value: numericValue,
                             string_value: stringValue,
                         };
                     })
-                    .filter((param): param is NonNullable<typeof param> => param !== null);
-            });
+            );
 
             for (let i = 0; i < allParameters.length; i += INSERT_BATCH_SIZE) {
                 await tx.datamine_event_parameter.createMany({

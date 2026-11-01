@@ -15,7 +15,7 @@ export function build_user_rewards_file(
   dcha?: s_blf_chunk_challenge_state | null,
 ): Uint8Array {
   const beta_rdpl = new s_blf_chunk_rewards_persistance_beta();
-  beta_rdpl.unknown1 = rdpl.credits;
+  beta_rdpl.unknown1 = rdpl.cookies;
   beta_rdpl.unknown2 = Array.from({ length: 0x180 }, () => 1);
 
   return write_blffile("big", [

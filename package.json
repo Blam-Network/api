@@ -30,9 +30,9 @@
     "schema": "prisma/schema"
   },
   "dependencies": {
-    "@blam-network/blf_lsp": "^1.10.10",
-    "@blamnetwork/blf": "^1.1.0-beta.2",
-    "@craftycodie/cstruct": "^1.1.1",
+    "@blamnetwork/blf": "^1.2.0-alpha.1",
+    "@blamnetwork/datamine": "^1.0.0",
+    "@craftycodie/cstruct": "^2.0.0-alpha.5",
     "@faker-js/faker": "^8.4.1",
     "@nestjs/common": "^11.1.0",
     "@nestjs/core": "^11.1.0",

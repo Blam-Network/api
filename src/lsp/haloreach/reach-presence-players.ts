@@ -2,14 +2,6 @@ import { s_blf_chunk_network_lsp_heartbeat_data } from "@blamnetwork/blf/halorea
 import { isGuestXuid } from "src/xbox/xuid";
 
 /** Session roster slot: 8-byte XUID in big-endian order (see blf-ts heartbeat fixture). */
-export function xuidFromSessionPlayerBytes(bytes: number[]): bigint {
-  let xuid = 0n;
-  for (const byte of bytes) {
-    xuid = (xuid << 8n) | BigInt(byte);
-  }
-  return xuid;
-}
-
 export type ReachPresencePlayerSnapshot = {
   playerXuid: bigint;
   team?: number;
@@ -59,7 +51,7 @@ export function extractReachPresencePlayers(
     ) {
       const sessionPlayer = session.session_players[i];
       merge({
-        playerXuid: xuidFromSessionPlayerBytes(sessionPlayer.unknown0),
+        playerXuid: sessionPlayer.player_xuid,
         team: sessionPlayer.team,
       });
     }

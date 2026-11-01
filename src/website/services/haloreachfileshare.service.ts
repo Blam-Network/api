@@ -1,11 +1,12 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import * as BLF from '@blam-network/blf_lsp'
+import * as H3 from '@blamnetwork/blf/halo3/v12070_08_09_05_2031_halo3_ship';
 import { PrismaService } from "src/db/prisma.service";
 import { join } from "path";
 import { existsSync, readFileSync } from "fs";
 import { FILESHARE_FOLDER, SCREENSHOTS_FOLDER } from "src/constants";
 import { parseXuid, xuidToHexString } from "src/xbox/xuid";
+import { read_reach_09449_blind_screenshot, read_reach_09730_blind_screenshot, read_reach_blind_screenshot } from 'src/utils/blf_files';
 
 @Injectable()
 export class HaloReachFileShareService {
@@ -14,7 +15,7 @@ export class HaloReachFileShareService {
         private readonly prisma: PrismaService,
     ) { }
 
-    public viewBlindScreenshot = async (id: string): Promise<number[]> => {
+    public viewBlindScreenshot = async (id: string): Promise<Uint8Array> => {
         const dbScreenshot = await this.prisma.reach_blind_screenshot.findUnique({
             where: {
                 id
@@ -33,10 +34,10 @@ export class HaloReachFileShareService {
         if (!existsSync(screenshotPath)) throw new NotFoundException('screenshot file not found');
         let fileData = readFileSync(screenshotPath);
 
-        let scnd: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_screenshot_data | undefined = undefined;
+        let scnd: H3.s_blf_chunk_screenshot_data | undefined = undefined;
 
         if (!scnd) {
-            const releaseBlfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_blind_screenshot(
+            const releaseBlfFile = read_reach_blind_screenshot(
                 fileData,
             );
             if (releaseBlfFile) {
@@ -45,20 +46,20 @@ export class HaloReachFileShareService {
         }
 
         if (!scnd) {
-            const betaBlfFile = BLF.haloreach_09730_10_04_09_1309_omaha_delta.read_blind_screenshot(
+            const betaBlfFile = read_reach_09730_blind_screenshot(
                 fileData,
             );
             if (betaBlfFile) {
-                scnd = betaBlfFile._cmp;
+                scnd = betaBlfFile._cmp.chunk;
             }
         }
 
         if (!scnd) {
-            const privateBetaBlfFile = BLF.haloreach_09449_10_03_25_1545_omaha_beta.read_blind_screenshot(
+            const privateBetaBlfFile = read_reach_09449_blind_screenshot(
                 fileData,
             );
             if (privateBetaBlfFile) {
-                scnd = privateBetaBlfFile._cmp;
+                scnd = privateBetaBlfFile._cmp.chunk;
             }
         }
 
@@ -72,7 +73,7 @@ export class HaloReachFileShareService {
      * Reach fileshare stores one BLF per file under uploads/fileshare/haloreach/{ownerXuidHex}/{fileIdHex16}.
      * `fileId` is the decimal string `reach_file_share_file.id` (same value returned in fileshare listings).
      */
-    public viewFileshareScreenshot = async (shareId: string, fileId: string): Promise<number[]> => {
+    public viewFileshareScreenshot = async (shareId: string, fileId: string): Promise<Uint8Array> => {
         const shareXuid = parseXuid(shareId);
         const shareIdDecimal = shareXuid.toString();
 
@@ -104,22 +105,22 @@ export class HaloReachFileShareService {
 
         const fileData = readFileSync(screenshotPath);
 
-        let scnd: BLF.haloreach_12065_11_08_24_1738_tu1actual.s_blf_chunk_screenshot_data | undefined;
+        let scnd: H3.s_blf_chunk_screenshot_data | undefined;
 
-        const releaseBlfFile = BLF.haloreach_12065_11_08_24_1738_tu1actual.read_blind_screenshot(fileData);
+        const releaseBlfFile = read_reach_blind_screenshot(fileData);
         if (releaseBlfFile) {
             scnd = releaseBlfFile.scnd;
         }
         if (!scnd) {
-            const betaBlfFile = BLF.haloreach_09730_10_04_09_1309_omaha_delta.read_blind_screenshot(fileData);
+            const betaBlfFile = read_reach_09730_blind_screenshot(fileData);
             if (betaBlfFile) {
-                scnd = betaBlfFile._cmp;
+                scnd = betaBlfFile._cmp.chunk;
             }
         }
         if (!scnd) {
-            const privateBetaBlfFile = BLF.haloreach_09449_10_03_25_1545_omaha_beta.read_blind_screenshot(fileData);
+            const privateBetaBlfFile = read_reach_09449_blind_screenshot(fileData);
             if (privateBetaBlfFile) {
-                scnd = privateBetaBlfFile._cmp;
+                scnd = privateBetaBlfFile._cmp.chunk;
             }
         }
 

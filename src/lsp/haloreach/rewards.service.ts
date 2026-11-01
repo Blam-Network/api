@@ -158,15 +158,15 @@ export class HaloReachRewardsService {
         // loop through purchased armour and check how much we can afford.
         let purchasedArmour: HaloReachArmour[] = [];
         let creditsAvailableForArmour = rupl.alltime_cookie_count;
-        for (let index = 0; index < rupl.armour_purchases_count; index++) {
-            let armour = toHaloReachArmour(rupl.armour_purchase_stack[index]);
+        for (let index = 0; index < rupl.purchase_order_count; index++) {
+            let armour = toHaloReachArmour(rupl.purchase_order[index]);
             if (armour === undefined) {
-                this.logger.warn(`The player has purchased an unknown armour piece (${rupl.armour_purchase_stack[index]}), skipping.`);
+                this.logger.warn(`The player has purchased an unknown armour piece (${rupl.purchase_order[index]}), skipping.`);
                 continue;
             }
             let armourCost = armourCosts[armour];
             if (armourCost > creditsAvailableForArmour) {
-                this.logger.warn(`The player has purchased more armour than they can afford skipping ${rupl.armour_purchases_count - (index + 1)} remaining armours.`);
+                this.logger.warn(`The player has purchased more armour than they can afford skipping ${rupl.purchase_order_count - (index + 1)} remaining armours.`);
                 break;
             }
             purchasedArmour.push(armour);
@@ -259,7 +259,7 @@ export class HaloReachRewardsService {
     public getPlayerRewards = async (xuid: BigInt): Promise<s_blf_chunk_rewards_persistance> => {
         if (!await this.useNewRewardsSystem(xuid)) {
             const rdpl = new s_blf_chunk_rewards_persistance();
-            rdpl.credits = 200_000_000;
+            rdpl.cookies = 200_000_000;
             rdpl.purchased_items = Array.from({ length: 256 }, () =>
                 default_purchase_state({ purchased: true })
             );
@@ -296,7 +296,7 @@ export class HaloReachRewardsService {
 
         const responseCommendations = Array.from(
             { length: 128 },
-            () => new s_persistent_per_commendation_state()
+            () => s_persistent_per_commendation_state.zero()
         );
         const commendations = await this.prisma.reach_player_rewards_commendations.findMany({
             where: {
@@ -331,10 +331,10 @@ export class HaloReachRewardsService {
         }
 
         const rdpl = new s_blf_chunk_rewards_persistance();
-        rdpl.credits = (playerRewards?.credits || 0) + (playerRewards?.credits_award || 0);
+        rdpl.cookies = (playerRewards?.credits || 0) + (playerRewards?.credits_award || 0);
         rdpl.commendations = responseCommendations;
         rdpl.purchased_items = responsePurchasedArmours;
-        rdpl.unknown4 = playerRewards?.updatedAt || new Date(0);
+        rdpl.jackpot_expiration_time = playerRewards?.updatedAt || new Date(0);
         rdpl.awarded_credits = playerRewards?.credits_award || 0;
         return rdpl;
     }

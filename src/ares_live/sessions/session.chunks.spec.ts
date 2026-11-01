@@ -1,3 +1,4 @@
+import { e_online_data_type } from "../chunks";
 import {
     TransportSessionIdSchema,
     TransportSessionKeySchema,
@@ -101,7 +102,7 @@ describe('Struct Alignment and Layout', () => {
             properties: Array(3).fill(null).map(() => ({
                 id: 0,
                 value: {
-                    type: 'null' as const,
+                    type: e_online_data_type.null,
                     data: {
                         data_as_null: {
                             padding: Array(16).fill(0) as any,
@@ -148,7 +149,7 @@ describe('Struct Alignment and Layout', () => {
         const testData = {
             id: 0x12345678,
             value: {
-                type: 'null' as const,
+                type: e_online_data_type.null,
                 data: {
                     data_as_null: {
                         padding: Array(16).fill(0) as any,

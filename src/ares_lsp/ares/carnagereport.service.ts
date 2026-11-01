@@ -1,7 +1,7 @@
 import { Inject } from "@nestjs/common";
 import { PrismaService } from "src/db/prisma.service";
 import ILogger, { ILoggerSymbol } from "src/ILogger";
-import * as BLF from '@blam-network/blf_lsp';
+import * as AresBLF from '../blf';
 import { CompressionService } from "../services/compression.service";
 import { isGuestXuid } from "src/xbox/xuid";
 import { DiscordWebhookService } from "src/lsp/services/discordwebhook.service";
@@ -33,7 +33,7 @@ export class AresCarnageReportService {
         private readonly discordWebhookService: DiscordWebhookService,
     ) {}
 
-    private isValidCarnageReport = (multi: BLF.ares_untracked.multi) => {
+    private isValidCarnageReport = (multi: AresBLF.multi) => {
         if (!multi.mppl.players
             .filter(player => player.player_exists)
             .every(player => VALID_GAMERTAG_REGEX.test(player.player_configuration_from_client.player_name))
@@ -50,7 +50,7 @@ export class AresCarnageReportService {
             ? this.compressionService.inflateIfCompressed(upload)
             : this.compressionService.inflate(upload);
 
-        const multi = BLF.ares_untracked.read_webstats(buffer);
+        const multi = AresBLF.read_webstats(buffer);
 
         if (!multi) {
             return;
@@ -283,7 +283,7 @@ export class AresCarnageReportService {
                     carnage_report_event_carry: {
                         createMany: {
                             data: multi.mpev.events
-                                .filter(e => e.type_ === BLF.ares_untracked.e_game_results_data_type._carry)
+                                .filter(e => e.type_ === AresBLF.e_game_results_data_type._carry)
                                 .map(e => ({
                                     time: e.time,
                                     carry_type: e.carry_data!.carry_type,
@@ -296,7 +296,7 @@ export class AresCarnageReportService {
                     carnage_report_event_kill: {
                         createMany: {
                             data: multi.mpev.events
-                                .filter(e => e.type_ === BLF.ares_untracked.e_game_results_data_type._kill)
+                                .filter(e => e.type_ === AresBLF.e_game_results_data_type._kill)
                                 .map(e => ({
                                     time: e.time,
                                     killer_position: [
@@ -318,7 +318,7 @@ export class AresCarnageReportService {
                     carnage_report_event_score: {
                         createMany: {
                             data: multi.mpev.events
-                                .filter(e => e.type_ === BLF.ares_untracked.e_game_results_data_type._score)
+                                .filter(e => e.type_ === AresBLF.e_game_results_data_type._score)
                                 .map(e => ({
                                     time: e.time,
                                     score_player_index: e.player_references[0],
@@ -355,9 +355,9 @@ export class AresCarnageReportService {
                         fear_the_pink_mist: stats.achievements.fear_the_pink_mist,
                         fog: stats.achievements.fog,
                         graduate: stats.achievements.graduate,
-                        guerilla: stats.achievements.graduate,
+                        guerilla: stats.achievements.guerilla,
                         headshot_honcho: stats.achievements.headshot_honcho,
-                        holdout: stats.achievements.headshot_honcho,
+                        holdout: stats.achievements.holdout,
                         iron: stats.achievements.iron,
                         killing_frenzy: stats.achievements.killing_frenzy,
                         landfall: stats.achievements.landfall,
@@ -417,7 +417,7 @@ export class AresCarnageReportService {
                                 betrayals: v.betrayals,
                                 deaths: v.deaths,
                                 suicides: v.suicides,
-                                headshots: v.suicides,
+                                headshots: v.headshots,
                             })
                         })
                 })

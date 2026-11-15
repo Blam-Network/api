@@ -430,6 +430,7 @@ model reach_file_share_file {
   transfers                   reach_file_share_transfer[]
 
   @@unique([id, share_id], map: "unique_id_share_id")
+  @@unique([share_id, unique_id], map: "unique_share_id_unique_id")
   @@map("file_share_file")
   @@schema("reach")
 }

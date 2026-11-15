@@ -740,7 +740,7 @@ export class Halo3CarnageReportService {
                     finish_time: endTime,
                     game_id: campaign.gmop.options.game_instance.toString(),
                     map_id: campaign.gmop.options.map_id,
-                    scenario_path: campaign.gmop.options.scenario_path,
+                    scenario_path: campaign.gmop.options.scenario_path.path,
                     start_time: startTime,
                     language: campaign.gmop.options.language,
                     simulation: campaign.gmop.options.game_simulation,

@@ -30,7 +30,7 @@
     "schema": "prisma/schema"
   },
   "dependencies": {
-    "@blamnetwork/blf": "^1.2.0-alpha.3",
+    "@blamnetwork/blf": "^1.2.1",
     "@blamnetwork/datamine": "^1.0.0",
     "@craftycodie/cstruct": "^2.0.0-alpha.5",
     "@faker-js/faker": "^8.4.1",

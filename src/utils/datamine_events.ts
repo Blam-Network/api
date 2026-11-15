@@ -6,7 +6,6 @@ import {
     k_event_level_none,
 } from '@blamnetwork/datamine';
 
-/** Category for each server's logger prefix, e.g. 'Ares LIVE' -> 'web_private:ares_live:'. */
 export const datamine_category = (prefix: string): string =>
     `web_private:${prefix.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}:`;
 

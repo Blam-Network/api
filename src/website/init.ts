@@ -6,7 +6,6 @@ import * as http from 'http';
 import * as https from 'https';
 import * as express from 'express';
 import { ShutdownObserver } from 'src/ShutdownObserver';
-import { LSPModule } from 'src/lsp/lsp.module';
 import ILogger, { ILoggerSymbol } from 'src/ILogger';
 import { HTTP_PORT, HTTPS_PORT } from './constants';
 import { readFileSync } from 'fs';

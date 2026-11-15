@@ -18,12 +18,9 @@ import { UserController } from './controllers/user.controller';
 import { BnetUserService } from './services/bnetuser.service';
 import { JwtService } from './services/jwt.service';
 import { loggerWithPrefix } from 'src/utils/logger'
-import { AresController } from './controllers/ares.controller';
 import { NetworkController } from './controllers/network.controller';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
-import { AresPopulationService } from './services/arespopulation.service';
-import { AresFileShareService } from './services/aresfileshare.service';
 import { CompressionService } from 'src/lsp/services/compression.service';
 import { UploadService } from 'src/lsp/services/upload.service';
 import { HaloReachPopulationService } from 'src/lsp/haloreach/population.service';
@@ -43,7 +40,6 @@ import { ReachArmourUnlocksService } from './services/reach-armour-unlocks.servi
     ],
     controllers: [
         HealthController,
-        AresController,
         Halo3Controller,
         Halo3ODSTController,
         HaloReachController,
@@ -69,8 +65,6 @@ import { ReachArmourUnlocksService } from './services/reach-armour-unlocks.servi
         HaloReachEmblemsService,
         ReachNameplatesService,
         ReachArmourUnlocksService,
-        AresPopulationService,
-        AresFileShareService,
         BnetUserService,
         JwtService,
         loggerWithPrefix('BNET'),

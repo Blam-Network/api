@@ -71,6 +71,18 @@ export class Halo3Controller {
         return !!playerData?.road_to_recon_completed;
     }
 
+    private async resolvePlayerXuid(gamertag: string): Promise<string | null> {
+        const serviceRecord = await this.prisma.halo3_service_record.findFirst({
+            where: { player_name: gamertag },
+            select: { player_xuid: true },
+        });
+        if (serviceRecord) {
+            return serviceRecord.player_xuid.toString();
+        }
+
+        return null;
+    }
+
     @Get('/players/by-gamertag/:gamertag/carnage-reports')
     @ApiParam({ name: 'gamertag' })
     async listPlayerCarnageReportsByGamertag(
@@ -80,17 +92,20 @@ export class Halo3Controller {
     ) {
         const decodedGamertag = decodeURIComponent(gamertag);
         const skip = (page - 1) * pageSize;
-        
+
+        const playerXuid = await this.resolvePlayerXuid(decodedGamertag);
+        if (!playerXuid) {
+            return { data: [], total: 0, page, pageSize, totalPages: 0 };
+        }
+
         // Use UNION query to get IDs and types, sorted by finish_time
-        // Escape single quotes in gamertag for SQL safety
-        const escapedGamertag = decodedGamertag.replace(/'/g, "''");
-        const unionQuery = `
+        const unionResults = await this.prisma.$queryRaw<Array<{ id: string; finish_time: Date; type: string }>>`
             SELECT id, finish_time, 'multiplayer'::text as type
             FROM "halo3"."carnage_report" cr
             WHERE EXISTS (
                 SELECT 1 FROM "halo3"."carnage_report_player" crp
                 WHERE crp.carnage_report_id = cr.id
-                AND crp.player_name = '${escapedGamertag}'
+                AND crp.player_xuid = ${playerXuid}::numeric
             )
             UNION ALL
             SELECT id, finish_time, 'campaign'::text as type
@@ -98,34 +113,31 @@ export class Halo3Controller {
             WHERE EXISTS (
                 SELECT 1 FROM "halo3"."campaign_carnage_report_player" ccrp
                 WHERE ccrp.carnage_report_id = ccr.id
-                AND ccrp.player_name = '${escapedGamertag}'
+                AND ccrp.player_xuid = ${playerXuid}::numeric
             )
             ORDER BY finish_time DESC
             LIMIT ${pageSize} OFFSET ${skip}
         `;
-        
-        const unionResults = await this.prisma.$queryRawUnsafe<Array<{ id: string; finish_time: Date; type: string }>>(unionQuery);
-        
+
         // Get total count
-        const countQuery = `
+        const countResult = await this.prisma.$queryRaw<Array<{ total: bigint }>>`
             SELECT COUNT(*)::bigint as total
             FROM (
                 SELECT id FROM "halo3"."carnage_report" cr
                 WHERE EXISTS (
                     SELECT 1 FROM "halo3"."carnage_report_player" crp
                     WHERE crp.carnage_report_id = cr.id
-                    AND crp.player_name = '${escapedGamertag}'
+                    AND crp.player_xuid = ${playerXuid}::numeric
                 )
                 UNION ALL
                 SELECT id FROM "halo3"."campaign_carnage_report" ccr
                 WHERE EXISTS (
                     SELECT 1 FROM "halo3"."campaign_carnage_report_player" ccrp
                     WHERE ccrp.carnage_report_id = ccr.id
-                    AND ccrp.player_name = '${escapedGamertag}'
+                    AND ccrp.player_xuid = ${playerXuid}::numeric
                 )
             ) combined
         `;
-        const countResult = await this.prisma.$queryRawUnsafe<Array<{ total: bigint }>>(countQuery);
         const total = Number(countResult[0]?.total || 0);
         
         // Separate IDs by type
@@ -309,9 +321,10 @@ export class Halo3Controller {
     async getServiceRecordByGamertag(
         @Param('gamertag') gamertag: string,
     ) {
-        const sr = await this.prisma.halo3_service_record.findFirst({
-            where: { player_name: gamertag },
-        });
+        const xuid = await this.resolvePlayerXuid(gamertag);
+        const sr = xuid ? await this.prisma.halo3_service_record.findFirst({
+            where: { player_xuid: xuid },
+        }) : null;
         if (!sr) {
             return {};
         }
@@ -414,10 +427,9 @@ export class Halo3Controller {
         @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize: number = 48,
     ) {
         const take = Math.min(Math.max(pageSize, 1), 48);
+        const playerXuid = await this.resolvePlayerXuid(gamertag);
         const screenshots = await this.prisma.halo3_blind_screenshot.findMany({
-            where: {
-                author: gamertag,
-            },
+            where: playerXuid ? { author_id: playerXuid } : { author: gamertag },
             orderBy: {
                 date: 'desc',
             },
@@ -1569,14 +1581,17 @@ export class Halo3Controller {
         let countQuery: string;
         
         if (gamertag) {
-            const escapedGamertag = gamertag.replace(/'/g, "''");
+            // Match games by XUID so they follow the player across gamertag changes.
+            // The XUID comes from the database as digits; -1 matches no player.
+            const resolvedXuid = await this.resolvePlayerXuid(gamertag);
+            const playerXuid = resolvedXuid && /^\d+$/.test(resolvedXuid) ? resolvedXuid : '-1';
             unionQuery = `
                 SELECT id, finish_time, 'multiplayer'::text as type
                 FROM "halo3"."carnage_report" cr
                 WHERE EXISTS (
                     SELECT 1 FROM "halo3"."carnage_report_player" crp
                     WHERE crp.carnage_report_id = cr.id
-                    AND crp.player_name = '${escapedGamertag}'
+                    AND crp.player_xuid = ${playerXuid}
                 )
                 UNION ALL
                 SELECT id, finish_time, 'campaign'::text as type
@@ -1584,7 +1599,7 @@ export class Halo3Controller {
                 WHERE EXISTS (
                     SELECT 1 FROM "halo3"."campaign_carnage_report_player" ccrp
                     WHERE ccrp.carnage_report_id = ccr.id
-                    AND ccrp.player_name = '${escapedGamertag}'
+                    AND ccrp.player_xuid = ${playerXuid}
                 )
                 ORDER BY finish_time DESC
                 LIMIT ${pageSize} OFFSET ${skip}
@@ -1597,14 +1612,14 @@ export class Halo3Controller {
                     WHERE EXISTS (
                         SELECT 1 FROM "halo3"."carnage_report_player" crp
                         WHERE crp.carnage_report_id = cr.id
-                        AND crp.player_name = '${escapedGamertag}'
+                        AND crp.player_xuid = ${playerXuid}
                     )
                     UNION ALL
                     SELECT id FROM "halo3"."campaign_carnage_report" ccr
                     WHERE EXISTS (
                         SELECT 1 FROM "halo3"."campaign_carnage_report_player" ccrp
                         WHERE ccrp.carnage_report_id = ccr.id
-                        AND ccrp.player_name = '${escapedGamertag}'
+                        AND ccrp.player_xuid = ${playerXuid}
                     )
                 ) combined
             `;
@@ -1796,9 +1811,10 @@ export class Halo3Controller {
         @Query('gamertag') gamertag?: string,
     ) {
         const skip = (page - 1) * pageSize;
-        
-        const where = gamertag ? { author: gamertag } : {};
-        
+
+        const playerXuid = gamertag ? await this.resolvePlayerXuid(gamertag) : null;
+        const where = playerXuid ? { author_id: playerXuid } : gamertag ? { author: gamertag } : {};
+
         const [screenshots, total] = await Promise.all([
             this.prisma.halo3_blind_screenshot.findMany({
                 where,
@@ -2019,18 +2035,10 @@ export class Halo3Controller {
     ) {
         const decodedGamertag = decodeURIComponent(gamertag);
         // TODO: in future we should use XUID as the param instead.
-        const serviceRecord = await this.prisma.halo3_service_record.findFirst({
-            where: {
-                player_name: decodedGamertag,
-            },
-            select: {
-                player_xuid: true,
-            },
-        })
-        if (!serviceRecord) {
+        const playerXuid = await this.resolvePlayerXuid(decodedGamertag);
+        if (!playerXuid) {
             throw new NotFoundException('Player not found');
         }
-        const playerXuid = serviceRecord.player_xuid.toString();
 
         const campaignMatches = await this.prisma.halo3_campaign_carnage_report.aggregate({
             _count: {
@@ -2438,7 +2446,7 @@ export class Halo3Controller {
         @Param('gamertag') gamertag: string,
     ) {
         const decodedGamertag = decodeURIComponent(gamertag);
-        const escapedGamertag = decodedGamertag.replace(/'/g, "''");
+        const playerXuid = await this.resolvePlayerXuid(decodedGamertag);
 
         // Get games from the last year
         const oneYearAgo = new Date();
@@ -2446,8 +2454,11 @@ export class Halo3Controller {
         const oneYearAgoStr = oneYearAgo.toISOString().split('T')[0];
 
         // Query to get daily game counts
-        const dailyCountsQuery = `
-            SELECT 
+        const dailyCounts = !playerXuid ? [] : await this.prisma.$queryRaw<Array<{
+            date: Date;
+            count: number;
+        }>>`
+            SELECT
                 DATE(finish_time) as date,
                 COUNT(*)::int as count
             FROM (
@@ -2456,28 +2467,23 @@ export class Halo3Controller {
                 WHERE EXISTS (
                     SELECT 1 FROM "halo3"."carnage_report_player" crp
                     WHERE crp.carnage_report_id = cr.id
-                    AND crp.player_name = '${escapedGamertag}'
+                    AND crp.player_xuid = ${playerXuid}::numeric
                 )
                 AND cr.finished = true
-                AND cr.finish_time >= '${oneYearAgoStr}'
+                AND cr.finish_time >= ${oneYearAgoStr}::date
                 UNION ALL
                 SELECT finish_time
                 FROM "halo3"."campaign_carnage_report" ccr
                 WHERE EXISTS (
                     SELECT 1 FROM "halo3"."campaign_carnage_report_player" ccrp
                     WHERE ccrp.carnage_report_id = ccr.id
-                    AND ccrp.player_name = '${escapedGamertag}'
+                    AND ccrp.player_xuid = ${playerXuid}::numeric
                 )
-                AND ccr.finish_time >= '${oneYearAgoStr}'
+                AND ccr.finish_time >= ${oneYearAgoStr}::date
             ) combined
             GROUP BY DATE(finish_time)
             ORDER BY date ASC
         `;
-
-        const dailyCounts = await this.prisma.$queryRawUnsafe<Array<{ 
-            date: Date; 
-            count: number;
-        }>>(dailyCountsQuery);
 
         // Convert to map for easy lookup
         const heatmapData: Record<string, number> = {};
